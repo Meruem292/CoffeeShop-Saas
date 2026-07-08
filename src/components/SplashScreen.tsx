@@ -18,28 +18,28 @@ export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps)
   const themeColor = shopSettings?.themeColor || '#4b2c20';
 
   return (
-    <div className="fixed inset-0 z-[200] bg-[#F5EBE0] flex flex-col overflow-hidden font-sans">
+    <div className="fixed inset-0 z-[200] bg-[#F5EBE0] flex flex-col overflow-y-auto overflow-x-hidden font-sans">
       {/* Decorative Background Blobs */}
       <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#E3D5CA] rounded-full blur-[100px] opacity-50" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-[#D5BDAF] rounded-full blur-[80px] opacity-30" />
 
       {/* Header / Nav */}
-      <header className="relative z-10 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto w-full">
+      <header className="relative z-10 flex items-center justify-between px-6 md:px-8 py-6 max-w-7xl mx-auto w-full shrink-0">
         <div className="flex items-center gap-3">
           <div 
-            className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden shadow-xl"
+            className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center overflow-hidden shadow-xl"
             style={{ backgroundColor: themeColor }}
           >
             {shopSettings?.logoUrl ? (
               <img src={shopSettings.logoUrl} className="w-full h-full object-cover" alt="Logo" />
             ) : (
-              <span className="text-lg font-black text-white italic tracking-tighter">{shopSettings?.initials || 'CH'}</span>
+              <span className="text-base md:text-lg font-black text-white italic tracking-tighter">{shopSettings?.initials || 'CH'}</span>
             )}
           </div>
-          <span className="text-2xl font-black text-coffee-950 uppercase tracking-tighter">{shopSettings?.name || 'CoffeeHouse'}</span>
+          <span className="text-xl md:text-2xl font-black text-coffee-950 uppercase tracking-tighter">{shopSettings?.name || 'CoffeeHouse'}</span>
         </div>
         
-        <div className="flex items-center gap-4 text-coffee-700">
+        <div className="flex items-center gap-3 md:gap-4 text-coffee-700">
           <Instagram className="w-5 h-5 cursor-pointer hover:text-coffee-950 transition-colors" />
           <Facebook className="w-5 h-5 cursor-pointer hover:text-coffee-950 transition-colors" />
           <Twitter className="w-5 h-5 cursor-pointer hover:text-coffee-950 transition-colors" />
@@ -47,7 +47,7 @@ export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps)
       </header>
 
       {/* Hero Content */}
-      <main className="flex-1 relative z-10 flex flex-col md:flex-row items-center justify-center px-8 max-w-7xl mx-auto w-full gap-12 pb-12">
+      <main className="flex-1 relative z-10 flex flex-col md:flex-row items-center justify-center px-6 md:px-8 max-w-7xl mx-auto w-full gap-8 md:gap-12 py-8 md:py-12 shrink-0">
         {/* Left Side: Image with Organic Mask */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.9, rotate: -5 }}
