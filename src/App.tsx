@@ -8,6 +8,7 @@ import { AdminSettings } from './components/AdminSettings';
 import { SplashScreen } from './components/SplashScreen';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import Balatro from './components/Balatro';
+import Silk from './components/Silk';
 import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useFirebase } from './lib/useFirebase';
@@ -207,42 +208,50 @@ export default function App() {
           <AnimatePresence mode="wait">
             <motion.div
               key={currentView}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="flex-1 overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 overflow-hidden flex"
             >
-              {currentView === 'pos' && (
-                <OrderingScreen mode="pos" menu={products.filter(p => p.isActive)} onPlaceOrder={handlePlaceOrder} />
+              {(currentView === 'pos' || currentView === 'kiosk' || currentView === 'mobile') && !isAdmin && (
+                <div className="fixed inset-0 z-0">
+                  <Silk />
+                </div>
               )}
-              {currentView === 'kiosk' && (
-                <OrderingScreen mode="kiosk" menu={products.filter(p => p.isActive)} onPlaceOrder={handlePlaceOrder} />
-              )}
-              {currentView === 'mobile' && (
-                <OrderingScreen mode="mobile" menu={products.filter(p => p.isActive)} onPlaceOrder={handlePlaceOrder} />
-              )}
-              {currentView === 'queue' && (
-                <KitchenQueue orders={orders} onUpdateStatus={updateOrderStatus} />
-              )}
-              {currentView === 'inventory' && (
-                <InventoryManager products={products} onUpdateStock={updateStock} />
-              )}
-              {currentView === 'admin-products' && (
-                <AdminProducts 
-                  products={products}
-                  onAddProduct={addProduct}
-                  onUpdateProduct={updateProduct}
-                  onDeleteProduct={deleteProduct}
-                />
-              )}
-              {currentView === 'settings' && (
-                <AdminSettings 
-                  splashScreen={splashScreen}
-                  shopSettings={shopSettings}
-                  onUpdateSplash={updateSplashScreen}
-                  onUpdateShop={updateShopSettings}
-                />
-              )}
+              
+              <div className="flex-1 relative z-10 flex flex-col">
+                {currentView === 'pos' && (
+                  <OrderingScreen mode="pos" menu={products.filter(p => p.isActive)} onPlaceOrder={handlePlaceOrder} />
+                )}
+                {currentView === 'kiosk' && (
+                  <OrderingScreen mode="kiosk" menu={products.filter(p => p.isActive)} onPlaceOrder={handlePlaceOrder} />
+                )}
+                {currentView === 'mobile' && (
+                  <OrderingScreen mode="mobile" menu={products.filter(p => p.isActive)} onPlaceOrder={handlePlaceOrder} />
+                )}
+                {currentView === 'queue' && (
+                  <KitchenQueue orders={orders} onUpdateStatus={updateOrderStatus} />
+                )}
+                {currentView === 'inventory' && (
+                  <InventoryManager products={products} onUpdateStock={updateStock} />
+                )}
+                {currentView === 'admin-products' && (
+                  <AdminProducts 
+                    products={products}
+                    onAddProduct={addProduct}
+                    onUpdateProduct={updateProduct}
+                    onDeleteProduct={deleteProduct}
+                  />
+                )}
+                {currentView === 'settings' && (
+                  <AdminSettings 
+                    splashScreen={splashScreen}
+                    shopSettings={shopSettings}
+                    onUpdateSplash={updateSplashScreen}
+                    onUpdateShop={updateShopSettings}
+                  />
+                )}
+              </div>
             </motion.div>
           </AnimatePresence>
         )}

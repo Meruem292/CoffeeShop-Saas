@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Product, CartItem, Order, ProductSize } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store } from 'lucide-react';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface OrderingScreenProps {
@@ -136,38 +136,64 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
   const containerClasses = {
     pos: 'flex h-screen overflow-hidden',
     kiosk: 'flex h-screen w-screen bg-white overflow-hidden border-coffee-200',
-    mobile: 'flex flex-col h-screen max-w-md mx-auto bg-white shadow-xl relative',
+    mobile: 'flex flex-col h-screen w-full bg-white relative',
   };
 
   const renderMenuGrid = () => (
-    <div className={`flex-1 overflow-hidden bg-coffee-50/50 flex ${mode === 'kiosk' ? 'flex-row' : 'flex-col'}`}>
-      {/* Kiosk Vertical Sidebar */}
-      {mode === 'kiosk' && (
-        <div className="w-32 bg-white border-r border-coffee-200 flex flex-col py-4 gap-2 overflow-y-auto scrollbar-hide">
+    <div className={`flex-1 overflow-hidden bg-[#FDFCFB]/98 backdrop-blur-md flex ${mode !== 'pos' ? 'flex-row' : 'flex-col'}`}>
+      {/* Sidebar Navigation for Kiosk/Mobile */}
+      {mode !== 'pos' && (
+        <div className="w-20 md:w-28 lg:w-32 bg-coffee-950 flex flex-col py-8 gap-4 md:gap-6 overflow-y-auto scrollbar-hide shrink-0 z-20 shadow-2xl">
+          <div className="flex flex-col items-center gap-1 mb-6 opacity-90">
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full border-2 border-white/10 flex items-center justify-center bg-white/5 shadow-inner">
+              <span className="text-white font-black text-xl md:text-3xl italic tracking-tighter">A</span>
+            </div>
+            <span className="text-[8px] md:text-[10px] text-white/30 uppercase font-black tracking-[0.4em] mt-3">Abacus</span>
+          </div>
+
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`flex flex-col items-center gap-2 p-4 transition-all ${
+              className={`flex flex-col items-center gap-2 p-2 transition-all relative ${
                 activeCategory === cat
-                  ? 'bg-amber-100 border-l-4 border-amber-600'
-                  : 'hover:bg-coffee-50'
+                  ? 'text-white'
+                  : 'text-coffee-400 hover:text-coffee-200'
               }`}
             >
-              <div className={`p-3 rounded-full ${activeCategory === cat ? 'bg-amber-600 text-white' : 'bg-coffee-100 text-coffee-600'}`}>
-                <Coffee className="w-6 h-6" />
+              {activeCategory === cat && (
+                <motion.div 
+                  layoutId="active-nav"
+                  className="absolute inset-0 bg-white/10 border-r-4 border-amber-500" 
+                />
+              )}
+              <div className={`p-2.5 rounded-xl transition-all relative z-10 ${
+                activeCategory === cat ? 'bg-white text-coffee-900 shadow-xl scale-110' : 'bg-transparent'
+              }`}>
+                {cat === 'Hot Coffee' && <Coffee className="w-5 h-5 md:w-6 md:h-6" />}
+                {cat === 'Cold Coffee' && <Coffee className="w-5 h-5 md:w-6 md:h-6" />}
+                {cat === 'Tea' && <Coffee className="w-5 h-5 md:w-6 md:h-6" />}
+                {cat === 'Food' && <Coffee className="w-5 h-5 md:w-6 md:h-6" />}
               </div>
-              <span className={`text-[10px] font-black uppercase text-center leading-tight ${activeCategory === cat ? 'text-amber-900' : 'text-coffee-500'}`}>
-                {cat}
+              <span className={`text-[8px] md:text-[9px] font-black uppercase text-center leading-tight relative z-10 tracking-widest ${
+                activeCategory === cat ? 'text-amber-500' : ''
+              }`}>
+                {cat.split(' ')[0]}
               </span>
             </button>
           ))}
+          
+          <div className="mt-auto flex flex-col items-center py-4">
+             <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+                <ArrowRight className="w-3 h-3 text-white rotate-90" />
+             </div>
+          </div>
         </div>
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Categories for POS and Mobile */}
-        {mode !== 'kiosk' && (
+        {/* Horizontal Categories for POS only */}
+        {mode === 'pos' && (
           <div className="p-4 bg-white border-b border-coffee-100 flex gap-2 overflow-x-auto shrink-0 scrollbar-hide">
             {categories.map((cat) => (
               <button
@@ -185,56 +211,79 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
-          <motion.div 
-            className={`grid gap-4 pb-24 md:pb-0 ${
-              mode === 'mobile' ? 'grid-cols-2' : 
-              mode === 'kiosk' ? 'grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' : 
-              'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-            }`}
-            initial="hidden"
-            animate="show"
-            key={activeCategory}
-            variants={{
-              hidden: { opacity: 0 },
-              show: { opacity: 1, transition: { staggerChildren: 0.05 } }
-            }}
-          >
-            {menu.filter((item) => item.category === activeCategory).map((item) => (
-              <motion.div
-                key={item.id}
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  show: { opacity: 1, y: 0 }
-                }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => addToCart(item)}
-                className={`bg-white shadow-sm border border-coffee-100 hover:shadow-2xl hover:border-amber-300 transition-all cursor-pointer flex flex-col group ${
-                  mode === 'kiosk' ? 'rounded-2xl p-3' : 'rounded-[2rem] p-5'
-                }`}
-              >
-                <div className={`rounded-xl overflow-hidden bg-coffee-100 mb-3 relative shadow-inner aspect-square`}>
-                  <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 scrollbar-hide">
+          <div className="w-full max-w-[1440px] mx-auto">
+            <header className="mb-8 flex items-end justify-between border-b border-coffee-100 pb-5">
+              <div>
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-coffee-950 uppercase italic tracking-tighter leading-none">
+                  {activeCategory}
+                </h2>
+                <div className="h-1.5 w-16 bg-amber-600 rounded-full mt-3" />
+              </div>
+              <div className="hidden lg:block text-right pb-1">
+                <span className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.4em] block mb-1">Section</span>
+                <div className="text-base font-black text-coffee-900 italic tracking-tighter">
+                  {categories.indexOf(activeCategory) + 1} <span className="text-coffee-200">/</span> {categories.length}
                 </div>
-                <div className="flex flex-col flex-1">
-                  <h3 className={`font-black text-coffee-950 leading-tight mb-1 group-hover:text-amber-700 transition-colors ${
-                    mode === 'kiosk' ? 'text-sm' : 'text-xl'
-                  }`}>{item.name}</h3>
-                  <div className="flex items-center justify-between mt-auto pt-1">
-                    <div className={`font-black text-coffee-900 ${
-                      mode === 'kiosk' ? 'text-lg' : 'text-2xl'
-                    }`}>₱{item.price.toLocaleString()}</div>
-                    <div className={`rounded-xl bg-coffee-900 text-white flex items-center justify-center group-hover:bg-amber-600 transition-all shadow-lg group-hover:rotate-6 ${
-                      mode === 'kiosk' ? 'w-8 h-8' : 'w-10 h-10'
-                    }`}>
-                      <Plus className={mode === 'kiosk' ? 'w-4 h-4' : 'w-6 h-6'} />
+              </div>
+            </header>
+
+            <motion.div 
+              className={`grid gap-5 md:gap-6 lg:gap-8 ${
+                mode === 'mobile' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 
+                'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+              }`}
+              initial="hidden"
+              animate="show"
+              key={activeCategory}
+              variants={{
+                hidden: { opacity: 0 },
+                show: { opacity: 1, transition: { staggerChildren: 0.05 } }
+              }}
+            >
+              {menu.filter((item) => item.category === activeCategory).map((item) => (
+                <motion.div
+                  key={item.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 30 },
+                    show: { opacity: 1, y: 0 }
+                  }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => addToCart(item)}
+                  className="bg-white rounded-[1.5rem] p-4 md:p-5 border border-coffee-100 hover:border-amber-500/30 hover:shadow-xl transition-all cursor-pointer flex flex-col group relative"
+                >
+                  <div className="aspect-square w-full rounded-[1rem] overflow-hidden bg-coffee-50 mb-4 relative shadow-sm group-hover:shadow-md transition-all duration-500">
+                    <img 
+                      src={item.image} 
+                      alt={item.name} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
+                    
+                    {cart.find(c => c.id === item.id) && (
+                      <div className="absolute top-2.5 right-2.5 w-6 h-6 bg-amber-600 text-white rounded-full flex items-center justify-center font-black text-[10px] border-2 border-white shadow-lg">
+                        {cart.filter(c => c.id === item.id).reduce((sum, item) => sum + item.quantity, 0)}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-col flex-1 text-center">
+                    <h3 className="font-black text-coffee-950 text-sm md:text-base leading-none mb-1.5 uppercase tracking-tight group-hover:text-amber-700 transition-colors">
+                      {item.name}
+                    </h3>
+                    <div className="mt-auto">
+                      <div className="text-base md:text-lg font-black text-coffee-900 mb-2 italic">
+                        ₱{item.price.toLocaleString()}
+                      </div>
+                      <div className="inline-flex h-8 w-8 rounded-lg bg-coffee-900 text-white items-center justify-center group-hover:bg-amber-600 transition-all shadow-md group-hover:rotate-12">
+                        <Plus className="w-4 h-4" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
         </div>
       </div>
     </div>
@@ -347,56 +396,48 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
 
         {/* Cart Area - Kiosk (Bottom Bar) */}
         {mode === 'kiosk' && (
-          <div className="h-32 bg-white border-t-4 border-amber-500 shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.1)] z-10 flex items-center px-8 gap-8">
-            <div className="flex-1 flex gap-4 overflow-x-auto py-2 scrollbar-hide">
-              {cart.map((item) => (
-                <div key={item.cartId} className="flex items-center gap-3 bg-coffee-50 p-2 rounded-2xl border border-coffee-100 shrink-0">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-white border border-coffee-100">
-                    <img src={item.image} className="w-full h-full object-cover" alt={item.name} />
-                  </div>
-                  <div>
-                    <div className="text-xs font-black text-coffee-900 truncate w-24 leading-none mb-1">{item.name}</div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => updateQuantity(item.cartId, -1)} className="w-6 h-6 bg-white rounded-md flex items-center justify-center text-coffee-900 border border-coffee-200">-</button>
-                      <span className="text-sm font-black">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.cartId, 1)} className="w-6 h-6 bg-coffee-900 rounded-md flex items-center justify-center text-white">+</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {cart.length === 0 && (
-                <div className="flex items-center gap-4 text-coffee-400 font-bold italic">
-                  <ShoppingBag className="w-8 h-8 opacity-20" />
-                  <span>Start adding items to your order</span>
-                </div>
-              )}
+          <div className="h-28 bg-white border-t border-coffee-100 shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.1)] z-30 flex items-stretch px-6 py-4 gap-6">
+            <button 
+              onClick={() => {
+                setCart([]);
+                setOrderType(null);
+              }}
+              className="px-8 bg-coffee-50 text-coffee-500 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-red-50 hover:text-red-500 transition-all flex items-center gap-2"
+            >
+              <X className="w-5 h-5" />
+              Cancel Order
+            </button>
+            
+            <div className="flex-1 bg-amber-600 text-white rounded-2xl flex items-center px-8 shadow-lg">
+              <div className="flex-1">
+                <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Total Order</div>
+                <div className="text-3xl font-black italic">₱{total.toLocaleString()}</div>
+              </div>
+              <div className="flex -space-x-3 overflow-hidden">
+                 {cart.slice(0, 3).map((item, i) => (
+                   <img 
+                    key={item.cartId} 
+                    src={item.image} 
+                    className="w-10 h-10 rounded-full border-2 border-amber-600 shadow-md object-cover" 
+                    alt={item.name} 
+                   />
+                 ))}
+                 {cart.length > 3 && (
+                   <div className="w-10 h-10 rounded-full border-2 border-amber-600 bg-amber-700 flex items-center justify-center text-[10px] font-bold shadow-md">
+                     +{cart.length - 3}
+                   </div>
+                 )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-8 shrink-0">
-               <div className="text-right">
-                  <div className="text-xs font-bold text-coffee-500 uppercase tracking-widest">Grand Total</div>
-                  <div className="text-4xl font-black text-coffee-950">₱{total.toLocaleString()}</div>
-               </div>
-               
-               <div className="flex gap-3">
-                 <button 
-                  onClick={() => {
-                    setCart([]);
-                    setOrderType(null);
-                  }}
-                  className="px-8 py-4 border-2 border-coffee-200 rounded-2xl font-black text-coffee-600 hover:bg-coffee-50 transition-colors"
-                 >
-                   CANCEL
-                 </button>
-                 <button 
-                  onClick={handleCheckout}
-                  disabled={cart.length === 0}
-                  className="px-12 py-4 bg-amber-600 hover:bg-amber-500 disabled:bg-coffee-200 text-white rounded-2xl font-black text-xl shadow-xl transition-all active:scale-95"
-                 >
-                   CHECKOUT
-                 </button>
-               </div>
-            </div>
+            <button 
+              onClick={handleCheckout}
+              disabled={cart.length === 0}
+              className="px-12 bg-coffee-950 text-white rounded-2xl font-black text-xl uppercase tracking-tighter italic hover:bg-black transition-all shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
+            >
+              Checkout
+              <ArrowRight className="w-6 h-6" />
+            </button>
           </div>
         )}
       </div>
