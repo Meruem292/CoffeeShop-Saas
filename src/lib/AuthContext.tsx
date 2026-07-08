@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, signInWithPopup, signOut, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { User, signOut, onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db, googleProvider } from '../firebase';
+import { auth, db } from '../firebase';
 
 enum OperationType {
   CREATE = 'create',
@@ -44,11 +44,8 @@ interface AuthContextType {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
-  signIn: () => Promise<User>;
   signInWithEmail: (e: string, p: string) => Promise<User>;
-  signUpWithEmail: (e: string, p: string) => Promise<User>;
   logOut: () => Promise<void>;
-  makeAdmin: (u?: User | null) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -101,32 +98,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  const signIn = async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      return result.user;
-    } catch (error) {
-      console.error("Error signing in:", error);
-      throw error;
-    }
-  };
-
   const signInWithEmail = async (email: string, pass: string) => {
     try {
       const result = await signInWithEmailAndPassword(auth, email, pass);
       return result.user;
     } catch (error) {
       console.error("Error signing in with email:", error);
-      throw error;
-    }
-  };
-
-  const signUpWithEmail = async (email: string, pass: string) => {
-    try {
-      const result = await createUserWithEmailAndPassword(auth, email, pass);
-      return result.user;
-    } catch (error) {
-      console.error("Error signing up with email:", error);
       throw error;
     }
   };
@@ -139,23 +116,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const makeAdmin = async (targetUser?: User | null) => {
-    const u = targetUser || user;
-    if (!u) return;
-    try {
-      await setDoc(doc(db, 'admins', u.uid), {
-        email: u.email || 'anonymous',
-        createdAt: Date.now()
-      });
-      setIsAdmin(true);
-    } catch (error) {
-      console.error('Error making admin:', error);
-      throw error;
-    }
-  };
-
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading, signIn, signInWithEmail, signUpWithEmail, logOut, makeAdmin }}>
+    <AuthContext.Provider value={{ user, isAdmin, loading, signInWithEmail, logOut }}>
       {children}
     </AuthContext.Provider>
   );
