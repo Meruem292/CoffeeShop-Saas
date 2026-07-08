@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Coffee shop menu items and inventory products",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string" },
+        "description": { "type": "string" },
+        "stock": { "type": "number" },
+        "lowStockThreshold": { "type": "number" },
+        "unit": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["name", "category", "price", "stock", "isActive"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer orders",
+      "type": "object",
+      "properties": {
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "preparing", "ready", "completed"] },
+        "createdAt": { "type": "number" },
+        "source": { "type": "string" },
+        "customerName": { "type": "string" }
+      },
+      "required": ["items", "total", "status", "createdAt"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Administrator user records",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "ShopSettings": {
+      "title": "Shop Settings",
+      "description": "Global shop configuration and branding",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "initials": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "themeColor": { "type": "string" }
+      },
+      "required": ["name", "initials"]
+    },
+    "SplashScreen": {
+      "title": "Splash Screen",
+      "description": "Splash screen content settings",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "buttonText": { "type": "string" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["title", "isActive"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Collection of products"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of orders"
+    },
+    "/admins/{userId}": {
+      "schema": "Admin",
+      "description": "Collection of admin users"
+    },
+    "/settings/shop": {
+      "schema": "ShopSettings",
+      "description": "Global shop brand settings"
+    },
+    "/settings/splash": {
+      "schema": "SplashScreen",
+      "description": "Splash screen display settings"
+    }
+  }
+}

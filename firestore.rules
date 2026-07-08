@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'category', 'price', 'stock', 'isActive']) &&
+             data.name is string && data.name.size() > 0 &&
+             data.category is string &&
+             data.price is number && data.price >= 0 &&
+             data.stock is number &&
+             data.isActive is bool;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['items', 'total', 'status', 'createdAt']) &&
+             data.items is list &&
+             data.total is number && data.total >= 0 &&
+             data.status in ['pending', 'preparing', 'ready', 'completed'] &&
+             data.createdAt is number;
+    }
+
+    function isValidAdmin(data) {
+      return data.keys().hasAll(['email', 'createdAt']) &&
+             data.email is string &&
+             data.createdAt is number;
+    }
+
+    // --- Rules ---
+
+    // Admin Collection
+    match /admins/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow create: if isSignedIn() && request.auth.uid == userId && isValidAdmin(incoming());
+      allow update: if isAdmin() && isValidAdmin(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Products Collection
+    match /products/{productId} {
+      allow read: if true; // Publicly viewable menu
+      allow create: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
+      allow update: if isAdmin() && isValidProduct(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Orders Collection
+    match /orders/{orderId} {
+      allow read: if isAdmin() || (isSignedIn() && existing().customerName == request.auth.token.name);
+      allow create: if isValidId(orderId) && isValidOrder(incoming());
+      allow update: if isAdmin() && isValidOrder(incoming());
+      allow delete: if isAdmin();
+    }
+  }
+}

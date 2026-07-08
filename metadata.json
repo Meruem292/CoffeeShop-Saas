@@ -1,0 +1,6 @@
+{
+  "name": "Coffee Shop POS",
+  "description": "A multi-platform Coffee Shop Point of Sale system supporting staff POS, kiosk ordering, mobile app simulation, FIFO kitchen queue, and inventory management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
