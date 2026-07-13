@@ -35,8 +35,16 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
     setActiveCategory(categories[0]);
   }
 
+  const isProductBeverage = (product: Product) => {
+    const categoryLower = (product.category || '').toLowerCase();
+    const nameLower = (product.name || '').toLowerCase();
+    return ['coffee', 'tea', 'drink', 'beverage', 'iced', 'hot', 'latte', 'americano', 'matcha', 'macchiato', 'espresso', 'cappuccino'].some(keyword => 
+      categoryLower.includes(keyword) || nameLower.includes(keyword)
+    ) || !!product.isCustomizable;
+  };
+
   const handleProductClick = (product: Product) => {
-    if ((product.sizes && product.sizes.length > 0) || product.isCustomizable) {
+    if ((product.sizes && product.sizes.length > 0) || product.isCustomizable || isProductBeverage(product)) {
       setSelectedProductForConfig(product);
       setSelectedSizeConfig(product.sizes && product.sizes.length > 0 ? product.sizes[0] : null);
       setSelectedSugarConfig('100%');
@@ -589,52 +597,52 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
       {/* Customization Modal */}
         {selectedProductForConfig && (
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm"
           >
             <div
-              className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+              className="bg-white w-full max-w-[95vw] sm:max-w-md md:max-w-lg rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[92vh]"
             >
-              <div className="relative aspect-video shrink-0">
+              <div className="relative h-36 sm:h-48 md:h-56 w-full shrink-0 overflow-hidden">
                 <img src={selectedProductForConfig.image} alt={selectedProductForConfig.name} className="w-full h-full object-cover" />
                 <button 
                   onClick={() => setSelectedProductForConfig(null)}
-                  className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur rounded-full text-coffee-900 shadow-lg"
+                  className="absolute top-3 right-3 sm:top-4 sm:right-4 p-1.5 sm:p-2 bg-white/90 backdrop-blur rounded-full text-coffee-900 shadow-lg hover:bg-white transition-colors"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
-              <div className="p-6 flex-1 overflow-y-auto">
-                <h3 className="text-2xl font-bold text-coffee-900 mb-1">{selectedProductForConfig.name}</h3>
-                <p className="text-coffee-500 text-sm mb-6">{selectedProductForConfig.description}</p>
+              <div className="p-4 sm:p-6 flex-1 overflow-y-auto scrollbar-thin">
+                <h3 className="text-lg sm:text-2xl font-bold text-coffee-900 mb-0.5 sm:mb-1">{selectedProductForConfig.name}</h3>
+                <p className="text-coffee-500 text-xs sm:text-sm mb-4 sm:mb-6">{selectedProductForConfig.description}</p>
                 
                 {selectedProductForConfig.sizes && selectedProductForConfig.sizes.length > 0 && (
-                  <div className="mb-6">
-                    <label className="block text-xs font-bold text-coffee-400 uppercase tracking-widest mb-3">Select Size</label>
-                    <div className="space-y-2">
+                  <div className="mb-4 sm:mb-6">
+                    <label className="block text-[10px] sm:text-xs font-bold text-coffee-400 uppercase tracking-widest mb-2 sm:mb-3">Select Size</label>
+                    <div className="space-y-1.5 sm:space-y-2">
                       {selectedProductForConfig.sizes.map((size) => (
                         <button
                           key={size.name}
                           onClick={() => setSelectedSizeConfig(size)}
-                          className={`w-full flex items-center justify-between p-3 border-2 rounded-xl transition-all ${selectedSizeConfig?.name === size.name ? 'border-amber-600 bg-amber-50' : 'border-coffee-100 hover:border-coffee-300'}`}
+                          className={`w-full flex items-center justify-between p-2.5 sm:p-3 border-2 rounded-xl transition-all ${selectedSizeConfig?.name === size.name ? 'border-amber-600 bg-amber-50' : 'border-coffee-100 hover:border-coffee-300'}`}
                         >
-                          <span className="font-bold text-coffee-900 uppercase text-sm">{size.name}</span>
-                          <span className="font-bold text-coffee-900">₱{size.price.toLocaleString()}</span>
+                          <span className="font-bold text-coffee-900 uppercase text-xs sm:text-sm">{size.name}</span>
+                          <span className="font-bold text-coffee-900 text-xs sm:text-sm">₱{size.price.toLocaleString()}</span>
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
                 
-                {selectedProductForConfig.isCustomizable && (
+                {(selectedProductForConfig.isCustomizable || isProductBeverage(selectedProductForConfig)) && (
                   <>
-                    <div className="mb-6">
-                      <label className="block text-xs font-bold text-coffee-400 uppercase tracking-widest mb-3">Sugar Level</label>
-                      <div className="flex gap-2">
+                    <div className="mb-4 sm:mb-6">
+                      <label className="block text-[10px] sm:text-xs font-bold text-coffee-400 uppercase tracking-widest mb-2 sm:mb-3">Sugar Level</label>
+                      <div className="flex gap-1.5 sm:gap-2">
                         {(['0%', '25%', '50%', '75%', '100%'] as SugarLevel[]).map((level) => (
                           <button
                             key={level}
                             onClick={() => setSelectedSugarConfig(level)}
-                            className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${selectedSugarConfig === level ? 'bg-amber-600 text-white' : 'bg-coffee-100 text-coffee-600 hover:bg-coffee-200'}`}
+                            className={`flex-1 py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all ${selectedSugarConfig === level ? 'bg-amber-600 text-white' : 'bg-coffee-100 text-coffee-600 hover:bg-coffee-200'}`}
                           >
                             {level}
                           </button>
@@ -643,24 +651,24 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
                     </div>
 
                     {addons.length > 0 && (
-                      <div className="mb-6">
-                        <label className="block text-xs font-bold text-coffee-400 uppercase tracking-widest mb-3">Add-ons</label>
-                        <div className="space-y-2">
+                      <div className="mb-4 sm:mb-6">
+                        <label className="block text-[10px] sm:text-xs font-bold text-coffee-400 uppercase tracking-widest mb-2 sm:mb-3">Add-ons</label>
+                        <div className="space-y-1.5 sm:space-y-2">
                           {addons.map((addon) => {
                             const isSelected = selectedAddonsConfig.some(a => a.id === addon.id);
                             return (
                               <button
                                 key={addon.id}
                                 onClick={() => toggleAddon(addon)}
-                                className={`w-full flex items-center justify-between p-3 border-2 rounded-xl transition-all ${isSelected ? 'border-amber-600 bg-amber-50' : 'border-coffee-100 hover:border-coffee-300'}`}
+                                className={`w-full flex items-center justify-between p-2.5 sm:p-3 border-2 rounded-xl transition-all ${isSelected ? 'border-amber-600 bg-amber-50' : 'border-coffee-100 hover:border-coffee-300'}`}
                               >
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-5 h-5 rounded flex items-center justify-center border-2 ${isSelected ? 'border-amber-600 bg-amber-600' : 'border-coffee-300'}`}>
-                                    {isSelected && <Check className="w-3 h-3 text-white" />}
+                                <div className="flex items-center gap-2 sm:gap-3">
+                                  <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded flex items-center justify-center border-2 ${isSelected ? 'border-amber-600 bg-amber-600' : 'border-coffee-300'}`}>
+                                    {isSelected && <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />}
                                   </div>
-                                  <span className="font-bold text-coffee-900 text-sm">{addon.name}</span>
+                                  <span className="font-bold text-coffee-900 text-xs sm:text-sm">{addon.name}</span>
                                 </div>
-                                <span className="font-bold text-coffee-900 text-sm">+₱{addon.price.toLocaleString()}</span>
+                                <span className="font-bold text-coffee-900 text-xs sm:text-sm">+₱{addon.price.toLocaleString()}</span>
                               </button>
                             );
                           })}
@@ -670,10 +678,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
                   </>
                 )}
               </div>
-              <div className="p-4 border-t border-coffee-100 bg-coffee-50 shrink-0">
+              <div className="p-3 sm:p-4 border-t border-coffee-100 bg-coffee-50 shrink-0">
                 <button
                   onClick={handleConfigSubmit}
-                  className="w-full py-4 bg-coffee-900 text-white rounded-xl font-bold text-lg hover:bg-coffee-800 transition-colors shadow-md"
+                  className="w-full py-2.5 sm:py-4 bg-coffee-900 text-white rounded-xl font-bold text-sm sm:text-lg hover:bg-coffee-800 transition-colors shadow-md"
                 >
                   Add to Order - ₱{((selectedSizeConfig ? selectedSizeConfig.price : selectedProductForConfig.price) + selectedAddonsConfig.reduce((sum, a) => sum + a.price, 0)).toLocaleString()}
                 </button>
