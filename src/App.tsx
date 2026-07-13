@@ -22,6 +22,7 @@ export default function App() {
   
   const {
     products,
+    addons,
     orders,
     splashScreen,
     shopSettings,
@@ -31,6 +32,9 @@ export default function App() {
     addProduct,
     updateProduct,
     deleteProduct,
+    addAddon,
+    updateAddon,
+    deleteAddon,
     addOrder,
     updateOrderStatus,
     updateStock
@@ -217,13 +221,13 @@ export default function App() {
             >
               <div className="flex-1 relative z-10 flex flex-col">
                 {currentView === 'pos' && (
-                  <OrderingScreen mode="pos" menu={products.filter(p => p.isActive)} onPlaceOrder={handlePlaceOrder} />
+                  <OrderingScreen mode="pos" menu={products.filter(p => p.isActive)} addons={addons.filter(a => a.isActive)} onPlaceOrder={handlePlaceOrder} />
                 )}
                 {currentView === 'kiosk' && (
-                  <OrderingScreen mode="kiosk" menu={products.filter(p => p.isActive)} onPlaceOrder={handlePlaceOrder} />
+                  <OrderingScreen mode="kiosk" menu={products.filter(p => p.isActive)} addons={addons.filter(a => a.isActive)} onPlaceOrder={handlePlaceOrder} />
                 )}
                 {currentView === 'mobile' && (
-                  <OrderingScreen mode="mobile" menu={products.filter(p => p.isActive)} onPlaceOrder={handlePlaceOrder} />
+                  <OrderingScreen mode="mobile" menu={products.filter(p => p.isActive)} addons={addons.filter(a => a.isActive)} onPlaceOrder={handlePlaceOrder} />
                 )}
                 {currentView === 'cashier' && (
                   <CashierView orders={orders} onUpdateStatus={updateOrderStatus} />
@@ -237,9 +241,13 @@ export default function App() {
                 {currentView === 'admin-products' && (
                   <AdminProducts 
                     products={products}
+                    addons={addons}
                     onAddProduct={addProduct}
                     onUpdateProduct={updateProduct}
                     onDeleteProduct={deleteProduct}
+                    onAddAddon={addAddon}
+                    onUpdateAddon={updateAddon}
+                    onDeleteAddon={deleteAddon}
                   />
                 )}
                 {currentView === 'settings' && (

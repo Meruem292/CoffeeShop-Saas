@@ -1,14 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { Product, CartItem, Order, ProductSize } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search } from 'lucide-react';
+import { Product, CartItem, Order, ProductSize, Addon, SugarLevel } from '../types';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown } from 'lucide-react';
 
 interface OrderingScreenProps {
   mode: 'pos' | 'kiosk' | 'mobile';
   menu: Product[];
+  addons?: Addon[];
   onPlaceOrder: (order: Omit<Order, 'id' | 'createdAt' | 'status'>) => void;
 }
 
-export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps) {
+export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: OrderingScreenProps) {
   const categories = useMemo(() => {
     const cats = Array.from(new Set(menu.map(p => p.category)));
     return cats.length > 0 ? cats : ['Hot Coffee', 'Cold Coffee', 'Tea', 'Food'];
@@ -20,7 +21,11 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
   const [tableNumber, setTableNumber] = useState('');
   const [orderType, setOrderType] = useState<'dine-in' | 'take-away' | null>(null);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
-  const [selectedProductForSize, setSelectedProductForSize] = useState<Product | null>(null);
+  const [selectedProductForConfig, setSelectedProductForConfig] = useState<Product | null>(null);
+
+  const [selectedSizeConfig, setSelectedSizeConfig] = useState<ProductSize | null>(null);
+  const [selectedSugarConfig, setSelectedSugarConfig] = useState<SugarLevel>('100%');
+  const [selectedAddonsConfig, setSelectedAddonsConfig] = useState<Addon[]>([]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -30,23 +35,60 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
     setActiveCategory(categories[0]);
   }
 
-  const addToCart = (product: Product, size?: ProductSize) => {
-    if (product.sizes && product.sizes.length > 0 && !size) {
-      setSelectedProductForSize(product);
-      return;
+  const handleProductClick = (product: Product) => {
+    if ((product.sizes && product.sizes.length > 0) || product.isCustomizable) {
+      setSelectedProductForConfig(product);
+      setSelectedSizeConfig(product.sizes && product.sizes.length > 0 ? product.sizes[0] : null);
+      setSelectedSugarConfig('100%');
+      setSelectedAddonsConfig([]);
+    } else {
+      addToCart(product);
     }
+  };
 
-    const price = size ? size.price : product.price;
+  const addToCart = (product: Product, size?: ProductSize, sugarLevel?: SugarLevel, selectedAddons?: Addon[]) => {
+    const basePrice = size ? size.price : product.price;
+    const addonsPrice = selectedAddons ? selectedAddons.reduce((sum, a) => sum + a.price, 0) : 0;
+    const finalPrice = basePrice + addonsPrice;
+    
     const cartId = Math.random().toString(36).substr(2, 9);
     
     setCart((prev) => {
-      const existingIndex = prev.findIndex(ci => ci.id === product.id && ci.selectedSize?.name === size?.name);
+      // Check for identical item (same size, sugar, and addons)
+      const existingIndex = prev.findIndex(ci => 
+        ci.id === product.id && 
+        ci.selectedSize?.name === size?.name &&
+        ci.sugarLevel === sugarLevel &&
+        JSON.stringify(ci.selectedAddons?.map(a => a.id).sort()) === JSON.stringify(selectedAddons?.map(a => a.id).sort())
+      );
       if (existingIndex > -1) {
         return prev.map((ci, idx) => idx === existingIndex ? { ...ci, quantity: ci.quantity + 1 } : ci);
       }
-      return [...prev, { ...product, cartId, quantity: 1, notes: '', selectedSize: size, price }];
+      return [...prev, { ...product, cartId, quantity: 1, notes: '', selectedSize: size, price: finalPrice, sugarLevel, selectedAddons }];
     });
-    setSelectedProductForSize(null);
+  };
+
+  const handleConfigSubmit = () => {
+    if (selectedProductForConfig) {
+      addToCart(
+        selectedProductForConfig, 
+        selectedSizeConfig || undefined, 
+        selectedProductForConfig.isCustomizable ? selectedSugarConfig : undefined, 
+        selectedProductForConfig.isCustomizable ? selectedAddonsConfig : undefined
+      );
+      setSelectedProductForConfig(null);
+    }
+  };
+
+  const toggleAddon = (addon: Addon) => {
+    setSelectedAddonsConfig(prev => {
+      const isSelected = prev.some(a => a.id === addon.id);
+      if (isSelected) {
+        return prev.filter(a => a.id !== addon.id);
+      } else {
+        return [...prev, addon];
+      }
+    });
   };
 
   const updateQuantity = (cartId: string, delta: number) => {
@@ -278,7 +320,7 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
                 {filteredMenu.map((item) => (
                 <div
                   key={item.id}
-                  onClick={() => addToCart(item)}
+                  onClick={() => handleProductClick(item)}
                   className={`bg-white transition-all cursor-pointer flex flex-col group relative ${mode === 'mobile' ? 'rounded-xl pb-2 shadow-sm' : 'rounded-[1.5rem] p-4 md:p-5 border border-coffee-100 hover:border-amber-500/30 hover:shadow-xl'}`}
                 >
                   <div className={`w-full overflow-hidden bg-coffee-50 relative transition-all duration-500 ${mode === 'mobile' ? 'aspect-square rounded-t-xl mb-2' : 'aspect-square rounded-[1rem] mb-4 shadow-sm group-hover:shadow-md'}`}>
@@ -356,7 +398,15 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
                       </span>
                     )}
                   </div>
-                  <div className="text-coffee-500 text-sm">₱{(item.price * item.quantity).toLocaleString()}</div>
+                  {(item.sugarLevel || (item.selectedAddons && item.selectedAddons.length > 0)) && (
+                    <div className="text-xs text-coffee-400 mt-0.5 space-y-0.5">
+                      {item.sugarLevel && <div>Sugar: {item.sugarLevel}</div>}
+                      {item.selectedAddons && item.selectedAddons.length > 0 && (
+                        <div>+ {item.selectedAddons.map(a => a.name).join(', ')}</div>
+                      )}
+                    </div>
+                  )}
+                  <div className="text-coffee-500 text-sm mt-1">₱{(item.price * item.quantity).toLocaleString()}</div>
                 </div>
                 <div className="flex items-center gap-2 md:gap-3 bg-coffee-50 p-1 rounded-lg">
                   <button
@@ -536,58 +586,97 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
         </>
       )}
 
-      {/* Size Selection Modal */}
-        {selectedProductForSize && (
+      {/* Customization Modal */}
+        {selectedProductForConfig && (
           <div
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           >
             <div
-              className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl"
+              className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
             >
-              <div className="relative aspect-video">
-                <img src={selectedProductForSize.image} alt={selectedProductForSize.name} className="w-full h-full object-cover" />
+              <div className="relative aspect-video shrink-0">
+                <img src={selectedProductForConfig.image} alt={selectedProductForConfig.name} className="w-full h-full object-cover" />
                 <button 
-                  onClick={() => setSelectedProductForSize(null)}
+                  onClick={() => setSelectedProductForConfig(null)}
                   className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur rounded-full text-coffee-900 shadow-lg"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="p-6">
-                <h3 className="text-2xl font-bold text-coffee-900 mb-1">{selectedProductForSize.name}</h3>
-                <p className="text-coffee-500 text-sm mb-6">{selectedProductForSize.description}</p>
+              <div className="p-6 flex-1 overflow-y-auto">
+                <h3 className="text-2xl font-bold text-coffee-900 mb-1">{selectedProductForConfig.name}</h3>
+                <p className="text-coffee-500 text-sm mb-6">{selectedProductForConfig.description}</p>
                 
-                <div className="space-y-3">
-                  <label className="block text-xs font-bold text-coffee-400 uppercase tracking-widest mb-2">Select Size</label>
-                  {selectedProductForSize.sizes?.map((size) => (
-                    <button
-                      key={size.name}
-                      onClick={() => addToCart(selectedProductForSize, size)}
-                      className="w-full flex items-center justify-between p-4 border-2 border-coffee-100 rounded-2xl hover:border-coffee-900 hover:bg-coffee-50 transition-all group"
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="font-bold text-coffee-900 group-hover:text-coffee-950 uppercase">{size.name}</span>
+                {selectedProductForConfig.sizes && selectedProductForConfig.sizes.length > 0 && (
+                  <div className="mb-6">
+                    <label className="block text-xs font-bold text-coffee-400 uppercase tracking-widest mb-3">Select Size</label>
+                    <div className="space-y-2">
+                      {selectedProductForConfig.sizes.map((size) => (
+                        <button
+                          key={size.name}
+                          onClick={() => setSelectedSizeConfig(size)}
+                          className={`w-full flex items-center justify-between p-3 border-2 rounded-xl transition-all ${selectedSizeConfig?.name === size.name ? 'border-amber-600 bg-amber-50' : 'border-coffee-100 hover:border-coffee-300'}`}
+                        >
+                          <span className="font-bold text-coffee-900 uppercase text-sm">{size.name}</span>
+                          <span className="font-bold text-coffee-900">₱{size.price.toLocaleString()}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {selectedProductForConfig.isCustomizable && (
+                  <>
+                    <div className="mb-6">
+                      <label className="block text-xs font-bold text-coffee-400 uppercase tracking-widest mb-3">Sugar Level</label>
+                      <div className="flex gap-2">
+                        {(['0%', '25%', '50%', '75%', '100%'] as SugarLevel[]).map((level) => (
+                          <button
+                            key={level}
+                            onClick={() => setSelectedSugarConfig(level)}
+                            className={`flex-1 py-2 rounded-lg font-bold text-sm transition-all ${selectedSugarConfig === level ? 'bg-amber-600 text-white' : 'bg-coffee-100 text-coffee-600 hover:bg-coffee-200'}`}
+                          >
+                            {level}
+                          </button>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-coffee-900">₱{size.price.toLocaleString()}</span>
-                        <div className="w-6 h-6 rounded-full border-2 border-coffee-200 group-hover:border-coffee-900 flex items-center justify-center">
-                          <div className="w-3 h-3 rounded-full bg-coffee-900 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+
+                    {addons.length > 0 && (
+                      <div className="mb-6">
+                        <label className="block text-xs font-bold text-coffee-400 uppercase tracking-widest mb-3">Add-ons</label>
+                        <div className="space-y-2">
+                          {addons.map((addon) => {
+                            const isSelected = selectedAddonsConfig.some(a => a.id === addon.id);
+                            return (
+                              <button
+                                key={addon.id}
+                                onClick={() => toggleAddon(addon)}
+                                className={`w-full flex items-center justify-between p-3 border-2 rounded-xl transition-all ${isSelected ? 'border-amber-600 bg-amber-50' : 'border-coffee-100 hover:border-coffee-300'}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-5 h-5 rounded flex items-center justify-center border-2 ${isSelected ? 'border-amber-600 bg-amber-600' : 'border-coffee-300'}`}>
+                                    {isSelected && <Check className="w-3 h-3 text-white" />}
+                                  </div>
+                                  <span className="font-bold text-coffee-900 text-sm">{addon.name}</span>
+                                </div>
+                                <span className="font-bold text-coffee-900 text-sm">+₱{addon.price.toLocaleString()}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
-                    </button>
-                  ))}
-                  
-                  {/* Option for base price if no sizes but we somehow got here */}
-                  {(!selectedProductForSize.sizes || selectedProductForSize.sizes.length === 0) && (
-                    <button
-                      onClick={() => addToCart(selectedProductForSize)}
-                      className="w-full flex items-center justify-between p-4 border-2 border-coffee-900 bg-coffee-50 rounded-2xl"
-                    >
-                      <span className="font-bold text-coffee-900">Standard</span>
-                      <span className="font-bold text-coffee-900">₱{selectedProductForSize.price.toLocaleString()}</span>
-                    </button>
-                  )}
-                </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="p-4 border-t border-coffee-100 bg-coffee-50 shrink-0">
+                <button
+                  onClick={handleConfigSubmit}
+                  className="w-full py-4 bg-coffee-900 text-white rounded-xl font-bold text-lg hover:bg-coffee-800 transition-colors shadow-md"
+                >
+                  Add to Order - ₱{((selectedSizeConfig ? selectedSizeConfig.price : selectedProductForConfig.price) + selectedAddonsConfig.reduce((sum, a) => sum + a.price, 0)).toLocaleString()}
+                </button>
               </div>
             </div>
           </div>

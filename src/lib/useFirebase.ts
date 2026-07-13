@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Product, Order, OrderStatus, SplashScreen, ShopSettings } from '../types';
+import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon } from '../types';
 import { handleFirestoreError } from './AuthContext';
 
 enum OperationType {
@@ -15,6 +15,7 @@ enum OperationType {
 
 export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [addons, setAddons] = useState<Addon[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [splashScreen, setSplashScreen] = useState<SplashScreen | null>(null);
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
@@ -65,12 +66,22 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       handleFirestoreError(err, OperationType.LIST, 'products');
     });
 
+    // Addons Listener
+    const qAddons = query(collection(db, 'addons'));
+    const unsubAddons = onSnapshot(qAddons, (snapshot) => {
+      const a = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Addon));
+      setAddons(a);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.LIST, 'addons');
+    });
+
     if (!userUid) {
        setOrders([]);
        setLoading(false);
        return () => {
          unsubSplash();
          unsubProducts();
+         unsubAddons();
        };
     }
 
@@ -97,6 +108,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       unsubSettings();
       unsubSplash();
       unsubProducts();
+      unsubAddons();
       unsubOrders();
     };
   }, [userUid, isAdmin]);
@@ -146,6 +158,31 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     }
   };
 
+  // --- Addon Operations ---
+  const addAddon = async (addon: Omit<Addon, 'id'>) => {
+    try {
+      await addDoc(collection(db, 'addons'), addon);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'addons');
+    }
+  };
+
+  const updateAddon = async (id: string, updates: Partial<Addon>) => {
+    try {
+      await updateDoc(doc(db, 'addons', id), updates);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `addons/${id}`);
+    }
+  };
+
+  const deleteAddon = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'addons', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `addons/${id}`);
+    }
+  };
+
   // --- Order Operations ---
   const addOrder = async (order: Omit<Order, 'id' | 'createdAt'>) => {
     const user = auth.currentUser;
@@ -183,6 +220,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
 
   return {
     products,
+    addons,
     orders,
     splashScreen,
     shopSettings,
@@ -192,6 +230,9 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     addProduct,
     updateProduct,
     deleteProduct,
+    addAddon,
+    updateAddon,
+    deleteAddon,
     addOrder,
     updateOrderStatus,
     updateStock

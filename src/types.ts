@@ -6,6 +6,15 @@ export interface ProductSize {
   price: number;
 }
 
+export interface Addon {
+  id: string;
+  name: string;
+  price: number;
+  isActive: boolean;
+}
+
+export type SugarLevel = '0%' | '25%' | '50%' | '75%' | '100%';
+
 export interface Product {
   id: string; // Firestore document ID
   name: string;
@@ -18,6 +27,7 @@ export interface Product {
   lowStockThreshold: number;
   isActive: boolean;
   sizes?: ProductSize[];
+  isCustomizable?: boolean;
 }
 
 // Map Product to MenuItem and InventoryItem for backward compatibility with components,
@@ -28,6 +38,8 @@ export interface CartItem extends Product {
   quantity: number;
   notes: string;
   selectedSize?: ProductSize;
+  sugarLevel?: SugarLevel;
+  selectedAddons?: Addon[];
 }
 
 export interface ShopSettings {
