@@ -1,4 +1,4 @@
-export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'settings' | 'cashier';
+export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'settings' | 'cashier' | 'reports';
 export type Category = 'Hot Coffee' | 'Cold Coffee' | 'Tea' | 'Food';
 
 export interface ProductSize {

@@ -37,6 +37,18 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
+  
+  // Only throw if it's not a common timeout or offline error
+  const errorMessage = errInfo.error.toLowerCase();
+  if (
+    errorMessage.includes('offline') || 
+    errorMessage.includes('timeout') || 
+    errorMessage.includes('could not reach cloud firestore backend')
+  ) {
+    console.warn(`Firestore is operating in offline mode for ${operationType} on ${path}`);
+    return;
+  }
+  
   throw new Error(JSON.stringify(errInfo));
 }
 

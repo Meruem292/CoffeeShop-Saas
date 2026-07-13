@@ -8,7 +8,8 @@ import { AdminSettings } from './components/AdminSettings';
 import { SplashScreen } from './components/SplashScreen';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { CashierView } from './components/CashierView';
-import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote } from 'lucide-react';
+import { TransactionReports } from './components/TransactionReports';
+import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3 } from 'lucide-react';
 import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
 
@@ -26,6 +27,7 @@ export default function App() {
     splashScreen,
     shopSettings,
     loading: dbLoading,
+    error: dbError,
     updateShopSettings,
     updateSplashScreen,
     addProduct,
@@ -48,6 +50,7 @@ export default function App() {
     { id: 'queue', label: 'Kitchen', icon: <ChefHat className="w-4 h-4" />, adminOnly: true },
     { id: 'inventory', label: 'Inventory', icon: <Package className="w-4 h-4" />, adminOnly: true },
     { id: 'admin-products', label: 'Products', icon: <Package className="w-4 h-4" />, adminOnly: true },
+    { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" />, adminOnly: true },
     { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" />, adminOnly: true },
   ];
 
@@ -99,6 +102,12 @@ export default function App() {
   return (
     <div className="flex flex-col min-h-screen bg-coffee-50 font-sans relative">
       <div className="relative z-10 flex flex-col min-h-screen">
+        {dbError && (
+          <div className="bg-amber-600 text-white text-[10px] sm:text-xs py-1 px-4 text-center font-bold flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top duration-500">
+            <ShieldAlert className="w-3 h-3" />
+            {dbError}
+          </div>
+        )}
         <div className="bg-coffee-950 text-coffee-50 px-2 py-1.5 shadow-lg z-50">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 shrink-0">
@@ -218,6 +227,9 @@ export default function App() {
                 )}
                 {currentView === 'cashier' && (
                   <CashierView orders={orders} onUpdateStatus={updateOrderStatus} />
+                )}
+                {currentView === 'reports' && (
+                  <TransactionReports orders={orders} />
                 )}
                 {currentView === 'queue' && (
                   <KitchenQueue orders={orders} onUpdateStatus={updateOrderStatus} />

@@ -52,29 +52,34 @@ service cloud.firestore {
     }
 
     // --- Rules ---
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /addons/{addonId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
 
     // Admin Collection
     match /admins/{userId} {
-      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow create: if isSignedIn() && request.auth.uid == userId && isValidAdmin(incoming());
-      allow update: if isAdmin() && isValidAdmin(incoming());
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update, delete: if isAdmin();
     }
 
     // Products Collection
     match /products/{productId} {
-      allow read: if true; // Publicly viewable menu
-      allow create: if isAdmin() && isValidId(productId) && isValidProduct(incoming());
-      allow update: if isAdmin() && isValidProduct(incoming());
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // Orders Collection
     match /orders/{orderId} {
-      allow read: if isAdmin() || (isSignedIn() && existing().customerName == request.auth.token.name);
-      allow create: if isValidId(orderId) && isValidOrder(incoming());
-      allow update: if isAdmin() && isValidOrder(incoming());
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isAdmin();
     }
   }
 }

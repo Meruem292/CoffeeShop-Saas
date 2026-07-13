@@ -20,8 +20,17 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const [splashScreen, setSplashScreen] = useState<SplashScreen | null>(null);
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const handleSnapshotError = (err: any, type: OperationType, path: string) => {
+      handleFirestoreError(err, type, path);
+      if (err?.message?.includes('Could not reach Cloud Firestore backend')) {
+        setError('Connection is weak. Operating in offline mode.');
+      }
+      setLoading(false); // Stop infinite loading on connection error
+    };
+
     // Shop Settings Sync
     const unsubSettings = onSnapshot(doc(db, 'settings', 'shop'), (snapshot) => {
       if (snapshot.exists()) {
@@ -35,9 +44,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
           themeColor: '#4b2c20'
         });
       }
-    }, (err) => {
-      handleFirestoreError(err, OperationType.GET, 'settings/shop');
-    });
+    }, (err) => handleSnapshotError(err, OperationType.GET, 'settings/shop'));
 
     // Splash Screen Sync
     const unsubSplash = onSnapshot(doc(db, 'settings', 'splash'), (snapshot) => {
@@ -53,32 +60,28 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
           buttonText: 'Start Ordering'
         });
       }
-    }, (err) => {
-      handleFirestoreError(err, OperationType.GET, 'settings/splash');
-    });
+    }, (err) => handleSnapshotError(err, OperationType.GET, 'settings/splash'));
 
     // Products Listener
     const qProducts = query(collection(db, 'products'));
     const unsubProducts = onSnapshot(qProducts, (snapshot) => {
       const p = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(p);
-    }, (err) => {
-      handleFirestoreError(err, OperationType.LIST, 'products');
-    });
+      setError(null); // Clear error if we get a successful snapshot
+    }, (err) => handleSnapshotError(err, OperationType.LIST, 'products'));
 
     // Addons Listener
     const qAddons = query(collection(db, 'addons'));
     const unsubAddons = onSnapshot(qAddons, (snapshot) => {
       const a = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Addon));
       setAddons(a);
-    }, (err) => {
-      handleFirestoreError(err, OperationType.LIST, 'addons');
-    });
+    }, (err) => handleSnapshotError(err, OperationType.LIST, 'addons'));
 
     if (!userUid) {
        setOrders([]);
        setLoading(false);
        return () => {
+         unsubSettings();
          unsubSplash();
          unsubProducts();
          unsubAddons();
@@ -100,9 +103,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       }
       setOrders(o);
       setLoading(false);
-    }, (err) => {
-      handleFirestoreError(err, OperationType.LIST, 'orders');
-    });
+    }, (err) => handleSnapshotError(err, OperationType.LIST, 'orders'));
 
     return () => {
       unsubSettings();
@@ -225,6 +226,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     splashScreen,
     shopSettings,
     loading,
+    error,
     updateShopSettings,
     updateSplashScreen,
     addProduct,
