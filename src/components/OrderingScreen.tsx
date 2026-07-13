@@ -22,6 +22,9 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
   const [selectedProductForSize, setSelectedProductForSize] = useState<Product | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
   // Sync active category if it's no longer valid
   if (activeCategory && !categories.includes(activeCategory) && categories.length > 0) {
     setActiveCategory(categories[0]);
@@ -57,6 +60,13 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
       }).filter((item) => item.quantity > 0)
     );
   };
+
+  const filteredMenu = useMemo(() => {
+    if (searchQuery) {
+      return menu.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    return menu.filter(item => item.category === activeCategory);
+  }, [menu, searchQuery, activeCategory]);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -136,50 +146,59 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
     <div className={`flex-1 overflow-hidden bg-[#FDFCFB]/98 backdrop-blur-md flex ${mode !== 'pos' ? 'flex-row' : 'flex-col'}`}>
       {/* Sidebar Navigation for Kiosk/Mobile */}
       {mode !== 'pos' && (
-        <div className="w-20 md:w-28 lg:w-32 bg-coffee-950 flex flex-col py-8 gap-4 md:gap-6 overflow-y-auto scrollbar-hide shrink-0 z-20 shadow-2xl">
-          <div className="flex flex-col items-center gap-1 mb-6 opacity-90">
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full border-2 border-white/10 flex items-center justify-center bg-white/5 shadow-inner">
-              <span className="text-white font-black text-xl md:text-3xl italic tracking-tighter">A</span>
+        <div className={`flex flex-col py-4 md:py-8 overflow-y-auto scrollbar-hide shrink-0 z-20 transition-all ${mode === 'mobile' ? 'w-[72px] md:w-20 bg-white border-r border-coffee-100 gap-2' : 'w-20 md:w-28 lg:w-32 bg-coffee-950 shadow-2xl gap-4 md:gap-6'}`}>
+          {mode !== 'mobile' && (
+            <div className="flex flex-col items-center gap-1 mb-6 opacity-90">
+              <div className="w-12 h-12 md:w-16 md:h-16 rounded-full border-2 border-white/10 flex items-center justify-center bg-white/5 shadow-inner">
+                <span className="text-white font-black text-xl md:text-3xl italic tracking-tighter">A</span>
+              </div>
+              <span className="text-[8px] md:text-[10px] text-white/30 uppercase font-black tracking-[0.4em] mt-3">Abacus</span>
             </div>
-            <span className="text-[8px] md:text-[10px] text-white/30 uppercase font-black tracking-[0.4em] mt-3">Abacus</span>
-          </div>
+          )}
 
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`flex flex-col items-center gap-2 p-2 transition-all relative ${
-                activeCategory === cat
-                  ? 'text-white'
-                  : 'text-coffee-400 hover:text-coffee-200'
+              className={`flex flex-col items-center p-2 md:p-3 transition-all relative ${
+                mode === 'mobile' 
+                  ? activeCategory === cat ? 'text-coffee-900 bg-coffee-50' : 'text-coffee-400 hover:text-coffee-600'
+                  : activeCategory === cat ? 'text-white' : 'text-coffee-400 hover:text-coffee-200'
               }`}
             >
-              {activeCategory === cat && (
+              {activeCategory === cat && mode !== 'mobile' && (
                 <div 
                   className="absolute inset-0 bg-white/10 border-r-4 border-amber-500" 
                 />
               )}
-              <div className={`p-2.5 rounded-xl transition-all relative z-10 ${
-                activeCategory === cat ? 'bg-white text-coffee-900 shadow-xl scale-110' : 'bg-transparent'
+              {activeCategory === cat && mode === 'mobile' && (
+                <div 
+                  className="absolute inset-y-0 left-0 w-[3px] bg-coffee-900 rounded-r-full" 
+                />
+              )}
+              <div className={`p-2 md:p-2.5 rounded-xl transition-all relative z-10 ${
+                activeCategory === cat && mode !== 'mobile' ? 'bg-white text-coffee-900 shadow-xl scale-110' : 'bg-transparent'
               }`}>
-                {cat === 'Hot Coffee' && <Coffee className="w-5 h-5 md:w-6 md:h-6" />}
-                {cat === 'Cold Coffee' && <Coffee className="w-5 h-5 md:w-6 md:h-6" />}
-                {cat === 'Tea' && <Coffee className="w-5 h-5 md:w-6 md:h-6" />}
-                {cat === 'Food' && <Coffee className="w-5 h-5 md:w-6 md:h-6" />}
+                {cat === 'Hot Coffee' && <Coffee className={`w-5 h-5 md:w-6 md:h-6 ${mode === 'mobile' && activeCategory === cat ? 'text-coffee-900' : ''}`} />}
+                {cat === 'Cold Coffee' && <Coffee className={`w-5 h-5 md:w-6 md:h-6 ${mode === 'mobile' && activeCategory === cat ? 'text-coffee-900' : ''}`} />}
+                {cat === 'Tea' && <Coffee className={`w-5 h-5 md:w-6 md:h-6 ${mode === 'mobile' && activeCategory === cat ? 'text-coffee-900' : ''}`} />}
+                {cat === 'Food' && <Coffee className={`w-5 h-5 md:w-6 md:h-6 ${mode === 'mobile' && activeCategory === cat ? 'text-coffee-900' : ''}`} />}
               </div>
-              <span className={`text-[8px] md:text-[9px] font-black uppercase text-center leading-tight relative z-10 tracking-widest ${
-                activeCategory === cat ? 'text-amber-500' : ''
-              }`}>
-                {cat.split(' ')[0]}
+              <span className={`text-[9px] md:text-[10px] mt-1 font-black leading-tight relative z-10 ${
+                activeCategory === cat && mode !== 'mobile' ? 'text-amber-500 uppercase tracking-widest' : ''
+              } ${activeCategory === cat && mode === 'mobile' ? 'text-coffee-900 text-center' : 'text-center'}`}>
+                {mode === 'mobile' ? cat : cat.split(' ')[0]}
               </span>
             </button>
           ))}
           
-          <div className="mt-auto flex flex-col items-center py-4">
-             <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
-                <ArrowRight className="w-3 h-3 text-white rotate-90" />
-             </div>
-          </div>
+          {mode !== 'mobile' && (
+            <div className="mt-auto flex flex-col items-center py-4">
+               <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+                  <ArrowRight className="w-3 h-3 text-white rotate-90" />
+               </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -205,65 +224,97 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
 
         <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 scrollbar-hide">
           <div className="w-full max-w-[1440px] mx-auto">
-            <header className="mb-8 flex items-end justify-between border-b border-coffee-100 pb-5">
-              <div>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-coffee-950 uppercase italic tracking-tighter leading-none">
-                  {activeCategory}
+            <header className={`${mode === 'mobile' ? 'mb-4 flex items-center' : 'mb-8 flex items-end justify-between border-b border-coffee-100 pb-5'}`}>
+              <div className={`${mode === 'mobile' ? 'flex items-center gap-2' : ''}`}>
+                {mode === 'mobile' && <div className="w-1 h-5 bg-coffee-900 rounded-full" />}
+                <h2 className={`${mode === 'mobile' ? 'text-lg font-black text-coffee-950 uppercase tracking-tight' : 'text-3xl md:text-4xl lg:text-5xl font-black text-coffee-950 uppercase italic tracking-tighter leading-none'}`}>
+                  {searchQuery ? 'Search Results' : activeCategory}
                 </h2>
-                <div className="h-1.5 w-16 bg-amber-600 rounded-full mt-3" />
+                {mode !== 'mobile' && <div className="h-1.5 w-16 bg-amber-600 rounded-full mt-3" />}
               </div>
-              <div className="hidden lg:block text-right pb-1">
-                <span className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.4em] block mb-1">Section</span>
-                <div className="text-base font-black text-coffee-900 italic tracking-tighter">
-                  {categories.indexOf(activeCategory) + 1} <span className="text-coffee-200">/</span> {categories.length}
+              <div className={`${mode === 'mobile' ? 'hidden' : 'hidden lg:flex items-center gap-4'}`}>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-4 py-2 bg-white border border-coffee-200 rounded-full text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 w-64"
+                  />
+                  <Search className="w-4 h-4 text-coffee-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                  {searchQuery && (
+                    <button 
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-coffee-400 hover:text-coffee-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
+                {!searchQuery && (
+                  <div className="text-right pb-1 ml-4 border-l border-coffee-100 pl-4">
+                    <span className="text-[9px] font-black text-coffee-300 uppercase tracking-[0.4em] block mb-1">Section</span>
+                    <div className="text-base font-black text-coffee-900 italic tracking-tighter">
+                      {categories.indexOf(activeCategory) + 1} <span className="text-coffee-200">/</span> {categories.length}
+                    </div>
+                  </div>
+                )}
               </div>
             </header>
 
-            <div 
-              className={`grid gap-5 md:gap-6 lg:gap-8 ${
-                mode === 'mobile' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 
-                'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
-              }`}
-              key={activeCategory}
-            >
-              {menu.filter((item) => item.category === activeCategory).map((item) => (
+            {filteredMenu.length === 0 ? (
+              <div className="py-12 text-center text-coffee-400">
+                <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p className="font-medium text-lg">No products found</p>
+              </div>
+            ) : (
+              <div 
+                className={`grid ${
+                  mode === 'mobile' ? 'grid-cols-2 gap-3 sm:grid-cols-3' : 
+                  'gap-5 md:gap-6 lg:gap-8 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+                }`}
+                key={searchQuery ? 'search' : activeCategory}
+              >
+                {filteredMenu.map((item) => (
                 <div
                   key={item.id}
                   onClick={() => addToCart(item)}
-                  className="bg-white rounded-[1.5rem] p-4 md:p-5 border border-coffee-100 hover:border-amber-500/30 hover:shadow-xl transition-all cursor-pointer flex flex-col group relative"
+                  className={`bg-white transition-all cursor-pointer flex flex-col group relative ${mode === 'mobile' ? 'rounded-xl pb-2 shadow-sm' : 'rounded-[1.5rem] p-4 md:p-5 border border-coffee-100 hover:border-amber-500/30 hover:shadow-xl'}`}
                 >
-                  <div className="aspect-square w-full rounded-[1rem] overflow-hidden bg-coffee-50 mb-4 relative shadow-sm group-hover:shadow-md transition-all duration-500">
+                  <div className={`w-full overflow-hidden bg-coffee-50 relative transition-all duration-500 ${mode === 'mobile' ? 'aspect-square rounded-t-xl mb-2' : 'aspect-square rounded-[1rem] mb-4 shadow-sm group-hover:shadow-md'}`}>
                     <img 
                       src={item.image} 
                       alt={item.name} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out" 
+                      className={`w-full h-full object-cover transition-transform duration-1000 ease-out ${mode === 'mobile' ? '' : 'group-hover:scale-110'}`} 
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
                     
                     {cart.find(c => c.id === item.id) && (
-                      <div className="absolute top-2.5 right-2.5 w-6 h-6 bg-amber-600 text-white rounded-full flex items-center justify-center font-black text-[10px] border-2 border-white shadow-lg">
+                      <div className={`absolute bg-amber-600 text-white rounded-full flex items-center justify-center font-black border-2 border-white shadow-lg ${mode === 'mobile' ? 'top-1 right-1 w-5 h-5 text-[9px]' : 'top-2.5 right-2.5 w-6 h-6 text-[10px]'}`}>
                         {cart.filter(c => c.id === item.id).reduce((sum, item) => sum + item.quantity, 0)}
                       </div>
                     )}
                   </div>
                   
-                  <div className="flex flex-col flex-1 text-center">
-                    <h3 className="font-black text-coffee-950 text-sm md:text-base leading-none mb-1.5 uppercase tracking-tight group-hover:text-amber-700 transition-colors">
+                  <div className={`flex flex-col flex-1 ${mode === 'mobile' ? 'px-2 text-center' : 'text-center'}`}>
+                    <h3 className={`font-black text-coffee-950 leading-tight uppercase tracking-tight transition-colors ${mode === 'mobile' ? 'text-[11px] mb-1' : 'text-sm md:text-base mb-1.5 group-hover:text-amber-700'}`}>
                       {item.name}
                     </h3>
-                    <div className="mt-auto">
-                      <div className="text-base md:text-lg font-black text-coffee-900 mb-2 italic">
+                    <div className={`mt-auto ${mode === 'mobile' ? 'flex flex-col items-center' : ''}`}>
+                      <div className={`font-black text-coffee-900 italic ${mode === 'mobile' ? 'text-xs mt-1' : 'text-base md:text-lg mb-2'}`}>
                         ₱{item.price.toLocaleString()}
                       </div>
-                      <div className="inline-flex h-8 w-8 rounded-lg bg-coffee-900 text-white items-center justify-center group-hover:bg-amber-600 transition-all shadow-md group-hover:rotate-12">
-                        <Plus className="w-4 h-4" />
-                      </div>
+                      {mode !== 'mobile' && (
+                        <div className="inline-flex h-8 w-8 rounded-lg bg-coffee-900 text-white items-center justify-center group-hover:bg-amber-600 transition-all shadow-md group-hover:rotate-12 mt-1">
+                          <Plus className="w-4 h-4" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
       </div>
@@ -357,8 +408,47 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
 
   return (
     <div className={containerClasses[mode]}>
+      {mode === 'mobile' && (
+        <div className="bg-[#F8F9FA] px-4 py-3 flex items-center justify-between z-10 shrink-0 border-b border-coffee-100">
+          {isSearchOpen ? (
+            <div className="flex-1 flex items-center gap-2">
+              <input
+                type="text"
+                autoFocus
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 px-4 py-2 bg-white border border-coffee-200 rounded-full text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+              />
+              <button 
+                onClick={() => {
+                  setIsSearchOpen(false);
+                  setSearchQuery('');
+                }}
+                className="w-8 h-8 flex items-center justify-center text-coffee-400 hover:text-coffee-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 text-[#1B2956]">
+                <Store className="w-4 h-4" />
+                <span className="font-bold text-sm">Store Pickup</span>
+              </div>
+              <button 
+                onClick={() => setIsSearchOpen(true)}
+                className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-[#1B2956]"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Main Layout */}
-      <div className={`${mode === 'kiosk' ? 'flex flex-col flex-1' : 'flex flex-1'}`}>
+      <div className={`${mode === 'kiosk' ? 'flex flex-col flex-1' : 'flex flex-1'} ${mode === 'mobile' ? 'overflow-hidden' : ''}`}>
         <div className={`${mode === 'mobile' ? 'flex-1' : mode === 'kiosk' ? 'flex-1' : 'flex-1 md:w-2/3 border-r border-coffee-200'} flex flex-col overflow-hidden`}>
           {renderMenuGrid()}
         </div>
