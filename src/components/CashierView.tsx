@@ -109,19 +109,19 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
               <p className="text-coffee-600 font-medium">Manage payments and receipts</p>
             </div>
             
-            <div className="flex bg-white rounded-xl p-1 shadow-sm border border-coffee-100">
+            <div className="flex bg-white rounded-xl p-1 shadow-sm border border-coffee-100 overflow-x-auto scrollbar-hide max-w-full shrink-0">
               <button 
                 onClick={() => setActiveTab('unpaid')}
-                className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === 'unpaid' ? 'bg-amber-500 text-white shadow-md' : 'text-coffee-500 hover:text-coffee-800'}`}
+                className={`px-4 py-2 rounded-lg font-bold text-sm transition-all shrink-0 ${activeTab === 'unpaid' ? 'bg-amber-500 text-white shadow-md' : 'text-coffee-500 hover:text-coffee-800'}`}
               >
                 Awaiting Payment
                 {unpaidOrders.length > 0 && (
-                  <span className="ml-2 bg-white/20 px-2 py-0.5 rounded-full text-xs">{unpaidOrders.length}</span>
+                  <span className="ml-2 bg-black/10 px-2 py-0.5 rounded-full text-xs">{unpaidOrders.length}</span>
                 )}
               </button>
               <button 
                 onClick={() => setActiveTab('history')}
-                className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${activeTab === 'history' ? 'bg-amber-500 text-white shadow-md' : 'text-coffee-500 hover:text-coffee-800'}`}
+                className={`px-4 py-2 rounded-lg font-bold text-sm transition-all shrink-0 ${activeTab === 'history' ? 'bg-amber-500 text-white shadow-md' : 'text-coffee-500 hover:text-coffee-800'}`}
               >
                 Active / Paid
               </button>

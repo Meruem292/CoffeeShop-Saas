@@ -19,9 +19,9 @@ export function InventoryManager({ products, onUpdateStock }: InventoryManagerPr
       <div className="max-w-6xl mx-auto">
         <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-coffee-900 flex items-center gap-3">
-              <Package className="w-8 h-8 text-coffee-600" />
-              Inventory Management
+            <h1 className="text-2xl md:text-3xl font-bold text-coffee-900 flex items-center gap-3">
+              <Package className="w-8 h-8 text-coffee-600 shrink-0" />
+              <span className="leading-tight">Inventory Management</span>
             </h1>
             <p className="text-coffee-600 mt-1">Track stock levels and ingredients</p>
           </div>

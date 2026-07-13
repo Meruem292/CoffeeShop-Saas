@@ -40,23 +40,23 @@ export function KitchenQueue({ orders, onUpdateStatus }: KitchenQueueProps) {
   return (
     <div className="h-screen bg-coffee-50 p-4 md:p-8 overflow-y-auto">
       <div className="max-w-7xl mx-auto">
-        <header className="flex justify-between items-center mb-8">
+        <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-coffee-900 flex items-center gap-3">
-              <ChefHat className="w-8 h-8 text-coffee-600" />
-              Kitchen Display System (KDS)
+            <h1 className="text-2xl md:text-3xl font-bold text-coffee-900 flex items-center gap-3">
+              <ChefHat className="w-8 h-8 text-coffee-600 shrink-0" />
+              <span className="leading-tight">Kitchen Display System (KDS)</span>
             </h1>
             <p className="text-coffee-600 mt-1">FIFO Queue Processing</p>
           </div>
-          <div className="flex gap-4">
-            <div className="flex items-center gap-2 text-sm bg-white px-3 py-1.5 rounded-full border border-coffee-200 shadow-sm">
-              <div className="w-3 h-3 rounded-full bg-amber-400"></div> Pending
+          <div className="flex flex-wrap gap-2 md:gap-4">
+            <div className="flex items-center gap-2 text-sm bg-white px-3 py-1.5 rounded-full border border-coffee-200 shadow-sm shrink-0">
+              <div className="w-3 h-3 rounded-full bg-amber-400 shrink-0"></div> Pending
             </div>
-            <div className="flex items-center gap-2 text-sm bg-white px-3 py-1.5 rounded-full border border-coffee-200 shadow-sm">
-              <div className="w-3 h-3 rounded-full bg-blue-400"></div> Preparing
+            <div className="flex items-center gap-2 text-sm bg-white px-3 py-1.5 rounded-full border border-coffee-200 shadow-sm shrink-0">
+              <div className="w-3 h-3 rounded-full bg-blue-400 shrink-0"></div> Preparing
             </div>
-            <div className="flex items-center gap-2 text-sm bg-white px-3 py-1.5 rounded-full border border-coffee-200 shadow-sm">
-              <div className="w-3 h-3 rounded-full bg-green-400"></div> Ready
+            <div className="flex items-center gap-2 text-sm bg-white px-3 py-1.5 rounded-full border border-coffee-200 shadow-sm shrink-0">
+              <div className="w-3 h-3 rounded-full bg-green-400 shrink-0"></div> Ready
             </div>
           </div>
         </header>
