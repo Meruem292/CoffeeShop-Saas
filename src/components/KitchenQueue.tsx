@@ -1,7 +1,6 @@
 import React from 'react';
 import { Order, OrderStatus } from '../types';
 import { Clock, CheckCircle, ChefHat, Smartphone, MonitorSmartphone, Tablet } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 
 interface KitchenQueueProps {
   orders: Order[];
@@ -63,25 +62,18 @@ export function KitchenQueue({ orders, onUpdateStatus }: KitchenQueueProps) {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <AnimatePresence>
             {activeOrders.length === 0 ? (
-              <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              <div 
                 className="col-span-full flex flex-col items-center justify-center py-20 text-coffee-400 bg-white rounded-2xl border border-dashed border-coffee-300"
               >
                 <CheckCircle className="w-16 h-16 mb-4 text-coffee-300" />
                 <h3 className="text-xl font-medium text-coffee-600">All caught up!</h3>
                 <p>No active orders in the queue.</p>
-              </motion.div>
+              </div>
             ) : (
               activeOrders.map((order, index) => (
-                <motion.div
+                <div
                   key={order.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
                   className={`bg-white rounded-2xl p-5 shadow-lg border-2 ${getStatusColor(order.status).split(' ')[2]} flex flex-col h-full relative overflow-hidden`}
                 >
                   {/* FIFO Position Indicator */}
@@ -149,10 +141,9 @@ export function KitchenQueue({ orders, onUpdateStatus }: KitchenQueueProps) {
                     {order.status === 'pending' ? 'Start Preparing' :
                      order.status === 'preparing' ? 'Mark Ready' : 'Complete Order'}
                   </button>
-                </motion.div>
+                </div>
               ))
             )}
-          </AnimatePresence>
         </div>
       </div>
     </div>

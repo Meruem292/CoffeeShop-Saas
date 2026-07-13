@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion } from 'motion/react';
 import { Store, X } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import Silk from './Silk';
@@ -29,10 +28,7 @@ export function AdminLoginModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
+    <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
     >
       <div className="absolute inset-0 z-0">
@@ -40,10 +36,7 @@ export function AdminLoginModal({ onClose }: { onClose: () => void }) {
         <div className="absolute inset-0 bg-coffee-950/40 backdrop-blur-sm" />
       </div>
 
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+      <div
         className="bg-white/95 rounded-3xl p-8 max-w-sm w-full shadow-2xl relative border-2 border-coffee-100 z-10 backdrop-blur-md"
       >
         <button 
@@ -103,7 +96,7 @@ export function AdminLoginModal({ onClose }: { onClose: () => void }) {
             {loading ? 'Please wait...' : 'Log In'}
           </button>
         </form>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

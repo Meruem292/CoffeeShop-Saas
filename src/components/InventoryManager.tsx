@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
 import { Package, AlertTriangle, Plus, Minus, Search } from 'lucide-react';
-import { motion } from 'motion/react';
 
 interface InventoryManagerProps {
   products: Product[];
@@ -54,10 +53,7 @@ export function InventoryManager({ products, onUpdateStock }: InventoryManagerPr
                 {filteredInventory.map((item, index) => {
                   const isLow = item.stock <= item.lowStockThreshold;
                   return (
-                    <motion.tr 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
+                    <tr 
                       key={item.id} 
                       className="border-b border-coffee-100 hover:bg-coffee-50 transition-colors"
                     >
@@ -96,7 +92,7 @@ export function InventoryManager({ products, onUpdateStock }: InventoryManagerPr
                           </button>
                         </div>
                       </td>
-                    </motion.tr>
+                    </tr>
                   );
                 })}
               </tbody>

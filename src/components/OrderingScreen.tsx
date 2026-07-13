@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Product, CartItem, Order, ProductSize } from '../types';
 import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 
 interface OrderingScreenProps {
   mode: 'pos' | 'kiosk' | 'mobile';
@@ -88,20 +87,16 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
             alt="Bg"
           />
         </div>
-        <motion.div 
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
+        <div 
           className="relative z-10 text-center mb-16"
         >
           <Coffee className="w-20 h-20 text-amber-500 mx-auto mb-6" />
           <h1 className="text-6xl font-black text-white mb-4">Where will you be eating today?</h1>
           <p className="text-coffee-300 text-2xl font-medium">Please select your order type below</p>
-        </motion.div>
+        </div>
 
         <div className="grid grid-cols-2 gap-12 w-full max-w-5xl relative z-10">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={() => setOrderType('dine-in')}
             className="flex flex-col items-center gap-10 bg-white p-16 rounded-[4rem] shadow-2xl group transition-all hover:bg-amber-50 border-4 border-transparent hover:border-amber-500"
           >
@@ -112,11 +107,9 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
               <span className="text-5xl font-black text-coffee-950 block mb-2">Eat In</span>
               <span className="text-coffee-500 font-bold uppercase tracking-[0.2em] text-lg">Enjoy in our cafe</span>
             </div>
-          </motion.button>
+          </button>
 
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <button
             onClick={() => setOrderType('take-away')}
             className="flex flex-col items-center gap-10 bg-white p-16 rounded-[4rem] shadow-2xl group transition-all hover:bg-amber-50 border-4 border-transparent hover:border-amber-500"
           >
@@ -127,7 +120,7 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
               <span className="text-5xl font-black text-coffee-950 block mb-2">Take Out</span>
               <span className="text-coffee-500 font-bold uppercase tracking-[0.2em] text-lg">Packed to go</span>
             </div>
-          </motion.button>
+          </button>
         </div>
       </div>
     );
@@ -162,8 +155,7 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
               }`}
             >
               {activeCategory === cat && (
-                <motion.div 
-                  layoutId="active-nav"
+                <div 
                   className="absolute inset-0 bg-white/10 border-r-4 border-amber-500" 
                 />
               )}
@@ -228,27 +220,16 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
               </div>
             </header>
 
-            <motion.div 
+            <div 
               className={`grid gap-5 md:gap-6 lg:gap-8 ${
                 mode === 'mobile' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 
                 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
               }`}
-              initial="hidden"
-              animate="show"
               key={activeCategory}
-              variants={{
-                hidden: { opacity: 0 },
-                show: { opacity: 1, transition: { staggerChildren: 0.05 } }
-              }}
             >
               {menu.filter((item) => item.category === activeCategory).map((item) => (
-                <motion.div
+                <div
                   key={item.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 30 },
-                    show: { opacity: 1, y: 0 }
-                  }}
-                  whileTap={{ scale: 0.98 }}
                   onClick={() => addToCart(item)}
                   className="bg-white rounded-[1.5rem] p-4 md:p-5 border border-coffee-100 hover:border-amber-500/30 hover:shadow-xl transition-all cursor-pointer flex flex-col group relative"
                 >
@@ -280,9 +261,9 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
@@ -304,7 +285,6 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-4">
-        <AnimatePresence>
           {cart.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-coffee-400 space-y-3">
               <Coffee className="w-12 h-12 opacity-20" />
@@ -312,11 +292,8 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
             </div>
           ) : (
             cart.map((item) => (
-              <motion.div
+              <div
                 key={item.cartId}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
                 className="flex items-center justify-between p-3 bg-white border border-coffee-100 rounded-xl shadow-sm"
               >
                 <div className="flex-1 pr-2">
@@ -345,10 +322,9 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
                     <Plus className="w-3 h-3 md:w-4 md:h-4" />
                   </button>
                 </div>
-              </motion.div>
+              </div>
             ))
           )}
-        </AnimatePresence>
       </div>
 
       <div className="p-4 md:p-6 bg-coffee-50/50 border-t border-coffee-100">
@@ -458,37 +434,24 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
             </button>
           </div>
 
-          <AnimatePresence>
-            {isMobileCartOpen && (
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+          {isMobileCartOpen && (
+              <div
                 className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40"
               >
                 <div className="bg-white w-full h-[85vh] rounded-t-3xl overflow-hidden shadow-2xl flex flex-col">
                   {renderCart()}
                 </div>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
         </>
       )}
 
       {/* Size Selection Modal */}
-      <AnimatePresence>
         {selectedProductForSize && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            <div
               className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl"
             >
               <div className="relative aspect-video">
@@ -536,10 +499,9 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
                   )}
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }

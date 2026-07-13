@@ -10,7 +10,6 @@ import { AdminLoginModal } from './components/AdminLoginModal';
 import Balatro from './components/Balatro';
 import Silk from './components/Silk';
 import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
 
@@ -205,12 +204,9 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <AnimatePresence mode="wait">
-            <motion.div
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div
               key={currentView}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
               className="flex-1 overflow-hidden flex"
             >
               {(currentView === 'pos' || currentView === 'kiosk' || currentView === 'mobile') && !isAdmin && (
@@ -252,8 +248,8 @@ export default function App() {
                   />
                 )}
               </div>
-            </motion.div>
-          </AnimatePresence>
+            </div>
+          </div>
         )}
         {showAdminLogin && (
           <AdminLoginModal onClose={() => setShowAdminLogin(false)} />
@@ -261,18 +257,11 @@ export default function App() {
 
       </main>
 
-      <AnimatePresence>
         {successOrder && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-coffee-950/40 backdrop-blur-sm"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            <div
               className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center border-2 border-coffee-100"
             >
               <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6 text-green-600">
@@ -296,10 +285,9 @@ export default function App() {
                   {successOrder.source === 'mobile' ? 'View Order Status' : 'Start New Order'}
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
       </div>
     </div>
   );
