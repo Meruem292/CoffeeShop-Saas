@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Store, X } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
-import Silk from './Silk';
 
 export function AdminLoginModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
@@ -32,7 +31,7 @@ export function AdminLoginModal({ onClose }: { onClose: () => void }) {
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
     >
       <div className="absolute inset-0 z-0">
-        <Silk color="#2d1b15" speed={2} scale={0.5} noiseIntensity={0.5} />
+        
         <div className="absolute inset-0 bg-coffee-950/40 backdrop-blur-sm" />
       </div>
 

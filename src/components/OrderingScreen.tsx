@@ -139,11 +139,11 @@ export function OrderingScreen({ mode, menu, onPlaceOrder }: OrderingScreenProps
   const containerClasses = {
     pos: 'flex h-screen overflow-hidden',
     kiosk: 'flex h-screen w-screen bg-white overflow-hidden border-coffee-200',
-    mobile: 'flex flex-col h-screen w-full bg-white relative',
+    mobile: 'flex flex-col h-screen w-full bg-[#F8F9FA] relative',
   };
 
   const renderMenuGrid = () => (
-    <div className={`flex-1 overflow-hidden bg-[#FDFCFB]/98 backdrop-blur-md flex ${mode !== 'pos' ? 'flex-row' : 'flex-col'}`}>
+    <div className={`flex-1 overflow-hidden flex ${mode !== 'pos' ? 'flex-row' : 'flex-col'}`}>
       {/* Sidebar Navigation for Kiosk/Mobile */}
       {mode !== 'pos' && (
         <div className={`flex flex-col py-4 md:py-8 overflow-y-auto scrollbar-hide shrink-0 z-20 transition-all ${mode === 'mobile' ? 'w-[72px] md:w-20 bg-white border-r border-coffee-100 gap-2' : 'w-20 md:w-28 lg:w-32 bg-coffee-950 shadow-2xl gap-4 md:gap-6'}`}>
