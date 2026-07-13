@@ -137,7 +137,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   // --- Product Operations ---
   const addProduct = async (product: Omit<Product, 'id'>) => {
     try {
-      await addDoc(collection(db, 'products'), product);
+      const cleanData = Object.fromEntries(
+        Object.entries(product).filter(([_, v]) => v !== undefined)
+      );
+      await addDoc(collection(db, 'products'), cleanData);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'products');
     }
@@ -145,7 +148,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
     try {
-      await updateDoc(doc(db, 'products', id), updates);
+      const cleanData = Object.fromEntries(
+        Object.entries(updates).filter(([_, v]) => v !== undefined)
+      );
+      await updateDoc(doc(db, 'products', id), cleanData);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `products/${id}`);
     }
@@ -162,7 +168,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   // --- Addon Operations ---
   const addAddon = async (addon: Omit<Addon, 'id'>) => {
     try {
-      await addDoc(collection(db, 'addons'), addon);
+      const cleanData = Object.fromEntries(
+        Object.entries(addon).filter(([_, v]) => v !== undefined)
+      );
+      await addDoc(collection(db, 'addons'), cleanData);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'addons');
     }
@@ -170,7 +179,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
 
   const updateAddon = async (id: string, updates: Partial<Addon>) => {
     try {
-      await updateDoc(doc(db, 'addons', id), updates);
+      const cleanData = Object.fromEntries(
+        Object.entries(updates).filter(([_, v]) => v !== undefined)
+      );
+      await updateDoc(doc(db, 'addons', id), cleanData);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `addons/${id}`);
     }
@@ -188,12 +200,19 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const addOrder = async (order: Omit<Order, 'id' | 'createdAt'>) => {
     const user = auth.currentUser;
     const orderData = {
+      status: 'unpaid', // Default status
       ...order,
       createdAt: Date.now(), 
       customerId: user?.uid || null,
     };
+
+    // Clean up undefined values as Firestore doesn't like them
+    const cleanData = Object.fromEntries(
+      Object.entries(orderData).filter(([_, v]) => v !== undefined)
+    );
+
     try {
-      await addDoc(collection(db, 'orders'), orderData);
+      await addDoc(collection(db, 'orders'), cleanData);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'orders');
     }

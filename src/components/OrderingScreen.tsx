@@ -21,6 +21,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
   const [tableNumber, setTableNumber] = useState('');
   const [orderType, setOrderType] = useState<'dine-in' | 'take-away' | null>(null);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [isKioskCartOpen, setIsKioskCartOpen] = useState(false);
   const [selectedProductForConfig, setSelectedProductForConfig] = useState<Product | null>(null);
 
   const [selectedSizeConfig, setSelectedSizeConfig] = useState<ProductSize | null>(null);
@@ -122,19 +123,24 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
+    
+    // Ensure we have a default order type if not set
+    const finalOrderType = orderType || 'take-away';
+    
     onPlaceOrder({
       items: cart,
       total,
       source: mode,
-      customerName: customerName || 'Guest',
-      tableNumber: mode === 'kiosk' ? tableNumber : undefined,
-      orderType: orderType || 'take-away',
+      customerName: customerName.trim() || 'Guest',
+      tableNumber: finalOrderType === 'dine-in' ? (tableNumber || undefined) : undefined,
+      orderType: finalOrderType,
     });
     setCart([]);
     setCustomerName('');
     setTableNumber('');
     setOrderType(null);
     setIsMobileCartOpen(false);
+    setIsKioskCartOpen(false);
   };
 
   if (mode === 'kiosk' && !orderType) {
@@ -378,8 +384,11 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
           <ShoppingBag className="w-5 h-5 text-coffee-600" />
           Current Order
         </h2>
-        {mode === 'mobile' && (
-          <button onClick={() => setIsMobileCartOpen(false)} className="p-2 text-coffee-500 bg-coffee-100 rounded-full">
+        {(mode === 'mobile' || mode === 'kiosk') && (
+          <button onClick={() => {
+            setIsMobileCartOpen(false);
+            setIsKioskCartOpen(false);
+          }} className="p-2 text-coffee-500 bg-coffee-100 rounded-full hover:bg-coffee-200 transition-colors">
             <X className="w-5 h-5" />
           </button>
         )}
@@ -437,18 +446,47 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
       </div>
 
       <div className="p-4 md:p-6 bg-coffee-50/50 border-t border-coffee-100">
-        {(mode === 'pos' || mode === 'kiosk') && (
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-coffee-700 mb-1">Customer Name (Optional)</label>
+        <div className="space-y-4 mb-4">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setOrderType('dine-in')}
+              className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all ${orderType === 'dine-in' ? 'bg-coffee-900 text-white border-coffee-900 shadow-md' : 'bg-white text-coffee-600 border-coffee-200 hover:bg-coffee-50'}`}
+            >
+              <Store className="w-4 h-4" /> Dine-in
+            </button>
+            <button
+              onClick={() => setOrderType('take-away')}
+              className={`flex-1 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all ${orderType === 'take-away' ? 'bg-coffee-900 text-white border-coffee-900 shadow-md' : 'bg-white text-coffee-600 border-coffee-200 hover:bg-coffee-50'}`}
+            >
+              <ShoppingBag className="w-4 h-4" /> Take-away
+            </button>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-coffee-500 uppercase tracking-widest mb-1.5 ml-1">Customer Name / Reference</label>
             <input
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full p-2.5 border border-coffee-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-coffee-500 bg-white"
-              placeholder="Enter name for order"
+              className="w-full p-3 border border-coffee-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coffee-500 bg-white text-sm font-medium"
+              placeholder="Enter name for reference"
             />
           </div>
-        )}
+
+          {orderType === 'dine-in' && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="block text-[10px] font-bold text-coffee-500 uppercase tracking-widest mb-1.5 ml-1">Table Number</label>
+              <input
+                type="text"
+                value={tableNumber}
+                onChange={(e) => setTableNumber(e.target.value)}
+                className="w-full p-3 border border-coffee-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-coffee-500 bg-white text-sm font-medium"
+                placeholder="e.g. Table 05"
+              />
+            </div>
+          )}
+        </div>
+
         <div className="flex justify-between items-center mb-4 md:mb-6">
           <span className="text-coffee-600 font-medium">Total</span>
           <span className="text-2xl font-bold text-coffee-900">₱{total.toLocaleString()}</span>
@@ -555,13 +593,21 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
             </div>
 
             <button 
-              onClick={handleCheckout}
+              onClick={() => setIsKioskCartOpen(true)}
               disabled={cart.length === 0}
               className="px-12 bg-coffee-950 text-white rounded-2xl font-black text-xl uppercase tracking-tighter italic hover:bg-black transition-all shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
             >
-              Checkout
+              Checkout & Pay
               <ArrowRight className="w-6 h-6" />
             </button>
+          </div>
+        )}
+
+        {isKioskCartOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-8 bg-coffee-950/80 backdrop-blur-md">
+            <div className="bg-white w-full max-w-2xl h-[80vh] rounded-[3rem] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-300">
+              {renderCart()}
+            </div>
           </div>
         )}
       </div>
