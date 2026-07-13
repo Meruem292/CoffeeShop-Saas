@@ -7,7 +7,6 @@ import { AdminProducts } from './components/AdminProducts';
 import { AdminSettings } from './components/AdminSettings';
 import { SplashScreen } from './components/SplashScreen';
 import { AdminLoginModal } from './components/AdminLoginModal';
-import Balatro from './components/Balatro';
 import { CashierView } from './components/CashierView';
 import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote } from 'lucide-react';
 import { useFirebase } from './lib/useFirebase';
@@ -99,18 +98,6 @@ export default function App() {
 
   return (
     <div className="flex flex-col min-h-screen bg-coffee-50 font-sans relative">
-      {/* Dynamic Background */}
-      <div className="fixed inset-0 pointer-events-none z-0 opacity-40">
-        <Balatro 
-          isRotate={false}
-          mouseInteraction
-          pixelFilter={745}
-          color1="#2C1810"
-          color2="#6F4E37"
-          color3="#D2B48C"
-        />
-      </div>
-
       <div className="relative z-10 flex flex-col min-h-screen">
         <div className="bg-coffee-950 text-coffee-50 px-2 py-1.5 shadow-lg z-50">
         <div className="flex items-center justify-between gap-4">
