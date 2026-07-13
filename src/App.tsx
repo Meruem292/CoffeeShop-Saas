@@ -9,7 +9,8 @@ import { SplashScreen } from './components/SplashScreen';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import Balatro from './components/Balatro';
 import Silk from './components/Silk';
-import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home } from 'lucide-react';
+import { CashierView } from './components/CashierView';
+import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote } from 'lucide-react';
 import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
 
@@ -41,6 +42,7 @@ export default function App() {
   const navigationItems: { id: ViewMode; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
     { id: 'mobile', label: 'App', icon: <Smartphone className="w-4 h-4" /> },
     { id: 'pos', label: 'POS', icon: <MonitorSmartphone className="w-4 h-4" />, adminOnly: true },
+    { id: 'cashier', label: 'Cashier', icon: <Banknote className="w-4 h-4" />, adminOnly: true },
     { id: 'queue', label: 'Kitchen', icon: <ChefHat className="w-4 h-4" />, adminOnly: true },
     { id: 'inventory', label: 'Inventory', icon: <Package className="w-4 h-4" />, adminOnly: true },
     { id: 'admin-products', label: 'Products', icon: <Package className="w-4 h-4" />, adminOnly: true },
@@ -65,13 +67,18 @@ export default function App() {
   }, [isAdmin]);
 
   const handlePlaceOrder = (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>) => {
-    addOrder(orderData);
+    const initialStatus = orderData.source === 'pos' ? 'pending' : 'unpaid';
+    
+    addOrder({
+      ...orderData,
+      status: initialStatus
+    });
     
     const modalOrder: Order = {
       ...orderData,
       id: `ord_${Date.now().toString().slice(-6)}`,
       createdAt: Date.now(),
-      status: 'pending',
+      status: initialStatus,
     };
     setSuccessOrder(modalOrder);
   };
@@ -225,6 +232,9 @@ export default function App() {
                 {currentView === 'mobile' && (
                   <OrderingScreen mode="mobile" menu={products.filter(p => p.isActive)} onPlaceOrder={handlePlaceOrder} />
                 )}
+                {currentView === 'cashier' && (
+                  <CashierView orders={orders} onUpdateStatus={updateOrderStatus} />
+                )}
                 {currentView === 'queue' && (
                   <KitchenQueue orders={orders} onUpdateStatus={updateOrderStatus} />
                 )}
@@ -267,9 +277,9 @@ export default function App() {
               <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6 text-green-600">
                 <CheckCircle2 className="w-10 h-10" />
               </div>
-              <h2 className="text-2xl font-bold text-coffee-900 mb-2">Order Confirmed!</h2>
+              <h2 className="text-2xl font-bold text-coffee-900 mb-2">Order Placed!</h2>
               <p className="text-coffee-600 mb-6">
-                Your order <span className="font-bold text-coffee-900">#{successOrder.id?.slice(-4)}</span> has been sent to the kitchen.
+                Your order <span className="font-bold text-coffee-900">#{successOrder.id?.slice(-4)}</span> {successOrder.status === 'unpaid' ? 'is awaiting payment. Please proceed to the cashier.' : 'has been sent to the kitchen.'}
               </p>
               
               <div className="w-full space-y-3">

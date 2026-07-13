@@ -10,7 +10,7 @@ interface KitchenQueueProps {
 export function KitchenQueue({ orders, onUpdateStatus }: KitchenQueueProps) {
   // Sort by created time (FIFO) - oldest first
   const activeOrders = orders
-    .filter((o) => o.status !== 'completed')
+    .filter((o) => o.status !== 'completed' && o.status !== 'unpaid')
     .sort((a, b) => a.createdAt - b.createdAt);
 
   const getStatusColor = (status: OrderStatus) => {

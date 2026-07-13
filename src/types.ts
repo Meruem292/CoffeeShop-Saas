@@ -1,4 +1,4 @@
-export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'settings';
+export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'settings' | 'cashier';
 export type Category = 'Hot Coffee' | 'Cold Coffee' | 'Tea' | 'Food';
 
 export interface ProductSize {
@@ -47,7 +47,7 @@ export interface SplashScreen {
   buttonText: string;
 }
 
-export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'completed';
+export type OrderStatus = 'unpaid' | 'pending' | 'preparing' | 'ready' | 'completed';
 
 export interface Order {
   id?: string;

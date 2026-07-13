@@ -147,11 +147,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   };
 
   // --- Order Operations ---
-  const addOrder = async (order: Omit<Order, 'id' | 'createdAt' | 'status'>) => {
+  const addOrder = async (order: Omit<Order, 'id' | 'createdAt'>) => {
     const user = auth.currentUser;
     const orderData = {
       ...order,
-      status: 'pending',
       createdAt: Date.now(), 
       customerId: user?.uid || null,
     };
