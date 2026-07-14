@@ -40,13 +40,13 @@ export function InventoryManager({ products, onUpdateStock }: InventoryManagerPr
 
         <div className="bg-white rounded-2xl shadow-xl border border-coffee-100 overflow-hidden">
           <div className="overflow-x-auto scrollbar-hide">
-            <table className="w-full text-left border-collapse min-w-[340px] sm:min-w-[500px]">
+            <table className="w-full text-left border-collapse min-w-[280px] sm:min-w-[500px]">
               <thead>
                 <tr className="bg-coffee-900 text-white">
                   <th className="p-3 sm:p-4 font-semibold text-xs sm:text-sm">Item Name</th>
                   <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm">Status</th>
                   <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm text-right">Stock</th>
-                  <th className="p-3 pr-5 sm:p-4 font-semibold text-xs sm:text-sm text-center whitespace-nowrap">Actions</th>
+                  <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm text-center whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -57,13 +57,34 @@ export function InventoryManager({ products, onUpdateStock }: InventoryManagerPr
                       key={item.id} 
                       className="border-b border-coffee-100 hover:bg-coffee-50 transition-colors"
                     >
-                      <td className="p-3 sm:p-4 font-medium text-coffee-900 text-[11px] sm:text-sm break-words min-w-[100px] max-w-[150px] sm:max-w-none">
-                        {item.name}
-                        <div className="sm:hidden flex items-center gap-2 mt-0.5">
-                          <span className={`font-black text-[10px] ${isLow ? 'text-red-600' : 'text-coffee-600'}`}>
-                            {item.stock} {item.unit}
-                          </span>
-                          {isLow && <span className="text-[8px] bg-red-100 text-red-700 px-1 rounded uppercase font-bold">Low</span>}
+                      <td className="p-3 sm:p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-coffee-900 text-[11px] sm:text-sm break-words max-w-[120px] sm:max-w-none leading-tight">{item.name}</div>
+                            <div className="sm:hidden flex items-center gap-2 mt-0.5">
+                              <span className={`font-black text-[10px] ${isLow ? 'text-red-600' : 'text-coffee-600'}`}>
+                                {item.stock} {item.unit}
+                              </span>
+                              {isLow && <span className="text-[8px] bg-red-100 text-red-700 px-1 rounded uppercase font-bold">Low</span>}
+                            </div>
+                          </div>
+                          
+                          {/* Mobile Actions */}
+                          <div className="sm:hidden flex items-center gap-1">
+                            <button
+                              onClick={() => onUpdateStock(item.id, -1)}
+                              className="p-1 rounded-lg bg-coffee-100 text-coffee-700 disabled:opacity-50"
+                              disabled={item.stock <= 0}
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => onUpdateStock(item.id, 1)}
+                              className="p-1 rounded-lg bg-coffee-900 text-white"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       </td>
                       <td className="hidden sm:table-cell p-3 sm:p-4">
@@ -84,7 +105,7 @@ export function InventoryManager({ products, onUpdateStock }: InventoryManagerPr
                         </span>
                         <span className="text-coffee-500 text-[10px] sm:text-sm ml-1">{item.unit}</span>
                       </td>
-                      <td className="p-3 pr-5 sm:p-4">
+                      <td className="hidden sm:table-cell p-3 sm:p-4">
                         <div className="flex items-center justify-center gap-1 sm:gap-2">
                           <button
                             onClick={() => onUpdateStock(item.id, -1)}

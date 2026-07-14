@@ -373,7 +373,7 @@ export function AdminProducts({
             )}
 
             <div className="bg-white rounded-2xl shadow-xl border border-coffee-100 overflow-x-auto scrollbar-hide">
-              <table className="w-full text-left border-collapse min-w-[420px] sm:min-w-[800px]">
+              <table className="w-full text-left border-collapse min-w-[300px] sm:min-w-[800px]">
                 <thead>
                   <tr className="bg-coffee-900 text-white">
                     <th className="p-3 sm:p-4 font-semibold text-xs sm:text-sm rounded-tl-xl">Product</th>
@@ -381,26 +381,38 @@ export function AdminProducts({
                     <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm text-center">Price</th>
                     <th className="hidden xs:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm text-center">Stock</th>
                     <th className="hidden md:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm">Status</th>
-                    <th className="p-3 pr-5 sm:p-4 font-semibold text-xs sm:text-sm text-right rounded-tr-xl whitespace-nowrap">Actions</th>
+                    <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm text-right rounded-tr-xl">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((product) => (
                     <tr key={product.id} className="border-b border-coffee-100 hover:bg-coffee-50 transition-colors">
-                      <td className="p-3 sm:p-4">
+                      <td className="p-3 sm:p-4 relative">
                         <div className="flex items-center gap-2 sm:gap-3">
                           <img src={product.image} alt={product.name} className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg object-cover bg-coffee-100 shrink-0" />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-col sm:flex-row sm:items-center gap-1">
                               <span className="font-bold text-coffee-900 text-[11px] sm:text-sm leading-tight break-words max-w-[120px] sm:max-w-none">{product.name}</span>
-                              {product.isCustomizable && (
-                                <span className="text-[7px] sm:text-[8px] bg-amber-100 text-amber-800 px-1 py-0.5 rounded font-black uppercase w-fit shrink-0">
-                                  Custom
-                                </span>
-                              )}
-                              <span className="sm:hidden text-[10px] font-black text-amber-700 bg-amber-50 px-1 rounded w-fit">₱{product.price.toLocaleString()}</span>
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {product.isCustomizable && (
+                                  <span className="text-[7px] sm:text-[8px] bg-amber-100 text-amber-800 px-1 py-0.5 rounded font-black uppercase w-fit shrink-0">
+                                    Custom
+                                  </span>
+                                )}
+                                <span className="sm:hidden text-[10px] font-black text-amber-700 bg-amber-50 px-1 rounded w-fit">₱{product.price.toLocaleString()}</span>
+                              </div>
                             </div>
                             <div className="hidden sm:block text-[10px] text-coffee-500 line-clamp-1 max-w-[150px]">{product.description}</div>
+                          </div>
+                          
+                          {/* Mobile Actions */}
+                          <div className="sm:hidden flex items-center gap-1">
+                            <button onClick={() => handleEdit(product)} className="p-1.5 text-coffee-600 hover:bg-coffee-100 rounded-lg">
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => onDeleteProduct(product.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
                       </td>
@@ -416,7 +428,7 @@ export function AdminProducts({
                           {product.isActive ? 'Active' : 'Hidden'}
                         </span>
                       </td>
-                      <td className="p-3 pr-5 sm:p-4">
+                      <td className="hidden sm:table-cell p-3 sm:p-4">
                         <div className="flex items-center justify-end gap-1 sm:gap-2">
                           <button onClick={() => handleEdit(product)} className="p-1.5 sm:p-2 text-coffee-600 hover:bg-coffee-100 hover:text-coffee-900 rounded-lg transition-colors">
                             <Edit2 className="w-3.5 h-3.5 sm:w-4 h-4" />
@@ -480,21 +492,35 @@ export function AdminProducts({
             )}
 
             <div className="bg-white rounded-2xl shadow-xl border border-coffee-100 overflow-x-auto scrollbar-hide">
-              <table className="w-full text-left border-collapse min-w-[340px] sm:min-w-[500px]">
+              <table className="w-full text-left border-collapse min-w-[280px] sm:min-w-[500px]">
                 <thead>
                   <tr className="bg-amber-600 text-white">
                     <th className="p-3 sm:p-4 font-semibold text-xs sm:text-sm rounded-tl-xl">Add-on</th>
                     <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm text-center">Price</th>
                     <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm">Status</th>
-                    <th className="p-3 pr-5 sm:p-4 font-semibold text-xs sm:text-sm text-right rounded-tr-xl whitespace-nowrap">Actions</th>
+                    <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm text-right rounded-tr-xl">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {addons.map((addon) => (
                     <tr key={addon.id} className="border-b border-coffee-100 hover:bg-amber-50 transition-colors">
                       <td className="p-3 sm:p-4">
-                        <div className="font-bold text-coffee-900 text-[11px] sm:text-sm break-words max-w-[120px] sm:max-w-none leading-tight">{addon.name}</div>
-                        <div className="sm:hidden text-[10px] font-black text-amber-700 mt-0.5">₱{addon.price.toLocaleString()}</div>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-coffee-900 text-[11px] sm:text-sm break-words max-w-[120px] sm:max-w-none leading-tight">{addon.name}</div>
+                            <div className="sm:hidden text-[10px] font-black text-amber-700 mt-0.5">₱{addon.price.toLocaleString()}</div>
+                          </div>
+                          
+                          {/* Mobile Actions */}
+                          <div className="sm:hidden flex items-center gap-1">
+                            <button onClick={() => handleEditAddon(addon)} className="p-1.5 text-coffee-600 hover:bg-amber-100 rounded-lg">
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => onDeleteAddon(addon.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       </td>
                       <td className="hidden sm:table-cell p-3 sm:p-4 text-xs sm:text-sm font-medium text-center whitespace-nowrap">₱{addon.price.toLocaleString()}</td>
                       <td className="hidden sm:table-cell p-3 sm:p-4">
@@ -502,7 +528,7 @@ export function AdminProducts({
                           {addon.isActive ? 'Active' : 'Hidden'}
                         </span>
                       </td>
-                      <td className="p-3 pr-5 sm:p-4">
+                      <td className="hidden sm:table-cell p-3 sm:p-4">
                         <div className="flex items-center justify-end gap-1 sm:gap-2">
                           <button onClick={() => handleEditAddon(addon)} className="p-1.5 sm:p-2 text-coffee-600 hover:bg-amber-100 hover:text-amber-900 rounded-lg transition-colors">
                             <Edit2 className="w-3.5 h-3.5 sm:w-4 h-4" />
