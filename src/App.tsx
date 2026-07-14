@@ -72,7 +72,7 @@ export default function App() {
   }, [isAdmin]);
 
   const handlePlaceOrder = (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>) => {
-    const initialStatus = orderData.source === 'pos' ? 'pending' : 'unpaid';
+    const initialStatus: OrderStatus = 'unpaid';
     
     addOrder({
       ...orderData,
@@ -126,8 +126,8 @@ export default function App() {
             </span>
           </div>
           
-          <div className="flex-1 flex justify-center">
-            <div className="flex gap-1 bg-coffee-900/50 p-1 rounded-xl border border-coffee-800/50 overflow-x-auto scrollbar-hide max-w-[300px] sm:max-w-none">
+          <div className="flex-1 flex justify-center overflow-hidden">
+            <div className="flex gap-1 bg-coffee-900/50 p-1 rounded-xl border border-coffee-800/50 overflow-x-auto scrollbar-hide w-full max-w-full justify-start sm:justify-center">
               {allowedNavigation.map((item) => (
                 <button
                   key={item.id}
@@ -139,14 +139,14 @@ export default function App() {
                       setIsStarted(true);
                     }
                   }}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                     currentView === item.id
                       ? 'bg-amber-600 text-white shadow-lg scale-105'
                       : 'text-coffee-400 hover:text-white hover:bg-coffee-800'
                   }`}
                 >
                   {item.icon}
-                  <span className="hidden md:inline">{item.label}</span>
+                  <span className="hidden xs:inline md:inline">{item.label}</span>
                 </button>
               ))}
             </div>

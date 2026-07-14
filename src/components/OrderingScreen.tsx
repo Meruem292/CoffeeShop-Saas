@@ -278,12 +278,12 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 scrollbar-hide">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 lg:p-8 scrollbar-hide">
           <div className="w-full max-w-[1440px] mx-auto">
-            <header className={`${mode === 'mobile' ? 'mb-4 flex items-center' : 'mb-8 flex items-end justify-between border-b border-coffee-100 pb-5'}`}>
+            <header className={`${mode === 'mobile' ? 'mb-2 flex items-center px-1' : 'mb-8 flex items-end justify-between border-b border-coffee-100 pb-5'}`}>
               <div className={`${mode === 'mobile' ? 'flex items-center gap-2' : ''}`}>
-                {mode === 'mobile' && <div className="w-1 h-5 bg-coffee-900 rounded-full" />}
-                <h2 className={`${mode === 'mobile' ? 'text-lg font-black text-coffee-950 uppercase tracking-tight' : 'text-3xl md:text-4xl lg:text-5xl font-black text-coffee-950 uppercase italic tracking-tighter leading-none'}`}>
+                {mode === 'mobile' && <div className="w-0.5 h-4 bg-coffee-900 rounded-full" />}
+                <h2 className={`${mode === 'mobile' ? 'text-sm font-black text-coffee-950 uppercase tracking-tight' : 'text-3xl md:text-4xl lg:text-5xl font-black text-coffee-950 uppercase italic tracking-tighter leading-none'}`}>
                   {searchQuery ? 'Search Results' : activeCategory}
                 </h2>
                 {mode !== 'mobile' && <div className="h-1.5 w-16 bg-amber-600 rounded-full mt-3" />}
@@ -683,12 +683,12 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
                   <>
                     <div className="mb-4 sm:mb-6">
                       <label className="block text-[10px] sm:text-xs font-bold text-coffee-400 uppercase tracking-widest mb-2 sm:mb-3">Sugar Level</label>
-                      <div className="flex gap-1.5 sm:gap-2">
+                      <div className="flex flex-wrap gap-1.5 sm:gap-2">
                         {(['0%', '25%', '50%', '75%', '100%'] as SugarLevel[]).map((level) => (
                           <button
                             key={level}
                             onClick={() => setSelectedSugarConfig(level)}
-                            className={`flex-1 py-1.5 sm:py-2 rounded-lg font-bold text-xs sm:text-sm transition-all ${selectedSugarConfig === level ? 'bg-amber-600 text-white' : 'bg-coffee-100 text-coffee-600 hover:bg-coffee-200'}`}
+                            className={`flex-1 min-w-[50px] py-1.5 sm:py-2 rounded-lg font-bold text-[10px] sm:text-xs md:text-sm transition-all ${selectedSugarConfig === level ? 'bg-amber-600 text-white shadow-md' : 'bg-coffee-100 text-coffee-600 hover:bg-coffee-200'}`}
                           >
                             {level}
                           </button>

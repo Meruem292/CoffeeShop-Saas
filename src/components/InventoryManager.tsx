@@ -39,14 +39,14 @@ export function InventoryManager({ products, onUpdateStock }: InventoryManagerPr
         </header>
 
         <div className="bg-white rounded-2xl shadow-xl border border-coffee-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse min-w-[340px] sm:min-w-[500px]">
               <thead>
                 <tr className="bg-coffee-900 text-white">
-                  <th className="p-4 font-semibold text-sm">Item Name</th>
-                  <th className="p-4 font-semibold text-sm">Status</th>
-                  <th className="p-4 font-semibold text-sm text-right">Current Stock</th>
-                  <th className="p-4 font-semibold text-sm text-center">Actions</th>
+                  <th className="p-3 sm:p-4 font-semibold text-xs sm:text-sm">Item Name</th>
+                  <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm">Status</th>
+                  <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm text-right">Stock</th>
+                  <th className="p-3 pr-5 sm:p-4 font-semibold text-xs sm:text-sm text-center whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -57,38 +57,46 @@ export function InventoryManager({ products, onUpdateStock }: InventoryManagerPr
                       key={item.id} 
                       className="border-b border-coffee-100 hover:bg-coffee-50 transition-colors"
                     >
-                      <td className="p-4 font-medium text-coffee-900">{item.name}</td>
-                      <td className="p-4">
+                      <td className="p-3 sm:p-4 font-medium text-coffee-900 text-[11px] sm:text-sm break-words min-w-[100px] max-w-[150px] sm:max-w-none">
+                        {item.name}
+                        <div className="sm:hidden flex items-center gap-2 mt-0.5">
+                          <span className={`font-black text-[10px] ${isLow ? 'text-red-600' : 'text-coffee-600'}`}>
+                            {item.stock} {item.unit}
+                          </span>
+                          {isLow && <span className="text-[8px] bg-red-100 text-red-700 px-1 rounded uppercase font-bold">Low</span>}
+                        </div>
+                      </td>
+                      <td className="hidden sm:table-cell p-3 sm:p-4">
                         {isLow ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
-                            <AlertTriangle className="w-3.5 h-3.5" />
-                            Low Stock
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                            <AlertTriangle className="w-3 h-3" />
+                            Low
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
                             Healthy
                           </span>
                         )}
                       </td>
-                      <td className="p-4 text-right">
-                        <span className={`text-lg font-bold ${isLow ? 'text-red-600' : 'text-coffee-900'}`}>
+                      <td className="hidden sm:table-cell p-3 sm:p-4 text-right">
+                        <span className={`text-sm sm:text-lg font-bold ${isLow ? 'text-red-600' : 'text-coffee-900'}`}>
                           {item.stock}
                         </span>
-                        <span className="text-coffee-500 text-sm ml-1">{item.unit}</span>
+                        <span className="text-coffee-500 text-[10px] sm:text-sm ml-1">{item.unit}</span>
                       </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-center gap-2">
+                      <td className="p-3 pr-5 sm:p-4">
+                        <div className="flex items-center justify-center gap-1 sm:gap-2">
                           <button
                             onClick={() => onUpdateStock(item.id, -1)}
-                            className="p-1.5 rounded-lg bg-coffee-100 text-coffee-700 hover:bg-coffee-200 transition-colors"
+                            className="p-1 sm:p-1.5 rounded-lg bg-coffee-100 text-coffee-700 hover:bg-coffee-200 transition-colors"
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus className="w-3 h-3 sm:w-4 h-4" />
                           </button>
                           <button
                             onClick={() => onUpdateStock(item.id, 1)}
-                            className="p-1.5 rounded-lg bg-coffee-900 text-white hover:bg-coffee-800 transition-colors"
+                            className="p-1 sm:p-1.5 rounded-lg bg-coffee-900 text-white hover:bg-coffee-800 transition-colors"
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-3 h-3 sm:w-4 h-4" />
                           </button>
                         </div>
                       </td>

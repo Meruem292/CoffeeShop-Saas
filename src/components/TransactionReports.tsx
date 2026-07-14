@@ -207,47 +207,50 @@ export function TransactionReports({ orders }: TransactionReportsProps) {
               className="bg-transparent border-none outline-none text-sm w-full font-medium text-coffee-900 placeholder:text-coffee-300"
             />
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse min-w-[540px] sm:min-w-[700px]">
               <thead>
                 <tr className="bg-coffee-900 text-white">
-                  <th className="p-4 font-semibold text-xs uppercase tracking-wider">Date & Time</th>
-                  <th className="p-4 font-semibold text-xs uppercase tracking-wider">Customer</th>
-                  <th className="p-4 font-semibold text-xs uppercase tracking-wider">Type</th>
-                  <th className="p-4 font-semibold text-xs uppercase tracking-wider">Source</th>
-                  <th className="p-4 font-semibold text-xs uppercase tracking-wider">Status</th>
-                  <th className="p-4 font-semibold text-xs uppercase tracking-wider text-right">Total</th>
+                  <th className="p-3 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider">Date & Time</th>
+                  <th className="p-3 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider">Customer</th>
+                  <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider text-center">Type</th>
+                  <th className="hidden md:table-cell p-3 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider text-center">Source</th>
+                  <th className="p-3 pr-5 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider text-center whitespace-nowrap">Status</th>
+                  <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider text-right">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredOrders.map((order) => (
                   <tr key={order.id} className="border-b border-coffee-50 hover:bg-coffee-50/50 transition-colors">
-                    <td className="p-4">
-                      <div className="text-sm font-bold text-coffee-900">{new Date(order.createdAt).toLocaleDateString()}</div>
-                      <div className="text-[10px] text-coffee-400 font-mono">{new Date(order.createdAt).toLocaleTimeString()}</div>
+                    <td className="p-3 sm:p-4">
+                      <div className="text-[11px] sm:text-sm font-bold text-coffee-900 whitespace-nowrap">{new Date(order.createdAt).toLocaleDateString()}</div>
+                      <div className="text-[9px] sm:text-[10px] text-coffee-400 font-mono whitespace-nowrap">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                     </td>
-                    <td className="p-4">
-                      <div className="text-sm font-bold text-coffee-900">{order.customerName}</div>
-                      {order.tableNumber && <div className="text-[10px] text-amber-600 font-bold uppercase">Table {order.tableNumber}</div>}
+                    <td className="p-3 sm:p-4">
+                      <div className="text-[11px] sm:text-sm font-bold text-coffee-900 break-words line-clamp-2 max-w-[100px] sm:max-w-none">{order.customerName}</div>
+                      <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                        {order.tableNumber && <div className="text-[9px] sm:text-[10px] text-amber-600 font-bold uppercase whitespace-nowrap">Table {order.tableNumber}</div>}
+                        <div className="sm:hidden text-[10px] font-black text-coffee-950 bg-coffee-100 px-1 rounded">₱{order.total.toLocaleString()}</div>
+                      </div>
                     </td>
-                    <td className="p-4">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase ${order.orderType === 'dine-in' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                    <td className="hidden sm:table-cell p-3 sm:p-4 text-center">
+                      <span className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-black uppercase whitespace-nowrap ${order.orderType === 'dine-in' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
                         {order.orderType}
                       </span>
                     </td>
-                    <td className="p-4">
-                      <span className="text-xs font-medium text-coffee-600 capitalize">{order.source}</span>
+                    <td className="hidden md:table-cell p-3 sm:p-4 text-center">
+                      <span className="text-[10px] sm:text-xs font-medium text-coffee-600 capitalize whitespace-nowrap">{order.source}</span>
                     </td>
-                    <td className="p-4">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase ${
+                    <td className="p-3 pr-5 sm:p-4 text-center">
+                      <span className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-black uppercase whitespace-nowrap ${
                         order.status === 'completed' ? 'bg-green-100 text-green-700' : 
                         order.status === 'unpaid' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
                       }`}>
                         {order.status}
                       </span>
                     </td>
-                    <td className="p-4 text-right">
-                      <div className="text-sm font-black text-coffee-950">₱{order.total.toLocaleString()}</div>
+                    <td className="hidden sm:table-cell p-3 sm:p-4 text-right">
+                      <div className="text-[11px] sm:text-sm font-black text-coffee-950 whitespace-nowrap">₱{order.total.toLocaleString()}</div>
                     </td>
                   </tr>
                 ))}

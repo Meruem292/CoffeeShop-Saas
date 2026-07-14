@@ -372,52 +372,57 @@ export function AdminProducts({
               </div>
             )}
 
-            <div className="bg-white rounded-2xl shadow-xl border border-coffee-100 overflow-hidden">
-              <table className="w-full text-left border-collapse min-w-[800px]">
+            <div className="bg-white rounded-2xl shadow-xl border border-coffee-100 overflow-x-auto scrollbar-hide">
+              <table className="w-full text-left border-collapse min-w-[420px] sm:min-w-[800px]">
                 <thead>
                   <tr className="bg-coffee-900 text-white">
-                    <th className="p-4 font-semibold text-sm rounded-tl-xl">Product</th>
-                    <th className="p-4 font-semibold text-sm">Category</th>
-                    <th className="p-4 font-semibold text-sm">Price</th>
-                    <th className="p-4 font-semibold text-sm">Stock</th>
-                    <th className="p-4 font-semibold text-sm">Status</th>
-                    <th className="p-4 font-semibold text-sm text-right rounded-tr-xl">Actions</th>
+                    <th className="p-3 sm:p-4 font-semibold text-xs sm:text-sm rounded-tl-xl">Product</th>
+                    <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm">Category</th>
+                    <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm text-center">Price</th>
+                    <th className="hidden xs:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm text-center">Stock</th>
+                    <th className="hidden md:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm">Status</th>
+                    <th className="p-3 pr-5 sm:p-4 font-semibold text-xs sm:text-sm text-right rounded-tr-xl whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {products.map((product) => (
-                    <tr key={product.id} className="border-b border-coffee-100 hover:bg-coffee-50">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <img src={product.image} alt={product.name} className="w-10 h-10 rounded-lg object-cover bg-coffee-100" />
-                          <div>
-                            <div className="font-bold text-coffee-900 flex items-center gap-2">
-                              {product.name}
-                              {product.isCustomizable && <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-black uppercase">Customizable</span>}
+                    <tr key={product.id} className="border-b border-coffee-100 hover:bg-coffee-50 transition-colors">
+                      <td className="p-3 sm:p-4">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <img src={product.image} alt={product.name} className="w-8 h-8 sm:w-12 sm:h-12 rounded-lg object-cover bg-coffee-100 shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                              <span className="font-bold text-coffee-900 text-[11px] sm:text-sm leading-tight break-words max-w-[120px] sm:max-w-none">{product.name}</span>
+                              {product.isCustomizable && (
+                                <span className="text-[7px] sm:text-[8px] bg-amber-100 text-amber-800 px-1 py-0.5 rounded font-black uppercase w-fit shrink-0">
+                                  Custom
+                                </span>
+                              )}
+                              <span className="sm:hidden text-[10px] font-black text-amber-700 bg-amber-50 px-1 rounded w-fit">₱{product.price.toLocaleString()}</span>
                             </div>
-                            <div className="text-xs text-coffee-500 truncate max-w-xs">{product.description}</div>
+                            <div className="hidden sm:block text-[10px] text-coffee-500 line-clamp-1 max-w-[150px]">{product.description}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="p-4 text-coffee-700">{product.category}</td>
-                      <td className="p-4 font-medium">₱{product.price.toLocaleString()}</td>
-                      <td className="p-4">
-                        <span className={`font-medium ${product.stock <= product.lowStockThreshold ? 'text-red-600' : 'text-coffee-900'}`}>
-                          {product.stock} {product.unit}
+                      <td className="hidden sm:table-cell p-3 sm:p-4 text-xs sm:text-sm text-coffee-700 whitespace-nowrap">{product.category}</td>
+                      <td className="hidden sm:table-cell p-3 sm:p-4 text-xs sm:text-sm font-medium text-center whitespace-nowrap">₱{product.price.toLocaleString()}</td>
+                      <td className="hidden xs:table-cell p-3 sm:p-4 text-xs sm:text-sm text-center">
+                        <span className={`font-medium whitespace-nowrap ${product.stock <= product.lowStockThreshold ? 'text-red-600' : 'text-coffee-900'}`}>
+                          {product.stock}
                         </span>
                       </td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${product.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                      <td className="hidden md:table-cell p-3 sm:p-4">
+                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full whitespace-nowrap ${product.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                           {product.isActive ? 'Active' : 'Hidden'}
                         </span>
                       </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => handleEdit(product)} className="p-2 text-coffee-600 hover:bg-coffee-100 hover:text-coffee-900 rounded-lg transition-colors">
-                            <Edit2 className="w-4 h-4" />
+                      <td className="p-3 pr-5 sm:p-4">
+                        <div className="flex items-center justify-end gap-1 sm:gap-2">
+                          <button onClick={() => handleEdit(product)} className="p-1.5 sm:p-2 text-coffee-600 hover:bg-coffee-100 hover:text-coffee-900 rounded-lg transition-colors">
+                            <Edit2 className="w-3.5 h-3.5 sm:w-4 h-4" />
                           </button>
-                          <button onClick={() => onDeleteProduct(product.id)} className="p-2 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors">
-                            <Trash2 className="w-4 h-4" />
+                          <button onClick={() => onDeleteProduct(product.id)} className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors">
+                            <Trash2 className="w-3.5 h-3.5 sm:w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -425,7 +430,7 @@ export function AdminProducts({
                   ))}
                   {products.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-coffee-400 font-medium">
+                      <td colSpan={6} className="p-8 text-center text-coffee-400 font-medium text-sm">
                         No products found. Add one to get started.
                       </td>
                     </tr>
@@ -474,35 +479,36 @@ export function AdminProducts({
               </div>
             )}
 
-            <div className="bg-white rounded-2xl shadow-xl border border-coffee-100 overflow-hidden">
-              <table className="w-full text-left border-collapse min-w-[600px]">
+            <div className="bg-white rounded-2xl shadow-xl border border-coffee-100 overflow-x-auto scrollbar-hide">
+              <table className="w-full text-left border-collapse min-w-[340px] sm:min-w-[500px]">
                 <thead>
                   <tr className="bg-amber-600 text-white">
-                    <th className="p-4 font-semibold text-sm rounded-tl-xl">Add-on Name</th>
-                    <th className="p-4 font-semibold text-sm">Price</th>
-                    <th className="p-4 font-semibold text-sm">Status</th>
-                    <th className="p-4 font-semibold text-sm text-right rounded-tr-xl">Actions</th>
+                    <th className="p-3 sm:p-4 font-semibold text-xs sm:text-sm rounded-tl-xl">Add-on</th>
+                    <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm text-center">Price</th>
+                    <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-xs sm:text-sm">Status</th>
+                    <th className="p-3 pr-5 sm:p-4 font-semibold text-xs sm:text-sm text-right rounded-tr-xl whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {addons.map((addon) => (
-                    <tr key={addon.id} className="border-b border-coffee-100 hover:bg-amber-50">
-                      <td className="p-4">
-                        <div className="font-bold text-coffee-900">{addon.name}</div>
+                    <tr key={addon.id} className="border-b border-coffee-100 hover:bg-amber-50 transition-colors">
+                      <td className="p-3 sm:p-4">
+                        <div className="font-bold text-coffee-900 text-[11px] sm:text-sm break-words max-w-[120px] sm:max-w-none leading-tight">{addon.name}</div>
+                        <div className="sm:hidden text-[10px] font-black text-amber-700 mt-0.5">₱{addon.price.toLocaleString()}</div>
                       </td>
-                      <td className="p-4 font-medium">₱{addon.price.toLocaleString()}</td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${addon.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                      <td className="hidden sm:table-cell p-3 sm:p-4 text-xs sm:text-sm font-medium text-center whitespace-nowrap">₱{addon.price.toLocaleString()}</td>
+                      <td className="hidden sm:table-cell p-3 sm:p-4">
+                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full whitespace-nowrap ${addon.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                           {addon.isActive ? 'Active' : 'Hidden'}
                         </span>
                       </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => handleEditAddon(addon)} className="p-2 text-coffee-600 hover:bg-amber-100 hover:text-amber-900 rounded-lg transition-colors">
-                            <Edit2 className="w-4 h-4" />
+                      <td className="p-3 pr-5 sm:p-4">
+                        <div className="flex items-center justify-end gap-1 sm:gap-2">
+                          <button onClick={() => handleEditAddon(addon)} className="p-1.5 sm:p-2 text-coffee-600 hover:bg-amber-100 hover:text-amber-900 rounded-lg transition-colors">
+                            <Edit2 className="w-3.5 h-3.5 sm:w-4 h-4" />
                           </button>
-                          <button onClick={() => onDeleteAddon(addon.id)} className="p-2 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors">
-                            <Trash2 className="w-4 h-4" />
+                          <button onClick={() => onDeleteAddon(addon.id)} className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors">
+                            <Trash2 className="w-3.5 h-3.5 sm:w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -510,8 +516,8 @@ export function AdminProducts({
                   ))}
                   {addons.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="p-8 text-center text-coffee-400 font-medium">
-                        No add-ons found. Create one to allow customers to customize their drinks.
+                      <td colSpan={4} className="p-8 text-center text-coffee-400 font-medium text-sm">
+                        No add-ons found. Create one to get started.
                       </td>
                     </tr>
                   )}
