@@ -22,6 +22,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
   const [orderType, setOrderType] = useState<'dine-in' | 'take-away' | null>(null);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
   const [isKioskCartOpen, setIsKioskCartOpen] = useState(false);
+  const [isPosCartDrawerOpen, setIsPosCartDrawerOpen] = useState(false);
   const [selectedProductForConfig, setSelectedProductForConfig] = useState<Product | null>(null);
 
   const [selectedSizeConfig, setSelectedSizeConfig] = useState<ProductSize | null>(null);
@@ -141,6 +142,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
     setOrderType(null);
     setIsMobileCartOpen(false);
     setIsKioskCartOpen(false);
+    setIsPosCartDrawerOpen(false);
   };
 
   if (mode === 'kiosk' && !orderType) {
@@ -384,10 +386,11 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
           <ShoppingBag className="w-5 h-5 text-coffee-600" />
           Current Order
         </h2>
-        {(mode === 'mobile' || mode === 'kiosk') && (
+        {(mode === 'mobile' || mode === 'kiosk' || isPosCartDrawerOpen) && (
           <button onClick={() => {
             setIsMobileCartOpen(false);
             setIsKioskCartOpen(false);
+            setIsPosCartDrawerOpen(false);
           }} className="p-2 text-coffee-500 bg-coffee-100 rounded-full hover:bg-coffee-200 transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -545,16 +548,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
 
       {/* Main Layout */}
       <div className={`${mode === 'kiosk' ? 'flex flex-col flex-1' : 'flex flex-1'} ${mode === 'mobile' ? 'overflow-hidden' : ''}`}>
-        <div className={`${mode === 'mobile' ? 'flex-1' : mode === 'kiosk' ? 'flex-1' : 'flex-1 md:w-2/3 border-r border-coffee-200'} flex flex-col overflow-hidden`}>
+        <div className="flex-1 flex flex-col overflow-hidden">
           {renderMenuGrid()}
         </div>
-
-        {/* Cart Area - Desktop/Tablet (Side Bar) */}
-        {mode === 'pos' && (
-          <div className="hidden md:block w-1/3 min-w-[320px] max-w-[400px]">
-            {renderCart()}
-          </div>
-        )}
 
         {/* Cart Area - Kiosk (Bottom Bar) */}
         {mode === 'kiosk' && (
@@ -612,28 +608,42 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
         )}
       </div>
 
-      {/* Cart Area - Mobile (Floating Button & Drawer) */}
-      {mode === 'mobile' && (
+      {/* Cart Area - Mobile & POS (Floating Button & Drawer) */}
+      {(mode === 'mobile' || mode === 'pos') && (
         <>
-          <div className="p-4 bg-white border-t border-coffee-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
-             <button
-              onClick={() => setIsMobileCartOpen(true)}
-              className="w-full bg-coffee-900 text-white py-3 rounded-xl font-bold flex justify-between items-center px-4 shadow-md"
+          {cart.length > 0 && !isMobileCartOpen && !isPosCartDrawerOpen && (
+            <button
+              onClick={() => mode === 'mobile' ? setIsMobileCartOpen(true) : setIsPosCartDrawerOpen(true)}
+              className="fixed bottom-6 right-6 z-[60] bg-coffee-900 text-white p-4 rounded-full shadow-2xl flex items-center gap-3 group transition-all active:scale-95 animate-in fade-in zoom-in duration-300"
             >
-              <div className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5" />
-                <span>View Cart ({cart.reduce((a, b) => a + b.quantity, 0)})</span>
+              <div className="relative">
+                <ShoppingBag className="w-6 h-6" />
+                <span className="absolute -top-2 -right-2 bg-amber-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                  {cart.reduce((a, b) => a + b.quantity, 0)}
+                </span>
               </div>
-              <span>₱{total.toLocaleString()}</span>
+              <div className="flex flex-col items-start pr-1">
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none mb-0.5">Cart Total</span>
+                <span className="font-black text-sm">₱{total.toLocaleString()}</span>
+              </div>
             </button>
-          </div>
+          )}
 
-          {isMobileCartOpen && (
+          {(isMobileCartOpen || isPosCartDrawerOpen) && (
               <div
-                className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40"
+                className="fixed inset-0 z-[70] flex flex-col justify-end bg-black/40 backdrop-blur-sm transition-all animate-in fade-in duration-300"
+                onClick={() => {
+                  setIsMobileCartOpen(false);
+                  setIsPosCartDrawerOpen(false);
+                }}
               >
-                <div className="bg-white w-full h-[85vh] rounded-t-3xl overflow-hidden shadow-2xl flex flex-col">
-                  {renderCart()}
+                <div 
+                  className={`bg-white w-full ${mode === 'mobile' ? 'h-[85vh]' : 'max-w-md ml-auto h-full'} rounded-t-3xl md:rounded-t-none md:rounded-l-3xl overflow-hidden shadow-2xl flex flex-col animate-in ${mode === 'mobile' ? 'slide-in-from-bottom' : 'slide-in-from-right'} duration-500`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex-1 overflow-hidden">
+                    {renderCart()}
+                  </div>
                 </div>
               </div>
             )}
