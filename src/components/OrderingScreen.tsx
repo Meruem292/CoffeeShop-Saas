@@ -23,6 +23,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
   const [isKioskCartOpen, setIsKioskCartOpen] = useState(false);
   const [isPosCartDrawerOpen, setIsPosCartDrawerOpen] = useState(false);
+  const [gridColumns, setGridColumns] = useState<4 | 5 | 6>(5);
   const [selectedProductForConfig, setSelectedProductForConfig] = useState<Product | null>(null);
 
   const [selectedSizeConfig, setSelectedSizeConfig] = useState<ProductSize | null>(null);
@@ -290,7 +291,27 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
                 </h2>
                 {mode !== 'mobile' && <div className="h-1.5 w-16 bg-amber-600 rounded-full mt-3" />}
               </div>
-              <div className={`${mode === 'mobile' ? 'hidden' : 'hidden lg:flex items-center gap-4'}`}>
+              <div className={`${mode === 'mobile' ? 'hidden' : 'hidden lg:flex items-center gap-6'}`}>
+                {/* Column Toggle - POS/Kiosk Only */}
+                {mode !== 'mobile' && !searchQuery && (
+                  <div className="flex items-center gap-1.5 bg-coffee-50 p-1 rounded-xl border border-coffee-100">
+                    <span className="text-[10px] font-black text-coffee-400 uppercase tracking-widest px-2">Cols</span>
+                    {[4, 5, 6].map((cols) => (
+                      <button
+                        key={cols}
+                        onClick={() => setGridColumns(cols as 4 | 5 | 6)}
+                        className={`w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-black transition-all ${
+                          gridColumns === cols
+                            ? 'bg-coffee-900 text-white shadow-lg scale-105'
+                            : 'text-coffee-400 hover:text-coffee-600 hover:bg-white'
+                        }`}
+                      >
+                        {cols}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <div className="relative">
                   <input
                     type="text"
@@ -329,7 +350,11 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
               <div 
                 className={`grid ${
                   mode === 'mobile' ? 'grid-cols-2 gap-3 sm:grid-cols-3' : 
-                  'gap-5 md:gap-6 lg:gap-8 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+                  `gap-5 md:gap-6 lg:gap-8 grid-cols-2 ${
+                    gridColumns === 4 ? 'lg:grid-cols-4' : 
+                    gridColumns === 5 ? 'lg:grid-cols-5' : 
+                    'lg:grid-cols-6'
+                  }`
                 }`}
                 key={searchQuery ? 'search' : activeCategory}
               >
