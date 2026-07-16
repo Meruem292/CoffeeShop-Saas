@@ -1,6 +1,12 @@
 export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'settings' | 'cashier' | 'reports';
 export type Category = 'Hot Coffee' | 'Cold Coffee' | 'Tea' | 'Food';
 
+export interface DynamicCategory {
+  id: string;
+  name: string;
+  iconName: string;
+}
+
 export interface ProductSize {
   name: string;
   price: number;
@@ -48,6 +54,8 @@ export interface ShopSettings {
   initials: string;
   logoUrl?: string;
   themeColor?: string;
+  gridColumns?: number;
+  mobileGridColumns?: number;
 }
 
 export interface SplashScreen {
@@ -57,6 +65,8 @@ export interface SplashScreen {
   subtitle: string;
   isActive: boolean;
   buttonText: string;
+  useGlb?: boolean;
+  glbUrl?: string;
 }
 
 export type OrderStatus = 'unpaid' | 'pending' | 'preparing' | 'ready' | 'completed';

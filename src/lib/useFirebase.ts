@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon } from '../types';
+import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory } from '../types';
 import { handleFirestoreError } from './AuthContext';
 
 enum OperationType {
@@ -16,6 +16,7 @@ enum OperationType {
 export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const [products, setProducts] = useState<Product[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
+  const [categories, setCategories] = useState<DynamicCategory[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [splashScreen, setSplashScreen] = useState<SplashScreen | null>(null);
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
@@ -49,7 +50,13 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     // Splash Screen Sync
     const unsubSplash = onSnapshot(doc(db, 'settings', 'splash'), (snapshot) => {
       if (snapshot.exists()) {
-        setSplashScreen({ id: snapshot.id, ...snapshot.data() } as SplashScreen);
+        const data = snapshot.data();
+        setSplashScreen({ 
+          id: snapshot.id, 
+          useGlb: data.useGlb !== undefined ? data.useGlb : true,
+          glbUrl: data.glbUrl || '/coffee_cup_with_plate.glb',
+          ...data 
+        } as SplashScreen);
       } else {
         setSplashScreen({
           id: 'splash',
@@ -57,7 +64,9 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
           title: 'Premium Coffee Experience',
           subtitle: 'Savor every moment with our handcrafted blends',
           isActive: true,
-          buttonText: 'Start Ordering'
+          buttonText: 'Start Ordering',
+          useGlb: true,
+          glbUrl: '/coffee_cup_with_plate.glb'
         });
       }
     }, (err) => handleSnapshotError(err, OperationType.GET, 'settings/splash'));
@@ -77,6 +86,29 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       setAddons(a);
     }, (err) => handleSnapshotError(err, OperationType.LIST, 'addons'));
 
+    // Categories Listener
+    const qCategories = query(collection(db, 'categories'));
+    const unsubCategories = onSnapshot(qCategories, (snapshot) => {
+      if (snapshot.empty && isAdmin) {
+        const defaults = [
+          { name: 'Hot Coffee', iconName: 'Coffee' },
+          { name: 'Cold Coffee', iconName: 'IceCream' },
+          { name: 'Tea', iconName: 'Leaf' },
+          { name: 'Food', iconName: 'Croissant' }
+        ];
+        defaults.forEach(async (cat) => {
+          try {
+            await addDoc(collection(db, 'categories'), cat);
+          } catch (e) {
+            console.error('Failed to seed default category', e);
+          }
+        });
+      } else {
+        const c = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DynamicCategory));
+        setCategories(c);
+      }
+    }, (err) => handleSnapshotError(err, OperationType.LIST, 'categories'));
+
     if (!userUid) {
        setOrders([]);
        setLoading(false);
@@ -85,6 +117,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
          unsubSplash();
          unsubProducts();
          unsubAddons();
+         unsubCategories();
        };
     }
 
@@ -110,6 +143,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       unsubSplash();
       unsubProducts();
       unsubAddons();
+      unsubCategories();
       unsubOrders();
     };
   }, [userUid, isAdmin]);
@@ -196,6 +230,32 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     }
   };
 
+  // --- Category Operations ---
+  const addCategory = async (category: Omit<DynamicCategory, 'id'>) => {
+    try {
+      await addDoc(collection(db, 'categories'), category);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'categories');
+    }
+  };
+
+  const updateCategory = async (id: string, updates: Partial<DynamicCategory>) => {
+    try {
+      const { id: _, ...data } = updates;
+      await updateDoc(doc(db, 'categories', id), data);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `categories/${id}`);
+    }
+  };
+
+  const deleteCategory = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'categories', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `categories/${id}`);
+    }
+  };
+
   // --- Order Operations ---
   const addOrder = async (order: Omit<Order, 'id' | 'createdAt'>) => {
     const user = auth.currentUser;
@@ -238,9 +298,30 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     }
   };
 
+  const deleteOrder = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'orders', id));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `orders/${id}`);
+    }
+  };
+
+  const clearOrders = async (orderIds: string[]) => {
+    try {
+      const batch = writeBatch(db);
+      orderIds.forEach(id => {
+        batch.delete(doc(db, 'orders', id));
+      });
+      await batch.commit();
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, 'orders/clear');
+    }
+  };
+
   return {
     products,
     addons,
+    categories,
     orders,
     splashScreen,
     shopSettings,
@@ -254,8 +335,13 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     addAddon,
     updateAddon,
     deleteAddon,
+    addCategory,
+    updateCategory,
+    deleteCategory,
     addOrder,
     updateOrderStatus,
-    updateStock
+    updateStock,
+    deleteOrder,
+    clearOrders
   };
 }

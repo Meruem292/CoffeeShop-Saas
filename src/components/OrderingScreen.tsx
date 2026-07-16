@@ -1,22 +1,50 @@
-import React, { useState, useMemo } from 'react';
-import { Product, CartItem, Order, ProductSize, Addon, SugarLevel } from '../types';
+import React, { useState, useMemo, useCallback } from 'react';
+import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory } from '../types';
 import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream } from 'lucide-react';
 import MagicBento from './MagicBento';
+import { CategorySidebar } from './CategorySidebar';
+import { ProductCard } from './ProductCard';
 
 interface OrderingScreenProps {
   mode: 'pos' | 'kiosk' | 'mobile';
   menu: Product[];
   addons?: Addon[];
   onPlaceOrder: (order: Omit<Order, 'id' | 'createdAt' | 'status'>) => void;
+  searchQuery?: string;
+  shopSettings?: ShopSettings | null;
+  categoriesData?: DynamicCategory[];
 }
 
-export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: OrderingScreenProps) {
+export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQuery = '', shopSettings, categoriesData }: OrderingScreenProps) {
   const categories = useMemo(() => {
-    const cats = Array.from(new Set(menu.map(p => p.category)));
-    return cats.length > 0 ? cats : ['Hot Coffee', 'Cold Coffee', 'Tea', 'Food'];
-  }, [menu]);
+    let list: string[];
+    if (categoriesData && categoriesData.length > 0) {
+      list = categoriesData.map(c => c.name);
+    } else {
+      list = Array.from(new Set(menu.map(p => p.category)));
+      if (list.length === 0) {
+        list = ['Hot Coffee', 'Cold Coffee', 'Tea', 'Food'];
+      }
+    }
+    // Only keep categories that have at least one registered active product
+    return list.filter(catName => 
+      menu.some(p => p.category.trim().toLowerCase() === catName.trim().toLowerCase())
+    );
+  }, [categoriesData, menu]);
 
-  const [activeCategory, setActiveCategory] = useState<string>(categories[0] || 'Hot Coffee');
+  const [activeCategory, setActiveCategory] = useState<string>(categories[0] || '');
+
+  // Keep activeCategory in sync with available categories
+  React.useEffect(() => {
+    if (categories.length > 0) {
+      const exists = categories.some(c => c.trim().toLowerCase() === activeCategory.trim().toLowerCase());
+      if (!exists) {
+        setActiveCategory(categories[0]);
+      }
+    } else {
+      setActiveCategory('');
+    }
+  }, [categories, activeCategory]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [tableNumber, setTableNumber] = useState('');
@@ -24,20 +52,24 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
   const [isKioskCartOpen, setIsKioskCartOpen] = useState(false);
   const [isPosCartDrawerOpen, setIsPosCartDrawerOpen] = useState(false);
-  const [gridColumns, setGridColumns] = useState<4 | 5 | 6>(5);
+  const [gridColumns, setGridColumns] = useState<number>(shopSettings?.gridColumns || 5);
   const [selectedProductForConfig, setSelectedProductForConfig] = useState<Product | null>(null);
+
+  // Sync grid columns if shopSettings change
+  React.useEffect(() => {
+    if (shopSettings?.gridColumns) {
+      setGridColumns(shopSettings.gridColumns);
+    }
+  }, [shopSettings?.gridColumns]);
 
   const [selectedSizeConfig, setSelectedSizeConfig] = useState<ProductSize | null>(null);
   const [selectedSugarConfig, setSelectedSugarConfig] = useState<SugarLevel>('100%');
   const [selectedAddonsConfig, setSelectedAddonsConfig] = useState<Addon[]>([]);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-
-  // Sync active category if it's no longer valid
-  if (activeCategory && !categories.includes(activeCategory) && categories.length > 0) {
-    setActiveCategory(categories[0]);
-  }
+  // Category Change Handler
+  const handleCategoryChange = useCallback((cat: string) => {
+    setActiveCategory(cat);
+  }, []);
 
   const isProductBeverage = (product: Product) => {
     const categoryLower = (product.category || '').toLowerCase();
@@ -47,18 +79,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
     ) || !!product.isCustomizable;
   };
 
-  const handleProductClick = (product: Product) => {
-    if ((product.sizes && product.sizes.length > 0) || product.isCustomizable || isProductBeverage(product)) {
-      setSelectedProductForConfig(product);
-      setSelectedSizeConfig(product.sizes && product.sizes.length > 0 ? product.sizes[0] : null);
-      setSelectedSugarConfig('100%');
-      setSelectedAddonsConfig([]);
-    } else {
-      addToCart(product);
-    }
-  };
-
-  const addToCart = (product: Product, size?: ProductSize, sugarLevel?: SugarLevel, selectedAddons?: Addon[]) => {
+  const addToCart = useCallback((product: Product, size?: ProductSize, sugarLevel?: SugarLevel, selectedAddons?: Addon[]) => {
     const basePrice = size ? size.price : product.price;
     const addonsPrice = selectedAddons ? selectedAddons.reduce((sum, a) => sum + a.price, 0) : 0;
     const finalPrice = basePrice + addonsPrice;
@@ -78,7 +99,19 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
       }
       return [...prev, { ...product, cartId, quantity: 1, notes: '', selectedSize: size, price: finalPrice, sugarLevel, selectedAddons }];
     });
-  };
+  }, []);
+
+  // Product Click Handler
+  const handleProductClick = useCallback((product: Product) => {
+    if ((product.sizes && product.sizes.length > 0) || product.isCustomizable || isProductBeverage(product)) {
+      setSelectedProductForConfig(product);
+      setSelectedSizeConfig(product.sizes && product.sizes.length > 0 ? product.sizes[0] : null);
+      setSelectedSugarConfig('100%');
+      setSelectedAddonsConfig([]);
+    } else {
+      addToCart(product);
+    }
+  }, [addToCart]);
 
   const handleConfigSubmit = () => {
     if (selectedProductForConfig) {
@@ -119,7 +152,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
     if (searchQuery) {
       return menu.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
     }
-    return menu.filter(item => item.category === activeCategory);
+    return menu.filter(item => (item.category || '').trim().toLowerCase() === (activeCategory || '').trim().toLowerCase());
   }, [menu, searchQuery, activeCategory]);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -162,36 +195,36 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
           <div className="w-24 h-24 bg-amber-500/10 backdrop-blur-xl border border-amber-500/30 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
             <Sparkles className="w-12 h-12 text-amber-500" />
           </div>
-          <h1 className="text-7xl font-black text-white mb-6 uppercase italic tracking-tighter leading-none">
+          <h1 className="text-7xl font-black text-foreground mb-6 uppercase italic tracking-tighter leading-none">
             Welcome to <span className="text-amber-500">Astro</span> Coffee
           </h1>
-          <p className="text-coffee-400 text-2xl font-bold uppercase tracking-[0.3em]">Select your experience</p>
+          <p className="text-slate-400 text-2xl font-bold uppercase tracking-[0.3em]">Select your experience</p>
         </div>
 
         <div className="grid grid-cols-2 gap-12 w-full max-w-5xl relative z-10">
           <button
             onClick={() => setOrderType('dine-in')}
-            className="flex flex-col items-center gap-10 bg-white/5 backdrop-blur-xl p-16 rounded-[4rem] shadow-2xl group transition-all hover:bg-white/10 border-2 border-white/5 hover:border-amber-500/50"
+            className="flex flex-col items-center gap-10 bg-white shadow-2xl p-16 rounded-[4rem] group transition-all hover:shadow-amber-500/10 border-2 border-slate-100 hover:border-amber-500/50"
           >
-            <div className="w-48 h-48 bg-amber-500/10 rounded-full flex items-center justify-center group-hover:bg-amber-500/20 transition-all group-hover:scale-110 shadow-inner">
+            <div className="w-48 h-48 bg-amber-500/5 rounded-full flex items-center justify-center group-hover:bg-amber-500/10 transition-all group-hover:scale-110 shadow-inner">
               <Store className="w-24 h-24 text-amber-500" />
             </div>
             <div className="text-center">
-              <span className="text-5xl font-black text-white block mb-2 uppercase italic tracking-tighter group-hover:text-amber-500 transition-colors">Dine In</span>
-              <span className="text-coffee-500 font-bold uppercase tracking-[0.4em] text-sm">Station Experience</span>
+              <span className="text-5xl font-black text-foreground block mb-2 uppercase italic tracking-tighter group-hover:text-amber-500 transition-colors">Dine In</span>
+              <span className="text-slate-400 font-bold uppercase tracking-[0.4em] text-sm">Station Experience</span>
             </div>
           </button>
 
           <button
             onClick={() => setOrderType('take-away')}
-            className="flex flex-col items-center gap-10 bg-white/5 backdrop-blur-xl p-16 rounded-[4rem] shadow-2xl group transition-all hover:bg-white/10 border-2 border-white/5 hover:border-amber-500/50"
+            className="flex flex-col items-center gap-10 bg-white shadow-2xl p-16 rounded-[4rem] group transition-all hover:shadow-amber-500/10 border-2 border-slate-100 hover:border-amber-500/50"
           >
-            <div className="w-48 h-48 bg-amber-500/10 rounded-full flex items-center justify-center group-hover:bg-amber-500/20 transition-all group-hover:scale-110 shadow-inner">
+            <div className="w-48 h-48 bg-amber-500/5 rounded-full flex items-center justify-center group-hover:bg-amber-500/10 transition-all group-hover:scale-110 shadow-inner">
               <ShoppingBag className="w-24 h-24 text-amber-500" />
             </div>
             <div className="text-center">
-              <span className="text-5xl font-black text-white block mb-2 uppercase italic tracking-tighter group-hover:text-amber-500 transition-colors">Take Out</span>
-              <span className="text-coffee-500 font-bold uppercase tracking-[0.4em] text-sm">Orbit Ready</span>
+              <span className="text-5xl font-black text-foreground block mb-2 uppercase italic tracking-tighter group-hover:text-amber-500 transition-colors">Take Out</span>
+              <span className="text-slate-400 font-bold uppercase tracking-[0.4em] text-sm">Orbit Ready</span>
             </div>
           </button>
         </div>
@@ -205,64 +238,52 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
     mobile: 'flex flex-col h-screen w-full bg-transparent relative',
   };
 
+  const gridColsMap: Record<number, string> = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-2',
+    3: 'grid-cols-3',
+    4: 'grid-cols-4',
+    5: 'grid-cols-5',
+    6: 'grid-cols-6',
+    7: 'grid-cols-7',
+    8: 'grid-cols-8',
+  };
+
+  const lgGridColsMap: Record<number, string> = {
+    2: 'lg:grid-cols-2',
+    3: 'lg:grid-cols-3',
+    4: 'lg:grid-cols-4',
+    5: 'lg:grid-cols-5',
+    6: 'lg:grid-cols-6',
+    7: 'lg:grid-cols-7',
+    8: 'lg:grid-cols-8',
+  };
+
   const renderMenuGrid = () => (
     <div className={`flex-1 overflow-hidden flex ${mode !== 'pos' ? 'flex-row' : 'flex-col'}`}>
       {/* Sidebar Navigation for Kiosk/Mobile */}
       {mode !== 'pos' && (
-        <div className={`flex flex-col py-4 md:py-8 overflow-y-auto scrollbar-hide shrink-0 z-20 transition-all ${mode === 'mobile' ? 'w-[72px] md:w-20 bg-black/20 backdrop-blur-xl border-r border-white/5 gap-2' : 'w-20 md:w-28 lg:w-32 bg-black/40 backdrop-blur-2xl shadow-2xl gap-4 md:gap-6 border-r border-white/5'}`}>
-          {mode !== 'mobile' && (
-            <div className="flex flex-col items-center gap-1 mb-6 opacity-90">
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl border border-white/10 flex items-center justify-center bg-white/5 shadow-[0_0_20px_rgba(255,255,255,0.05)]">
-                <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-amber-500" />
-              </div>
-              <span className="text-[8px] md:text-[10px] text-coffee-400 uppercase font-black tracking-[0.4em] mt-3">Astro</span>
-            </div>
-          )}
-
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`flex flex-col items-center p-2 md:p-3 transition-all relative group ${
-                  activeCategory === cat ? 'text-white' : 'text-white/20 hover:text-white'
-                }`}
-              >
-                {activeCategory === cat && (
-                  <div 
-                    className="absolute inset-0 bg-amber-500/10 border-r-4 border-amber-500 shadow-[10px_0_20px_-10px_rgba(245,158,11,0.3)]" 
-                  />
-                )}
-                <div className={`p-2.5 md:p-3 rounded-2xl transition-all relative z-10 ${
-                  activeCategory === cat ? 'bg-amber-500 text-black shadow-[0_0_20px_rgba(245,158,11,0.5)] scale-110' : 'bg-transparent group-hover:bg-white/5'
-                }`}>
-                  {cat === 'All' && <Layout className={`w-5 h-5 md:w-6 md:h-6`} />}
-                  {cat === 'Hot Coffee' && <Coffee className={`w-5 h-5 md:w-6 md:h-6`} />}
-                  {cat === 'Cold Coffee' && <IceCream className={`w-5 h-5 md:w-6 md:h-6`} />}
-                  {cat === 'Tea' && <Coffee className={`w-5 h-5 md:w-6 md:h-6`} />}
-                  {cat === 'Food' && <Coffee className={`w-5 h-5 md:w-6 md:h-6`} />}
-                </div>
-                <span className={`text-[9px] md:text-[10px] mt-2 font-black leading-tight relative z-10 uppercase tracking-tighter italic ${
-                  activeCategory === cat ? 'text-amber-500' : 'text-white/10 group-hover:text-white/30'
-                }`}>
-                  {cat.split(' ')[0]}
-                </span>
-              </button>
-            ))}
-        </div>
+        <CategorySidebar 
+          categories={categories}
+          activeCategory={activeCategory}
+          setActiveCategory={handleCategoryChange}
+          mode={mode}
+          categoriesData={categoriesData}
+        />
       )}
 
       <div className="flex-1 flex flex-col overflow-hidden bg-transparent">
         {/* Horizontal Categories for POS only */}
         {mode === 'pos' && (
-          <div className="p-4 bg-black/20 backdrop-blur-xl border-b border-white/5 flex gap-2.5 overflow-x-auto shrink-0 scrollbar-hide">
+          <div className="p-4 bg-white border-b border-slate-100 flex gap-2.5 overflow-x-auto shrink-0 scrollbar-hide">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
                 className={`whitespace-nowrap px-8 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all active:scale-95 ${
                   activeCategory === cat
-                    ? 'bg-amber-500 text-black shadow-[0_0_20px_rgba(245,158,11,0.3)]'
-                    : 'text-coffee-400 hover:text-white hover:bg-white/5 border border-white/5'
+                    ? 'bg-amber-500 text-white shadow-lg'
+                    : 'text-slate-400 hover:text-foreground hover:bg-slate-50 border border-slate-100'
                 }`}
               >
                 {cat}
@@ -285,20 +306,20 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
                 ) : (
                   <>
                     <div className="flex items-center gap-4 mb-4">
-                      <div className="px-3 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-amber-500/20">
+                      <div className="px-3 py-1 bg-amber-500/10 text-amber-600 text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-amber-500/20">
                         Catalog
                       </div>
-                      <div className="h-[1px] flex-1 bg-white/5" />
+                      <div className="h-[1px] flex-1 bg-slate-200" />
                     </div>
-                    <h2 className="text-5xl md:text-6xl lg:text-7xl font-black text-white uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-4">
+                    <h2 className="text-5xl md:text-6xl lg:text-7xl font-black text-foreground uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-4">
                       {searchQuery ? 'Results' : activeCategory.split(' ')[0]}
                       {!searchQuery && activeCategory.split(' ')[1] && (
-                        <span className="text-purple-500/40 not-italic font-medium text-4xl md:text-5xl lg:text-6xl">{activeCategory.split(' ')[1]}</span>
+                        <span className="text-slate-300 not-italic font-medium text-4xl md:text-5xl lg:text-6xl">{activeCategory.split(' ')[1]}</span>
                       )}
                     </h2>
                     <div className="flex items-center gap-3 mt-6">
-                      <div className="h-1.5 w-16 bg-amber-600 rounded-full shadow-[0_0_15px_rgba(217,119,6,0.3)]" />
-                      <span className="text-xs font-bold text-coffee-500 uppercase tracking-widest">
+                      <div className="h-1.5 w-16 bg-amber-500 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.2)]" />
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                         {filteredMenu.length} items available
                       </span>
                     </div>
@@ -307,44 +328,19 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
               </div>
 
               <div className={`${mode === 'mobile' ? 'hidden' : 'flex items-center gap-4'}`}>
-                {/* Search Bar - Premium Design */}
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-amber-500/10 rounded-2xl blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative flex items-center bg-white/5 border-2 border-white/10 rounded-2xl overflow-hidden focus-within:border-amber-500/50 transition-all backdrop-blur-md">
-                    <div className="pl-4">
-                      <Search className="w-5 h-5 text-coffee-400" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Find a product..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-48 xl:w-72 pl-3 pr-4 py-3.5 text-sm font-bold text-white placeholder:text-coffee-600 focus:outline-none bg-transparent"
-                    />
-                    {searchQuery && (
-                      <button 
-                        onClick={() => setSearchQuery('')}
-                        className="pr-4 text-coffee-400 hover:text-white transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
                 {/* Column Toggle - POS/Kiosk Only */}
                 {mode !== 'mobile' && !searchQuery && (
-                  <div className="flex flex-col items-end gap-2 pl-4 border-l border-white/10">
-                    <span className="text-[10px] font-black text-coffee-600 uppercase tracking-[0.2em]">Layout</span>
-                    <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
+                  <div className="flex flex-col items-end gap-2 pl-4 border-l border-slate-200">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Layout</span>
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
                       {[4, 5, 6].map((cols) => (
                         <button
                           key={cols}
                           onClick={() => setGridColumns(cols as 4 | 5 | 6)}
                           className={`w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-black transition-all ${
                             gridColumns === cols
-                              ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105'
-                              : 'text-coffee-500 hover:text-white hover:bg-white/10'
+                              ? 'bg-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105'
+                              : 'text-slate-400 hover:text-foreground hover:bg-white'
                           }`}
                         >
                           {cols}
@@ -357,97 +353,29 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
             </header>
 
             {filteredMenu.length === 0 ? (
-              <div className="py-12 text-center text-coffee-400">
-                <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p className="font-medium text-lg">No products found</p>
+              <div className="py-24 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                <div className="w-32 h-32 bg-slate-100 dark:bg-slate-900 rounded-[3rem] flex items-center justify-center mx-auto mb-8 border border-slate-200 dark:border-white/5 shadow-inner">
+                  <Search className="w-12 h-12 text-slate-300 dark:text-slate-700" />
+                </div>
+                <h3 className="text-2xl font-black text-foreground uppercase italic tracking-tighter mb-4">No Galactic Findings</h3>
+                <p className="text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest text-xs max-w-xs mx-auto">Our sensors couldn't locate any matching items in this sector.</p>
               </div>
             ) : (
               <div 
                 className={`grid ${
-                  mode === 'mobile' ? 'grid-cols-2 gap-3 sm:grid-cols-3' : 
-                  `gap-5 md:gap-6 lg:gap-8 grid-cols-2 ${
-                    gridColumns === 4 ? 'lg:grid-cols-4' : 
-                    gridColumns === 5 ? 'lg:grid-cols-5' : 
-                    'lg:grid-cols-6'
-                  }`
+                  mode === 'mobile' ? `${gridColsMap[shopSettings?.mobileGridColumns || 3]} gap-1.5` : 
+                  `gap-3 md:gap-4 lg:gap-5 grid-cols-2 ${lgGridColsMap[gridColumns] || 'lg:grid-cols-5'}`
                 }`}
                 key={searchQuery ? 'search' : activeCategory}
               >
                 {filteredMenu.map((item) => (
-                  <MagicBento 
+                  <ProductCard
                     key={item.id}
-                    className="flex flex-col h-full cursor-pointer group/card"
-                    textAutoHide={true}
-                    enableStars
-                    enableSpotlight
-                    enableBorderGlow={true}
-                    enableTilt={true}
-                    enableMagnetism={false}
-                    clickEffect
-                    spotlightRadius={400}
-                    particleCount={12}
-                    glowColor="132, 0, 255"
-                    disableAnimations={false}
-                    style={{ background: 'rgba(255, 255, 255, 0.03)' }}
-                  >
-                    <div 
-                      className="flex flex-col h-full"
-                      onClick={() => handleProductClick(item)}
-                    >
-                      <div className={`w-full overflow-hidden bg-white/5 relative transition-all duration-500 ${mode === 'mobile' ? 'aspect-square rounded-t-xl mb-2' : 'aspect-square rounded-t-[1.5rem] mb-4'}`}>
-                        <img 
-                          src={item.image} 
-                          alt={item.name} 
-                          className={`w-full h-full object-cover transition-transform duration-1000 ease-out group-hover/card:scale-110`} 
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                        
-                        {/* Interactive Badge */}
-                        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-                          {item.isCustomizable && (
-                            <div className="bg-amber-500/90 backdrop-blur-md text-black text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg">
-                              Customizable
-                            </div>
-                          )}
-                          {item.category.includes('Hot') && (
-                            <div className="bg-orange-500/90 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
-                              <Flame className="w-2.5 h-2.5" /> Hot
-                            </div>
-                          )}
-                        </div>
-
-                        {cart.find(c => c.id === item.id) && (
-                          <div className={`absolute bg-amber-600 text-white rounded-full flex items-center justify-center font-black border-2 border-white shadow-lg ${mode === 'mobile' ? 'top-1 right-1 w-5 h-5 text-[9px]' : 'top-2.5 right-2.5 w-6 h-6 text-[10px]'}`}>
-                            {cart.filter(c => c.id === item.id).reduce((sum, item) => sum + item.quantity, 0)}
-                          </div>
-                        )}
-
-                        <div className="absolute bottom-3 right-3 w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-full flex items-center justify-center opacity-0 group-hover/card:opacity-100 translate-y-2 group-hover/card:translate-y-0 transition-all duration-300 hover:bg-amber-500 hover:text-black hover:border-amber-500 z-20">
-                          <Plus className="w-5 h-5" />
-                        </div>
-                      </div>
-                      
-                      <div className={`flex flex-col flex-1 px-4 pb-4 card-content ${mode === 'mobile' ? 'text-center' : 'text-center'}`}>
-                        <h3 className={`font-black text-white leading-tight uppercase tracking-tight transition-colors ${mode === 'mobile' ? 'text-[11px] mb-1' : 'text-sm md:text-base mb-1.5 group-hover/card:text-amber-400'}`}>
-                          {item.name}
-                        </h3>
-                        <p className="text-coffee-500 text-[10px] md:text-xs line-clamp-2 mb-4 font-medium flex-1 px-2">
-                          {item.description}
-                        </p>
-                        <div className={`mt-auto ${mode === 'mobile' ? 'flex flex-col items-center' : ''}`}>
-                          <div className={`font-black text-amber-500 italic ${mode === 'mobile' ? 'text-xs mt-1' : 'text-base md:text-lg'}`}>
-                            ₱{item.price.toLocaleString()}
-                          </div>
-                          <div className="flex items-center justify-center gap-1.5 mt-2 opacity-40 group-hover/card:opacity-100 transition-opacity">
-                            <div className="w-1 h-1 rounded-full bg-amber-500" />
-                            <span className="text-[8px] font-bold text-coffee-400 uppercase tracking-widest">Details</span>
-                            <div className="w-1 h-1 rounded-full bg-amber-500" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </MagicBento>
+                    item={item}
+                    mode={mode}
+                    cartCount={cart.filter(c => c.id === item.id).reduce((sum, item) => sum + item.quantity, 0)}
+                    onClick={handleProductClick}
+                  />
                 ))}
             </div>
             )}
@@ -458,9 +386,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
   );
 
   const renderCart = () => (
-    <div className="flex flex-col h-full bg-black/40 backdrop-blur-2xl">
-      <div className="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center">
-        <h2 className="text-xl font-black text-white flex items-center gap-3 uppercase tracking-tighter italic">
+    <div className="flex flex-col h-full bg-white/95 backdrop-blur-2xl">
+      <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+        <h2 className="text-xl font-black text-foreground flex items-center gap-3 uppercase tracking-tighter italic">
           <ShoppingBag className="w-5 h-5 text-amber-500" />
           Order Orbit
         </h2>
@@ -469,7 +397,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
             setIsMobileCartOpen(false);
             setIsKioskCartOpen(false);
             setIsPosCartDrawerOpen(false);
-          }} className="p-2 text-coffee-600 bg-white/5 rounded-full hover:bg-white/10 hover:text-white transition-all">
+          }} className="p-2 text-slate-400 bg-slate-100 rounded-full hover:bg-slate-200 hover:text-foreground transition-all">
             <X className="w-5 h-5" />
           </button>
         )}
@@ -477,8 +405,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
 
       <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 scrollbar-hide">
           {cart.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-coffee-700 space-y-4">
-              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center border border-white/5 opacity-20">
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-300 space-y-4">
+              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 opacity-50">
                 <Coffee className="w-10 h-10" />
               </div>
               <p className="font-black uppercase tracking-[0.3em] text-[10px]">Your orbit is empty</p>
@@ -487,10 +415,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
             cart.map((item) => (
               <div
                 key={item.cartId}
-                className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md group hover:border-white/20 transition-all"
+                className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl shadow-sm group hover:border-amber-500/30 transition-all"
               >
                 <div className="flex-1 pr-4">
-                  <div className="font-black text-white text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors">
+                  <div className="font-black text-foreground text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors">
                     {item.name}
                     {item.selectedSize && (
                       <span className="ml-2 text-[9px] text-amber-500 font-black bg-amber-500/10 px-2 py-0.5 rounded-full uppercase border border-amber-500/20">
@@ -499,26 +427,26 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
                     )}
                   </div>
                   {(item.sugarLevel || (item.selectedAddons && item.selectedAddons.length > 0)) && (
-                    <div className="text-[10px] text-coffee-600 font-bold uppercase tracking-widest mt-1 space-y-0.5">
+                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 space-y-0.5">
                       {item.sugarLevel && <div>Sugar: {item.sugarLevel}</div>}
                       {item.selectedAddons && item.selectedAddons.length > 0 && (
-                        <div className="text-amber-500/50">+ {item.selectedAddons.map(a => a.name).join(', ')}</div>
+                        <div className="text-amber-500/60">+ {item.selectedAddons.map(a => a.name).join(', ')}</div>
                       )}
                     </div>
                   )}
-                  <div className="text-white font-black text-xs mt-2">₱{(item.price * item.quantity).toLocaleString()}</div>
+                  <div className="text-foreground font-black text-xs mt-2">₱{(item.price * item.quantity).toLocaleString()}</div>
                 </div>
-                <div className="flex items-center gap-3 bg-black/40 p-1.5 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
                   <button
                     onClick={() => updateQuantity(item.cartId, -1)}
-                    className="p-2 bg-white/5 rounded-xl text-coffee-500 hover:bg-white/10 hover:text-white transition-all active:scale-90"
+                    className="p-2 bg-white rounded-xl text-slate-400 hover:bg-slate-100 hover:text-foreground transition-all active:scale-90"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
-                  <span className="w-6 text-center font-black text-white text-sm">{item.quantity}</span>
+                  <span className="w-6 text-center font-black text-foreground text-sm">{item.quantity}</span>
                   <button
                     onClick={() => updateQuantity(item.cartId, 1)}
-                    className="p-2 bg-amber-600 text-white rounded-xl hover:bg-amber-500 shadow-[0_0_15px_rgba(217,119,6,0.3)] transition-all active:scale-90"
+                    className="p-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 shadow-lg transition-all active:scale-90"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
@@ -528,42 +456,42 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
           )}
       </div>
 
-      <div className="p-6 bg-white/5 backdrop-blur-xl border-t border-white/5">
+      <div className="p-6 bg-slate-50 backdrop-blur-xl border-t border-slate-100">
         <div className="space-y-6 mb-8">
           <div className="flex gap-3">
             <button
               onClick={() => setOrderType('dine-in')}
-              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'dine-in' ? 'bg-amber-600 text-white border-amber-600 shadow-[0_0_20px_rgba(217,119,6,0.2)]' : 'bg-white/5 text-coffee-600 border-white/10 hover:text-white hover:bg-white/10'}`}
+              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'dine-in' ? 'bg-amber-500 text-white border-amber-500 shadow-lg' : 'bg-white text-slate-400 border-slate-200 hover:text-foreground hover:bg-slate-50'}`}
             >
               <Store className="w-4 h-4" /> Dine-in
             </button>
             <button
               onClick={() => setOrderType('take-away')}
-              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'take-away' ? 'bg-amber-600 text-white border-amber-600 shadow-[0_0_20px_rgba(217,119,6,0.2)]' : 'bg-white/5 text-coffee-600 border-white/10 hover:text-white hover:bg-white/10'}`}
+              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'take-away' ? 'bg-amber-500 text-white border-amber-500 shadow-lg' : 'bg-white text-slate-400 border-slate-200 hover:text-foreground hover:bg-slate-50'}`}
             >
               <ShoppingBag className="w-4 h-4" /> Take-out
             </button>
           </div>
 
           <div className="relative group">
-            <label className="block text-[9px] font-black text-coffee-600 uppercase tracking-[0.3em] mb-2 ml-1 opacity-50">Reference Name</label>
+            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2 ml-1 opacity-50">Reference Name</label>
             <input
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-white text-sm font-bold transition-all placeholder:text-coffee-900"
+              className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-500/50 text-foreground text-sm font-bold transition-all placeholder:text-slate-300"
               placeholder="Who is this for?"
             />
           </div>
 
           {orderType === 'dine-in' && (
             <div className="animate-in fade-in slide-in-from-top-4 duration-500 relative group">
-              <label className="block text-[9px] font-black text-coffee-600 uppercase tracking-[0.3em] mb-2 ml-1 opacity-50">Table Number</label>
+              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2 ml-1 opacity-50">Table Number</label>
               <input
                 type="text"
                 value={tableNumber}
                 onChange={(e) => setTableNumber(e.target.value)}
-                className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-white text-sm font-bold transition-all placeholder:text-coffee-900"
+                className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-500/50 text-foreground text-sm font-bold transition-all placeholder:text-slate-300"
                 placeholder="Station ID"
               />
             </div>
@@ -571,13 +499,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
         </div>
 
         <div className="flex justify-between items-center mb-8 px-2">
-          <span className="text-coffee-600 font-black uppercase tracking-[0.2em] text-[10px]">Total Fuel</span>
-          <span className="text-3xl font-black text-white italic">₱{total.toLocaleString()}</span>
+          <span className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px]">Total Fuel</span>
+          <span className="text-3xl font-black text-foreground italic">₱{total.toLocaleString()}</span>
         </div>
         <button
           onClick={handleCheckout}
           disabled={cart.length === 0}
-          className="w-full bg-white hover:bg-white/90 disabled:bg-white/10 disabled:text-coffee-900 text-black py-5 rounded-[2rem] font-black text-xl uppercase tracking-widest shadow-2xl transition-all active:scale-[0.98] mb-2"
+          className="w-full bg-foreground hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-300 text-background py-5 rounded-[2rem] font-black text-xl uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] mb-2"
         >
           {mode === 'mobile' ? 'Launch Order' : 'Checkout'}
         </button>
@@ -587,52 +515,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
 
   return (
     <div className={containerClasses[mode]}>
-      {mode === 'mobile' && (
-        <div className="bg-transparent px-4 py-6 flex items-center justify-between z-10 shrink-0">
-          {isSearchOpen ? (
-            <div className="flex-1 flex items-center gap-3 animate-in slide-in-from-right-4 duration-300">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="Find your favorite..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl text-sm font-bold text-white focus:outline-none focus:border-amber-500/50 transition-all placeholder:text-white/20"
-                />
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-              </div>
-              <button 
-                onClick={() => {
-                  setIsSearchOpen(false);
-                  setSearchQuery('');
-                }}
-                className="p-2 text-white/40 hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md flex items-center justify-center shadow-lg">
-                  <Sparkles className="w-5 h-5 text-amber-500" />
-                </div>
-                <div>
-                  <div className="text-[10px] font-black text-amber-500/50 uppercase tracking-widest leading-none mb-1 opacity-50">Discovery</div>
-                  <h1 className="text-lg font-black text-white uppercase italic tracking-tighter">Astro Menu</h1>
-                </div>
-              </div>
-              <button 
-                onClick={() => setIsSearchOpen(true)}
-                className="w-12 h-12 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg flex items-center justify-center text-white active:scale-90 transition-all"
-              >
-                <Search className="w-5 h-5" />
-              </button>
-            </>
-          )}
-        </div>
-      )}
+      {/* Mobile/Kiosk local header removed as search moved to global header */}
 
       {/* Main Layout */}
       <div className={`${mode === 'kiosk' ? 'flex flex-col flex-1' : 'flex flex-1'} ${mode === 'mobile' ? 'overflow-hidden' : ''}`}>
@@ -642,35 +525,35 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
 
         {/* Cart Area - Kiosk (Bottom Bar) */}
         {mode === 'kiosk' && (
-          <div className="h-32 bg-black/40 backdrop-blur-2xl border-t border-white/5 shadow-[0_-20px_60px_-15px_rgba(0,0,0,0.5)] z-30 flex items-stretch px-8 py-5 gap-8">
+          <div className="h-32 bg-white/90 backdrop-blur-2xl border-t border-slate-100 shadow-[0_-20px_60px_-15px_rgba(0,0,0,0.05)] z-30 flex items-stretch px-8 py-5 gap-8">
             <button 
               onClick={() => {
                 setCart([]);
                 setOrderType(null);
               }}
-              className="px-10 bg-white/5 text-white/40 rounded-[2rem] border border-white/10 font-black text-xs uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/30 transition-all flex items-center gap-3 active:scale-95"
+              className="px-10 bg-slate-100 text-slate-400 rounded-[2rem] border border-slate-200 font-black text-xs uppercase tracking-widest hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-all flex items-center gap-3 active:scale-95"
             >
               <X className="w-5 h-5" />
               Abort
             </button>
             
-            <div className="flex-1 bg-white/5 border border-white/10 rounded-[2.5rem] flex items-center px-10 shadow-inner group">
+            <div className="flex-1 bg-slate-50 border border-slate-100 rounded-[2.5rem] flex items-center px-10 shadow-inner group">
               <div className="flex-1">
                 <div className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/50 mb-1">Total Fuel</div>
-                <div className="text-4xl font-black text-white italic">₱{total.toLocaleString()}</div>
+                <div className="text-4xl font-black text-foreground italic">₱{total.toLocaleString()}</div>
               </div>
               <div className="flex -space-x-4 overflow-hidden py-2">
                  {cart.slice(0, 4).map((item, i) => (
                    <div key={item.cartId} className="relative transition-transform duration-300 group-hover:translate-x-2" style={{ zIndex: 10 - i }}>
                      <img 
                       src={item.image} 
-                      className="w-14 h-14 rounded-full border-4 border-black/40 shadow-2xl object-cover" 
+                      className="w-14 h-14 rounded-full border-4 border-white shadow-xl object-cover" 
                       alt={item.name} 
                      />
                    </div>
                  ))}
                  {cart.length > 4 && (
-                   <div className="w-14 h-14 rounded-full border-4 border-black/40 bg-white/5 backdrop-blur-md flex items-center justify-center text-xs font-black text-white shadow-2xl relative z-0">
+                   <div className="w-14 h-14 rounded-full border-4 border-white bg-slate-100 backdrop-blur-md flex items-center justify-center text-xs font-black text-slate-400 shadow-xl relative z-0">
                      +{cart.length - 4}
                    </div>
                  )}
@@ -680,7 +563,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
             <button 
               onClick={() => setIsKioskCartOpen(true)}
               disabled={cart.length === 0}
-              className="px-16 bg-white text-black rounded-[2.5rem] font-black text-2xl uppercase tracking-tighter italic hover:scale-[1.02] transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)] active:scale-95 disabled:opacity-30 disabled:grayscale flex items-center gap-4"
+              className="px-16 bg-foreground text-background rounded-[2.5rem] font-black text-2xl uppercase tracking-tighter italic hover:scale-[1.02] transition-all shadow-xl active:scale-95 disabled:opacity-30 disabled:grayscale flex items-center gap-4"
             >
               Ignition
               <ArrowRight className="w-8 h-8" />
@@ -738,70 +621,75 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
             )}
         </>
       )}
-
-      {/* Customization Modal */}
+        {/* Customization Modal */}
         {selectedProductForConfig && (
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xl"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-950/80 backdrop-blur-md"
           >
             <div
-              className="bg-[#0a0a0c] w-full max-w-[95vw] sm:max-w-md md:max-w-2xl rounded-[3rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] border-2 border-white/5 flex flex-col max-h-[95vh] animate-in zoom-in-95 duration-500"
+              className="bg-[#0b1329] w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] border border-white/10 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-300"
             >
-              <div className="relative h-48 sm:h-64 md:h-80 w-full shrink-0 overflow-hidden">
-                <img src={selectedProductForConfig.image} alt={selectedProductForConfig.name} className="w-full h-full object-cover opacity-80" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] via-transparent to-transparent" />
+              <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden">
+                <img src={selectedProductForConfig.image} alt={selectedProductForConfig.name} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0b1329] via-[#0b1329]/30 to-transparent" />
                 <button 
                   onClick={() => setSelectedProductForConfig(null)}
-                  className="absolute top-6 right-6 p-3 bg-black/40 backdrop-blur-xl rounded-2xl text-white/40 shadow-2xl hover:bg-black/60 hover:text-white transition-all border border-white/5"
+                  className="absolute top-5 right-5 w-10 h-10 bg-slate-950/50 backdrop-blur-md border border-white/15 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-950/80 transition-all active:scale-90 z-20"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="p-8 sm:p-10 flex-1 overflow-y-auto scrollbar-hide">
-                <div className="mb-8">
-                  <div className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em] mb-2 opacity-80">{selectedProductForConfig.category}</div>
-                  <h3 className="text-3xl sm:text-4xl font-black text-white mb-2 uppercase italic tracking-tighter leading-none">{selectedProductForConfig.name}</h3>
-                  <p className="text-coffee-600 text-xs sm:text-sm font-bold uppercase tracking-tight leading-relaxed">{selectedProductForConfig.description}</p>
+              <div className="p-6 sm:p-8 flex-1 overflow-y-auto scrollbar-hide space-y-6">
+                <div>
+                  <div className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-1.5">{selectedProductForConfig.category}</div>
+                  <h3 className="text-2xl sm:text-3xl font-display font-bold text-white mb-2 leading-tight">{selectedProductForConfig.name}</h3>
+                  <p className="text-slate-400 text-xs sm:text-sm leading-relaxed font-normal">{selectedProductForConfig.description}</p>
                 </div>
                 
                 {selectedProductForConfig.sizes && selectedProductForConfig.sizes.length > 0 && (
-                  <div className="mb-10">
-                    <label className="block text-[10px] sm:text-xs font-black text-coffee-700 uppercase tracking-[0.3em] mb-4 opacity-50">Select Magnitude</label>
+                  <div className="space-y-3">
+                    <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Select Size</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {selectedProductForConfig.sizes.map((size) => (
-                        <button
-                          key={size.name}
-                          onClick={() => setSelectedSizeConfig(size)}
-                          className={`flex items-center justify-between p-5 border-2 rounded-2xl transition-all active:scale-95 ${selectedSizeConfig?.name === size.name ? 'border-amber-600 bg-amber-600/10 shadow-[0_0_20px_rgba(217,119,6,0.2)]' : 'border-white/5 bg-white/5 hover:border-white/10'}`}
-                        >
-                          <span className="font-black text-white uppercase text-xs sm:text-sm tracking-widest">{size.name}</span>
-                          <span className="font-black text-amber-500 text-xs sm:text-sm">₱{size.price.toLocaleString()}</span>
-                        </button>
-                      ))}
+                      {selectedProductForConfig.sizes.map((size) => {
+                        const isSelected = selectedSizeConfig?.name === size.name;
+                        return (
+                          <button
+                            key={size.name}
+                            onClick={() => setSelectedSizeConfig(size)}
+                            className={`flex items-center justify-between p-4 border rounded-2xl transition-all duration-200 active:scale-98 ${isSelected ? 'border-amber-500 bg-amber-500/10 text-white shadow-sm' : 'border-white/5 bg-white/5 text-slate-300 hover:border-white/10 hover:bg-white/10'}`}
+                          >
+                            <span className="font-bold uppercase text-xs sm:text-sm tracking-wider">{size.name}</span>
+                            <span className="font-bold text-amber-400 text-xs sm:text-sm">₱{size.price.toLocaleString()}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
                 
                 {(selectedProductForConfig.isCustomizable || isProductBeverage(selectedProductForConfig)) && (
-                  <>
-                    <div className="mb-10">
-                      <label className="block text-[10px] sm:text-xs font-black text-coffee-700 uppercase tracking-[0.3em] mb-4 opacity-50">Energy Level (Sugar)</label>
-                      <div className="grid grid-cols-5 gap-2">
-                        {(['0%', '25%', '50%', '75%', '100%'] as SugarLevel[]).map((level) => (
-                          <button
-                            key={level}
-                            onClick={() => setSelectedSugarConfig(level)}
-                            className={`py-3 rounded-xl font-black text-[10px] transition-all uppercase tracking-tighter ${selectedSugarConfig === level ? 'bg-amber-600 text-white shadow-lg scale-105' : 'bg-white/5 text-coffee-600 hover:bg-white/10'}`}
-                          >
-                            {level}
-                          </button>
-                        ))}
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Sugar Level</label>
+                      <div className="grid grid-cols-5 bg-white/5 p-1 rounded-2xl border border-white/5 gap-1">
+                        {(['0%', '25%', '50%', '75%', '100%'] as SugarLevel[]).map((level) => {
+                          const isSelected = selectedSugarConfig === level;
+                          return (
+                            <button
+                              key={level}
+                              onClick={() => setSelectedSugarConfig(level)}
+                              className={`py-2 rounded-xl text-xs font-semibold transition-all ${isSelected ? 'bg-amber-500 text-black font-bold shadow-md shadow-amber-500/10' : 'text-slate-400 hover:text-white'}`}
+                            >
+                              {level}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
                     {addons.length > 0 && (
-                      <div className="mb-10">
-                        <label className="block text-[10px] sm:text-xs font-black text-coffee-700 uppercase tracking-[0.3em] mb-4 opacity-50">Cosmic Enhancers (Add-ons)</label>
+                      <div className="space-y-3">
+                        <label className="block text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Add-ons</label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {addons.map((addon) => {
                             const isSelected = selectedAddonsConfig.some(a => a.id === addon.id);
@@ -809,30 +697,30 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder }: Orderi
                               <button
                                 key={addon.id}
                                 onClick={() => toggleAddon(addon)}
-                                className={`flex items-center justify-between p-5 border-2 rounded-2xl transition-all active:scale-95 ${isSelected ? 'border-amber-600 bg-amber-600/10 shadow-[0_0_20px_rgba(217,119,6,0.2)]' : 'border-white/5 bg-white/5 hover:border-white/10'}`}
+                                className={`flex items-center justify-between p-4 border rounded-2xl transition-all duration-200 active:scale-98 ${isSelected ? 'border-amber-500 bg-amber-500/10 text-white' : 'border-white/5 bg-white/5 text-slate-300 hover:border-white/10 hover:bg-white/10'}`}
                               >
-                                <div className="flex items-center gap-4">
-                                  <div className={`w-5 h-5 rounded-lg flex items-center justify-center border-2 transition-all ${isSelected ? 'border-amber-600 bg-amber-600 shadow-inner' : 'border-white/10'}`}>
-                                    {isSelected && <Check className="w-3 h-3 text-white" />}
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-5 h-5 rounded-lg flex items-center justify-center border transition-all ${isSelected ? 'border-amber-500 bg-amber-500 text-black' : 'border-white/10 bg-transparent'}`}>
+                                    {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                                   </div>
-                                  <span className="font-black text-white text-xs sm:text-sm uppercase tracking-widest">{addon.name}</span>
+                                  <span className="font-bold text-xs sm:text-sm uppercase tracking-wider text-left">{addon.name}</span>
                                 </div>
-                                <span className="font-black text-amber-500 text-xs sm:text-sm">+₱{addon.price.toLocaleString()}</span>
+                                <span className="font-bold text-amber-400 text-xs sm:text-sm">+₱{addon.price.toLocaleString()}</span>
                               </button>
                             );
                           })}
                         </div>
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
               </div>
-              <div className="p-8 sm:p-10 border-t border-white/5 bg-white/5 backdrop-blur-2xl shrink-0">
+              <div className="p-6 sm:p-8 border-t border-white/5 bg-[#0b1329]/95 backdrop-blur-md shrink-0">
                 <button
                   onClick={handleConfigSubmit}
-                  className="w-full py-5 sm:py-7 bg-white text-black rounded-[2rem] font-black text-lg sm:text-2xl uppercase tracking-widest hover:bg-white/90 transition-all shadow-[0_20px_40px_rgba(255,255,255,0.1)] active:scale-95"
+                  className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-black rounded-2xl font-bold text-sm uppercase tracking-wider transition-all duration-200 shadow-[0_8px_30px_rgba(245,158,11,0.25)] active:scale-98 flex items-center justify-center gap-2"
                 >
-                  Initiate Order - ₱{((selectedSizeConfig ? selectedSizeConfig.price : selectedProductForConfig.price) + selectedAddonsConfig.reduce((sum, a) => sum + a.price, 0)).toLocaleString()}
+                  Add to Order - ₱{((selectedSizeConfig ? selectedSizeConfig.price : selectedProductForConfig.price) + selectedAddonsConfig.reduce((sum, a) => sum + a.price, 0)).toLocaleString()}
                 </button>
               </div>
             </div>

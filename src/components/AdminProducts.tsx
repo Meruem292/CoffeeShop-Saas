@@ -1,37 +1,84 @@
 import React, { useState } from 'react';
-import { Product, ProductSize, Addon } from '../types';
-import { Plus, Edit2, Trash2, Package, Database, ShieldAlert, X, Coffee } from 'lucide-react';
+import { Product, ProductSize, Addon, DynamicCategory } from '../types';
+import { 
+  Plus, Edit2, Trash2, Package, Database, ShieldAlert, X, Coffee,
+  IceCream, CupSoda, Croissant, Utensils, Sparkles, Leaf,
+  GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Layout, AlertTriangle
+} from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 
 interface AdminProductsProps {
   products: Product[];
   addons: Addon[];
+  categories: DynamicCategory[];
   onAddProduct: (product: Omit<Product, 'id'>) => void;
   onUpdateProduct: (id: string, product: Partial<Product>) => void;
   onDeleteProduct: (id: string) => void;
   onAddAddon: (addon: Omit<Addon, 'id'>) => void;
   onUpdateAddon: (id: string, addon: Partial<Addon>) => void;
   onDeleteAddon: (id: string) => void;
+  onAddCategory: (category: Omit<DynamicCategory, 'id'>) => void;
+  onUpdateCategory: (id: string, category: Partial<DynamicCategory>) => void;
+  onDeleteCategory: (id: string) => void;
 }
+
+const iconLookup: Record<string, React.ComponentType<any>> = {
+  Coffee, IceCream, CupSoda, Croissant, Utensils, Sparkles, Leaf,
+  GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Package, Layout
+};
+
+const AVAILABLE_ICONS = [
+  { name: 'Coffee', label: 'Coffee Cup' },
+  { name: 'IceCream', label: 'Cold drink / Frappe' },
+  { name: 'CupSoda', label: 'Soda / Soft drink' },
+  { name: 'Croissant', label: 'Pastry / Croissant' },
+  { name: 'Utensils', label: 'Food / Meals' },
+  { name: 'Leaf', label: 'Tea / Matcha' },
+  { name: 'GlassWater', label: 'Water' },
+  { name: 'Wine', label: 'Wine / Alcohol' },
+  { name: 'Cookie', label: 'Cookies' },
+  { name: 'Cake', label: 'Cakes / Desserts' },
+  { name: 'Pizza', label: 'Pizza' },
+  { name: 'Sandwich', label: 'Sandwich' },
+  { name: 'Gift', label: 'Gift packs' },
+  { name: 'Tag', label: 'Promos / Merch' },
+  { name: 'Flame', label: 'Specials' },
+  { name: 'Heart', label: 'Favorites' },
+  { name: 'Sparkles', label: 'Special creations' },
+  { name: 'Package', label: 'Merch / Retail' },
+];
 
 export function AdminProducts({ 
   products, 
   addons,
+  categories = [],
   onAddProduct, 
   onUpdateProduct, 
   onDeleteProduct,
   onAddAddon,
   onUpdateAddon,
-  onDeleteAddon
+  onDeleteAddon,
+  onAddCategory,
+  onUpdateCategory,
+  onDeleteCategory
 }: AdminProductsProps) {
   const { isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'products' | 'addons'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'addons' | 'categories'>('products');
 
   const [isEditing, setIsEditing] = useState<Product | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   const [isEditingAddon, setIsEditingAddon] = useState<Addon | null>(null);
   const [isAddingAddon, setIsAddingAddon] = useState(false);
+
+  const [isEditingCategory, setIsEditingCategory] = useState<DynamicCategory | null>(null);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    type: 'product' | 'addon' | 'category';
+    name: string;
+  } | null>(null);
 
   if (!isAdmin) {
     return (
@@ -43,9 +90,14 @@ export function AdminProducts({
     );
   }
 
+  // Get categories list from prop, fallback to defaults if empty
+  const availableCategories = categories && categories.length > 0 
+    ? categories.map(c => c.name) 
+    : ['Hot Coffee', 'Cold Coffee', 'Tea', 'Food'];
+
   const initialFormState = {
     name: '',
-    category: 'Hot Coffee',
+    category: availableCategories[0] || 'Hot Coffee',
     price: 0,
     image: '',
     description: '',
@@ -63,15 +115,14 @@ export function AdminProducts({
     isActive: true,
   };
 
+  const initialCategoryState = {
+    name: '',
+    iconName: 'Coffee'
+  };
+
   const [formData, setFormData] = useState<Omit<Product, 'id'>>(initialFormState);
   const [addonData, setAddonData] = useState<Omit<Addon, 'id'>>(initialAddonState);
-
-  const [newCategory, setNewCategory] = useState('');
-  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
-
-  // Get unique categories for the dropdown
-  const categories = Array.from(new Set(products.map(p => p.category))).concat(['Hot Coffee', 'Cold Coffee', 'Tea', 'Food', 'Merch']);
-  const uniqueCategories = Array.from(new Set(categories));
+  const [categoryFormData, setCategoryFormData] = useState<Omit<DynamicCategory, 'id'>>(initialCategoryState);
 
   const handleAddSize = () => {
     setFormData({
@@ -116,6 +167,30 @@ export function AdminProducts({
     setAddonData(initialAddonState);
   };
 
+  const handleCategorySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isEditingCategory) {
+      onUpdateCategory(isEditingCategory.id, categoryFormData);
+      setIsEditingCategory(null);
+    } else {
+      onAddCategory(categoryFormData);
+      setIsAddingCategory(false);
+    }
+    setCategoryFormData(initialCategoryState);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === 'product') {
+      onDeleteProduct(deleteTarget.id);
+    } else if (deleteTarget.type === 'addon') {
+      onDeleteAddon(deleteTarget.id);
+    } else if (deleteTarget.type === 'category') {
+      onDeleteCategory(deleteTarget.id);
+    }
+    setDeleteTarget(null);
+  };
+
   const handleEdit = (product: Product) => {
     setIsEditing(product);
     setFormData(product);
@@ -128,6 +203,12 @@ export function AdminProducts({
     setIsAddingAddon(false);
   };
 
+  const handleEditCategory = (category: DynamicCategory) => {
+    setIsEditingCategory(category);
+    setCategoryFormData(category);
+    setIsAddingCategory(false);
+  };
+
   const cancelEdit = () => {
     setIsEditing(null);
     setIsAdding(false);
@@ -138,6 +219,12 @@ export function AdminProducts({
     setIsEditingAddon(null);
     setIsAddingAddon(false);
     setAddonData(initialAddonState);
+  };
+
+  const cancelCategoryEdit = () => {
+    setIsEditingCategory(null);
+    setIsAddingCategory(false);
+    setCategoryFormData(initialCategoryState);
   };
 
   return (
@@ -162,7 +249,7 @@ export function AdminProducts({
             </div>
           </div>
           <div className="flex gap-3 shrink-0">
-            {activeTab === 'products' ? (
+            {activeTab === 'products' && (
               <button
                 onClick={() => { setIsAdding(true); setIsEditing(null); setFormData(initialFormState); }}
                 className="flex items-center gap-2 bg-white text-black px-6 py-3.5 rounded-2xl hover:bg-white/90 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] font-black uppercase tracking-widest text-xs active:scale-95"
@@ -170,13 +257,23 @@ export function AdminProducts({
                 <Plus className="w-5 h-5" />
                 Add Product
               </button>
-            ) : (
+            )}
+            {activeTab === 'addons' && (
               <button
                 onClick={() => { setIsAddingAddon(true); setIsEditingAddon(null); setAddonData(initialAddonState); }}
                 className="flex items-center gap-2 bg-amber-600 text-white px-6 py-3.5 rounded-2xl hover:bg-amber-500 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)] font-black uppercase tracking-widest text-xs active:scale-95"
               >
                 <Plus className="w-5 h-5" />
                 Add Add-on
+              </button>
+            )}
+            {activeTab === 'categories' && (
+              <button
+                onClick={() => { setIsAddingCategory(true); setIsEditingCategory(null); setCategoryFormData(initialCategoryState); }}
+                className="flex items-center gap-2 bg-violet-600 text-white px-6 py-3.5 rounded-2xl hover:bg-violet-500 transition-all shadow-[0_0_20px_rgba(139,92,246,0.3)] font-black uppercase tracking-widest text-xs active:scale-95"
+              >
+                <Plus className="w-5 h-5" />
+                Add Category
               </button>
             )}
           </div>
@@ -197,6 +294,13 @@ export function AdminProducts({
             <Plus className="w-4 h-4" />
             Add-ons
           </button>
+          <button 
+            onClick={() => setActiveTab('categories')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'categories' ? 'bg-violet-600 text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-white'}`}
+          >
+            <Layout className="w-4 h-4" />
+            Categories
+          </button>
         </div>
 
         {activeTab === 'products' && (
@@ -211,56 +315,15 @@ export function AdminProducts({
                   </div>
                   <div>
                     <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Category</label>
-                    <div className="flex gap-2">
-                      {!showNewCategoryInput ? (
-                        <select 
-                          value={formData.category} 
-                          onChange={e => {
-                            if (e.target.value === 'ADD_NEW') {
-                              setShowNewCategoryInput(true);
-                            } else {
-                              setFormData({ ...formData, category: e.target.value });
-                            }
-                          }} 
-                          className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl focus:border-amber-500 focus:bg-white/10 outline-none transition-all font-bold text-white appearance-none"
-                        >
-                          {uniqueCategories.map(cat => (
-                            <option key={cat} value={cat} className="bg-coffee-950">{cat}</option>
-                          ))}
-                          <option value="ADD_NEW" className="bg-coffee-950 font-bold text-amber-500">+ Add New Category...</option>
-                        </select>
-                      ) : (
-                        <div className="flex-1 flex gap-2">
-                          <input 
-                            type="text" 
-                            placeholder="New Category Name"
-                            value={newCategory} 
-                            onChange={e => setNewCategory(e.target.value)}
-                            className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl focus:border-amber-500 focus:bg-white/10 outline-none transition-all font-bold text-white"
-                          />
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              if (newCategory) {
-                                setFormData({ ...formData, category: newCategory });
-                                setShowNewCategoryInput(false);
-                                setNewCategory('');
-                              }
-                            }}
-                            className="px-6 py-1 bg-amber-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs"
-                          >
-                            Add
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setShowNewCategoryInput(false)}
-                            className="p-2 text-red-500"
-                          >
-                            <X className="w-6 h-6" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    <select 
+                      value={formData.category} 
+                      onChange={e => setFormData({ ...formData, category: e.target.value })} 
+                      className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl focus:border-amber-500 focus:bg-white/10 outline-none transition-all font-bold text-white appearance-none"
+                    >
+                      {availableCategories.map(cat => (
+                        <option key={cat} value={cat} className="bg-[#111115]">{cat}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Base Price (₱)</label>
@@ -412,7 +475,7 @@ export function AdminProducts({
                             <button onClick={() => handleEdit(product)} className="p-3 text-coffee-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all">
                               <Edit2 className="w-4 h-4" />
                             </button>
-                            <button onClick={() => onDeleteProduct(product.id)} className="p-3 text-red-500/50 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all">
+                            <button onClick={() => setDeleteTarget({ id: product.id, type: 'product', name: product.name })} className="p-3 text-red-500/50 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -505,7 +568,7 @@ export function AdminProducts({
                             <button onClick={() => handleEditAddon(addon)} className="p-3 text-coffee-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all">
                               <Edit2 className="w-4 h-4" />
                             </button>
-                            <button onClick={() => onDeleteAddon(addon.id)} className="p-3 text-red-500/50 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all">
+                            <button onClick={() => setDeleteTarget({ id: addon.id, type: 'addon', name: addon.name })} className="p-3 text-red-500/50 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
@@ -531,7 +594,146 @@ export function AdminProducts({
             </div>
           </>
         )}
+
+        {activeTab === 'categories' && (
+          <>
+            {(isAddingCategory || isEditingCategory) && (
+              <div className="bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-2xl border border-white/10 mb-8 animate-in fade-in slide-in-from-top-4">
+                <h2 className="text-xl font-bold text-white mb-6 uppercase tracking-widest">{isEditingCategory ? 'Edit Category' : 'Add New Category'}</h2>
+                <form onSubmit={handleCategorySubmit} className="flex flex-col gap-6">
+                  <div>
+                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Category Name</label>
+                    <input 
+                      required 
+                      type="text" 
+                      value={categoryFormData.name} 
+                      onChange={e => setCategoryFormData({ ...categoryFormData, name: e.target.value })} 
+                      placeholder="e.g. Special Brews, Pastries" 
+                      className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl focus:border-amber-500 focus:bg-white/10 outline-none transition-all font-bold text-white" 
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Assign Icon</label>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-9 gap-3 bg-black/20 p-4 rounded-3xl border border-white/5">
+                      {AVAILABLE_ICONS.map(iconItem => {
+                        const IconComponent = iconLookup[iconItem.name] || Coffee;
+                        const isSelected = categoryFormData.iconName === iconItem.name;
+                        return (
+                          <button
+                            key={iconItem.name}
+                            type="button"
+                            onClick={() => setCategoryFormData({ ...categoryFormData, iconName: iconItem.name })}
+                            className={`flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-all ${
+                              isSelected 
+                                ? 'bg-violet-600/20 border-violet-500 text-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.3)]' 
+                                : 'bg-white/5 border-transparent text-coffee-400 hover:bg-white/10 hover:text-white'
+                            }`}
+                            title={iconItem.label}
+                          >
+                            <IconComponent className="w-6 h-6 shrink-0" />
+                            <span className="text-[9px] font-black uppercase tracking-tight truncate max-w-full">{iconItem.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-4 mt-2">
+                    <button type="button" onClick={cancelCategoryEdit} className="px-8 py-3.5 text-white/50 hover:text-white transition-all font-black uppercase tracking-widest text-xs">Cancel</button>
+                    <button type="submit" className="px-8 py-3.5 bg-violet-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-violet-500 transition-all shadow-xl active:scale-95">
+                      {isEditingCategory ? 'Save Category' : 'Create Category'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden mb-12">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-violet-600/20 text-violet-400 uppercase text-[10px] font-black tracking-[0.2em]">
+                    <th className="p-6">Icon</th>
+                    <th className="p-6">Category Name & Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {categories.map((category) => {
+                    const IconComponent = iconLookup[category.iconName] || Coffee;
+                    return (
+                      <tr key={category.id} className="hover:bg-white/5 transition-colors group">
+                        <td className="p-6 w-24">
+                          <div className="w-12 h-12 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center text-violet-400 group-hover:border-violet-500/50 group-hover:text-violet-300 transition-all">
+                            <IconComponent className="w-6 h-6" />
+                          </div>
+                        </td>
+                        <td className="p-6">
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <div className="font-black text-white text-base uppercase tracking-tight group-hover:text-violet-400 transition-colors">{category.name}</div>
+                              <div className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest mt-0.5">Icon: {category.iconName}</div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleEditCategory(category)} className="p-3 text-coffee-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all">
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => setDeleteTarget({ id: category.id, type: 'category', name: category.name })} className="p-3 text-red-500/50 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {categories.length === 0 && (
+                    <tr>
+                      <td colSpan={2} className="p-12 text-center text-coffee-700 uppercase font-black text-[10px] tracking-widest">
+                        No categories found. Create one to get started.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Custom Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[#0a0a0c] rounded-[2rem] p-8 max-w-sm w-full border border-white/10 relative overflow-hidden animate-in zoom-in-95 duration-200 shadow-2xl">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500 to-amber-500" />
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-400 mb-6">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-black text-white uppercase italic tracking-tight mb-2">
+                Delete {deleteTarget.type === 'addon' ? 'Add-on' : deleteTarget.type === 'category' ? 'Category' : 'Product'}
+              </h3>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">
+                Are you sure you want to permanently delete {deleteTarget.type} <span className="text-white">"{deleteTarget.name}"</span>? This action cannot be undone.
+              </p>
+              <div className="flex w-full gap-3">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 py-3.5 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all text-slate-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="flex-1 py-3.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(220,38,38,0.2)] active:scale-95 flex items-center justify-center gap-2"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

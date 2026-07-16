@@ -51,6 +51,12 @@ service cloud.firestore {
              data.createdAt is number;
     }
 
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'iconName']) &&
+             data.name is string && data.name.size() > 0 &&
+             data.iconName is string && data.iconName.size() > 0;
+    }
+
     // --- Rules ---
     match /settings/{docId} {
       allow read: if true;
@@ -73,6 +79,12 @@ service cloud.firestore {
     match /products/{productId} {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Categories Collection
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidCategory(incoming());
     }
 
     // Orders Collection

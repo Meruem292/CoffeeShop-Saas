@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Order } from '../types';
-import { Calendar, FileText, Download, Table as TableIcon, File as FileWord, Search, Filter, ArrowLeft } from 'lucide-react';
+import { Calendar, FileText, Download, Table as TableIcon, File as FileWord, Search, Filter, ArrowLeft, Trash2, X, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -16,12 +16,27 @@ declare module 'jspdf' {
 
 interface TransactionReportsProps {
   orders: Order[];
+  onDeleteOrder: (id: string) => Promise<void>;
+  onClearOrders: (ids: string[]) => Promise<void>;
 }
 
-export function TransactionReports({ orders }: TransactionReportsProps) {
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: TransactionReportsProps) {
+  const getTodayString = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const [startDate, setStartDate] = useState(getTodayString());
+  const [endDate, setEndDate] = useState(getTodayString());
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Modals & Action States
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
 
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
@@ -41,6 +56,32 @@ export function TransactionReports({ orders }: TransactionReportsProps) {
   const totalRevenue = useMemo(() => {
     return filteredOrders.reduce((sum, order) => sum + order.total, 0);
   }, [filteredOrders]);
+
+  const handleDeleteConfirm = async () => {
+    if (!orderToDelete) return;
+    setIsActionLoading(true);
+    try {
+      await onDeleteOrder(orderToDelete);
+      setOrderToDelete(null);
+    } catch (err) {
+      console.error('Error deleting transaction:', err);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleClearConfirm = async () => {
+    setIsActionLoading(true);
+    try {
+      const idsToClear = filteredOrders.map(o => o.id).filter((id): id is string => !!id);
+      await onClearOrders(idsToClear);
+      setShowClearConfirm(false);
+    } catch (err) {
+      console.error('Error purging transactions:', err);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   const exportToExcel = () => {
     const data = filteredOrders.map(order => ({
@@ -152,6 +193,14 @@ export function TransactionReports({ orders }: TransactionReportsProps) {
           </div>
           
           <div className="flex flex-wrap gap-3">
+            {filteredOrders.length > 0 && (
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="flex items-center gap-2 bg-red-600/10 border border-red-500/20 text-red-400 px-6 py-3.5 rounded-2xl hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-[0_0_20px_rgba(220,38,38,0.1)] text-[10px] font-black uppercase tracking-widest active:scale-95"
+              >
+                <Trash2 className="w-4 h-4" /> Clear ({filteredOrders.length})
+              </button>
+            )}
             <button
               onClick={exportToExcel}
               className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3.5 rounded-2xl hover:bg-emerald-500 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] text-[10px] font-black uppercase tracking-widest active:scale-95"
@@ -182,7 +231,7 @@ export function TransactionReports({ orders }: TransactionReportsProps) {
             <span className="text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-2 opacity-50">Total Fuel</span>
             <span className="text-3xl font-black text-amber-500">₱{totalRevenue.toLocaleString()}</span>
           </div>
-          <div className="md:col-span-2 bg-white/5 backdrop-blur-md p-6 rounded-[2rem] border border-white/10">
+          <div className="md:col-span-2 bg-white/5 backdrop-blur-md p-6 rounded-[2rem] border border-white/10 flex flex-col justify-between">
             <div className="flex flex-col sm:flex-row gap-6">
               <div className="flex-1">
                 <label className="block text-[10px] font-black text-amber-500/50 uppercase mb-2 tracking-widest opacity-50">Start Vector</label>
@@ -202,6 +251,35 @@ export function TransactionReports({ orders }: TransactionReportsProps) {
                   className="w-full p-3 bg-white/5 border border-white/5 rounded-xl focus:border-amber-500/50 outline-none text-white font-bold transition-all text-xs"
                 />
               </div>
+            </div>
+            
+            <div className="flex gap-2 mt-4 justify-end">
+              <button
+                onClick={() => {
+                  setStartDate(getTodayString());
+                  setEndDate(getTodayString());
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                  startDate === getTodayString() && endDate === getTodayString()
+                    ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                    : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                  !startDate && !endDate
+                    ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                    : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5'
+                }`}
+              >
+                All Time
+              </button>
             </div>
           </div>
         </div>
@@ -227,6 +305,7 @@ export function TransactionReports({ orders }: TransactionReportsProps) {
                   <th className="hidden md:table-cell p-6 text-center">Source</th>
                   <th className="p-6 text-center whitespace-nowrap">Status</th>
                   <th className="hidden sm:table-cell p-6 text-right">Total</th>
+                  <th className="p-6 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -262,11 +341,20 @@ export function TransactionReports({ orders }: TransactionReportsProps) {
                     <td className="hidden sm:table-cell p-6 text-right">
                       <div className="text-sm font-black text-white whitespace-nowrap">₱{order.total.toLocaleString()}</div>
                     </td>
+                    <td className="p-6 text-center whitespace-nowrap">
+                      <button
+                        onClick={() => setOrderToDelete(order.id || null)}
+                        className="p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl transition-all hover:scale-105 active:scale-95"
+                        title="Delete Transaction"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {filteredOrders.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-24 text-center">
+                    <td colSpan={7} className="p-24 text-center">
                       <div className="flex flex-col items-center gap-4 opacity-20">
                         <Calendar className="w-16 h-16 text-white" />
                         <p className="font-black uppercase tracking-[0.3em] text-xs text-white">No transactions found</p>
@@ -279,6 +367,75 @@ export function TransactionReports({ orders }: TransactionReportsProps) {
           </div>
         </div>
       </div>
+
+      {/* Custom Delete Confirmation Modal */}
+      {orderToDelete && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[#0a0a0c] rounded-[2rem] p-8 max-w-sm w-full border border-white/10 relative overflow-hidden animate-in zoom-in-95 duration-200 shadow-2xl">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500 to-amber-500" />
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-400 mb-6">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-black text-white uppercase italic tracking-tight mb-2">Delete Transaction</h3>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">
+                Are you sure you want to permanently delete transaction <span className="text-white">#{orderToDelete.substring(0, 8)}</span>? This action cannot be undone.
+              </p>
+              <div className="flex w-full gap-3">
+                <button
+                  onClick={() => setOrderToDelete(null)}
+                  disabled={isActionLoading}
+                  className="flex-1 py-3.5 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all text-slate-300 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={isActionLoading}
+                  className="flex-1 py-3.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(220,38,38,0.2)] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isActionLoading ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Clear Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[#0a0a0c] rounded-[2rem] p-8 max-w-sm w-full border border-white/10 relative overflow-hidden animate-in zoom-in-95 duration-200 shadow-2xl">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500 to-amber-500" />
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-400 mb-6">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-black text-white uppercase italic tracking-tight mb-2">Purge Records</h3>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">
+                This will permanently delete the <span className="text-white">{filteredOrders.length}</span> transaction(s) match the current filter. This operation is irreversible.
+              </p>
+              <div className="flex w-full gap-3">
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  disabled={isActionLoading}
+                  className="flex-1 py-3.5 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all text-slate-300 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleClearConfirm}
+                  disabled={isActionLoading}
+                  className="flex-1 py-3.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(220,38,38,0.2)] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isActionLoading ? 'Purging...' : 'Purge All'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

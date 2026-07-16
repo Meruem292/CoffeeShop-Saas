@@ -65,6 +65,16 @@
         "isActive": { "type": "boolean" }
       },
       "required": ["title", "isActive"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Dynamic categories with customizable icons",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "iconName": { "type": "string" }
+      },
+      "required": ["name", "iconName"]
     }
   },
   "firestore": {
@@ -79,6 +89,10 @@
     "/admins/{userId}": {
       "schema": "Admin",
       "description": "Collection of admin users"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Collection of dynamic product categories"
     },
     "/settings/shop": {
       "schema": "ShopSettings",

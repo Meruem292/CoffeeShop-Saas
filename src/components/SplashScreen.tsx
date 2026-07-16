@@ -1,7 +1,15 @@
 import React from 'react';
 import { Coffee, ArrowRight, Instagram, Facebook, Twitter } from 'lucide-react';
 import { SplashScreen as SplashScreenType, ShopSettings } from '../types';
-import Galaxy from './Galaxy';
+import ShapeGrid from './ShapeGrid';
+
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      'model-viewer': any;
+    }
+  }
+}
 
 interface SplashScreenProps {
   data: SplashScreenType | null;
@@ -23,104 +31,111 @@ export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps)
   const themeColor = shopSettings?.themeColor || '#4b2c20';
 
   return (
-    <div className="fixed inset-0 z-[200] bg-[#020205] flex flex-col overflow-y-auto overflow-x-hidden font-sans">
-      {/* Galaxy Background Layer */}
-      <div className="absolute inset-0 pointer-events-none">
-        <Galaxy 
-          mouseRepulsion
-          mouseInteraction
-          density={0.8}
-          glowIntensity={0.6}
-          saturation={0.8}
-          hueShift={190}
-          twinkleIntensity={0.9}
-          rotationSpeed={0.05}
-          repulsionStrength={9.5}
-          autoCenterRepulsion={0}
-          starSpeed={0.1}
-          speed={0.3}
-        />
+    <div className="fixed inset-0 z-[200] bg-[#020617] flex flex-col overflow-hidden font-sans text-white pointer-events-none">
+      {/* 3D Model Background Container - Positioned on the right for desktop */}
+      <div className="absolute inset-y-0 right-0 w-full lg:w-[55%] h-full z-0 pointer-events-auto flex items-center justify-center overflow-hidden">
+        {data.useGlb ? (
+          <model-viewer
+            src={data.glbUrl || "/coffee_cup_with_plate.glb"}
+            alt="3D Coffee Model"
+            auto-rotate
+            camera-controls
+            ar
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              backgroundColor: 'transparent',
+              transform: 'perspective(1200px) rotateX(15deg) rotateY(-5deg) scale(1.12)',
+              transformOrigin: 'center center'
+            }}
+            camera-orbit="0deg 55deg 105%"
+            shadow-intensity="2"
+            exposure="1.2"
+            interaction-prompt="none"
+          ></model-viewer>
+        ) : (
+          <iframe 
+            title="Cup of cappuccino" 
+            className="w-full h-full"
+            style={{ 
+              transform: 'perspective(1200px) rotateX(22deg) rotateY(-4deg) scale(1.28)', 
+              transformOrigin: 'center center',
+              border: 'none'
+            }}
+            frameBorder="0" 
+            allowFullScreen 
+            allow="autoplay; fullscreen; xr-spatial-tracking" 
+            src="https://sketchfab.com/models/04f2c34a3df94e58be97c2830e7e462a/embed?preload=1&transparent=1&autostart=1&ui_hint=0"
+          ></iframe>
+        )}
       </div>
 
-      {/* Decorative Background Blobs */}
-      <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-[#5227FF]/20 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#FF9FFC]/10 rounded-full blur-[100px]" />
+      {/* Decorative Background Overlay / Vignette to ensure contrast (strong on left, fades to right on desktop) */}
+      <div className="absolute inset-0 bg-gradient-to-r from-[#020617] via-[#020617]/90 lg:via-[#020617]/40 to-[#020617]/10 lg:to-transparent pointer-events-none z-1" />
 
       {/* Header / Nav */}
-      <header className="relative z-10 flex items-center justify-between px-6 md:px-8 py-8 max-w-7xl mx-auto w-full shrink-0">
-        <div className="flex items-center gap-4">
+      <header className="relative z-20 flex items-center justify-between px-8 md:px-12 py-10 max-w-7xl mx-auto w-full shrink-0 pointer-events-auto">
+        <div className="flex items-center gap-5 group cursor-pointer">
           <div 
-            className="w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center overflow-hidden shadow-[0_0_30px_rgba(255,255,255,0.1)] border border-white/20 bg-white/5 backdrop-blur-md"
+            className="w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl border border-slate-200/20 bg-white p-0.5 transition-transform group-hover:scale-110 duration-500"
           >
             {shopSettings?.logoUrl ? (
-              <img src={shopSettings.logoUrl} className="w-full h-full object-cover" alt="Logo" />
+              <img src={shopSettings.logoUrl} className="w-full h-full object-cover rounded-xl" alt="Logo" />
             ) : (
-              <span className="text-xl md:text-2xl font-black text-white italic tracking-tighter">{shopSettings?.initials || 'CH'}</span>
+              <span className="text-xl md:text-2xl font-black text-[#020617] italic tracking-tighter">{shopSettings?.initials || 'CH'}</span>
             )}
           </div>
-          <span className="text-2xl md:text-3xl font-black text-white font-display uppercase tracking-tighter">{shopSettings?.name || 'CoffeeHouse'}</span>
+          <div className="flex flex-col">
+            <span className="text-2xl md:text-3xl font-black text-white font-display uppercase tracking-tighter leading-none mb-1">{shopSettings?.name || 'Astro Coffee'}</span>
+            <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em] leading-none opacity-60">Sequence Initiated</span>
+          </div>
         </div>
         
-        <div className="flex items-center gap-4 md:gap-6 text-white/40">
-          <Instagram className="w-6 h-6 cursor-pointer hover:text-white transition-colors" />
-          <Facebook className="w-6 h-6 cursor-pointer hover:text-white transition-colors" />
-          <Twitter className="w-6 h-6 cursor-pointer hover:text-white transition-colors" />
+        <div className="flex items-center gap-6 md:gap-8 text-slate-400">
+          <Instagram className="w-5 h-5 cursor-pointer hover:text-amber-500 hover:scale-110 transition-all" />
+          <Facebook className="w-5 h-5 cursor-pointer hover:text-amber-500 hover:scale-110 transition-all" />
+          <Twitter className="w-5 h-5 cursor-pointer hover:text-amber-500 hover:scale-110 transition-all" />
         </div>
       </header>
 
       {/* Hero Content */}
-      <main className="flex-1 relative z-10 flex flex-col md:flex-row items-center justify-start md:justify-center px-6 md:px-8 max-w-7xl mx-auto w-full gap-12 md:gap-24 py-12 md:py-24 shrink-0">
-        {/* Left Side: Image with Galaxy Frame */}
-        <div 
-          className="relative w-full max-w-sm md:max-w-lg aspect-square mt-4 md:mt-0 shrink-0"
-        >
-          {/* Main Image Container */}
-          <div className="relative w-full h-full rounded-[3rem] overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] bg-white/5 backdrop-blur-md">
-            <img 
-              src="https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80" 
-              alt="Artisanal Coffee"
-              className="w-full h-full object-cover opacity-80"
-            />
-          </div>
-
-          {/* Floating Accents (Stardust) */}
-          <div className="absolute -top-6 -left-6 w-16 h-16 bg-white/10 rounded-full blur-2xl animate-pulse" />
-          <div className="absolute top-1/4 -right-8 w-24 h-24 bg-amber-500/10 rounded-full blur-3xl animate-pulse delay-700" />
-          <div className="absolute -bottom-8 right-1/4 w-32 h-32 bg-blue-500/10 rounded-full blur-[60px]" />
-        </div>
-
-        {/* Right Side: Typography & CTA */}
-        <div className="flex-1 text-center md:text-left mb-12 md:mb-0">
+      <main className="flex-1 relative z-10 flex items-center justify-start px-8 md:px-12 max-w-7xl mx-auto w-full py-12 lg:py-20 shrink-0">
+        {/* Glassmorphic Panel: Floating Typography & CTA */}
+        <div className="w-full max-w-xl p-8 md:p-14 rounded-[3.5rem] bg-white/5 dark:bg-slate-900/20 backdrop-blur-2xl border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col text-left animate-in fade-in slide-in-from-left-10 duration-1000 pointer-events-auto">
           <div className="mb-8">
-            <span className="text-amber-500 font-black uppercase tracking-[0.5em] text-[10px] md:text-xs mb-4 block opacity-80">
-              {data.title || "Premium Coffee"}
-            </span>
-            <h1 className="text-6xl md:text-9xl font-black text-white font-display leading-[0.85] mb-6 md:mb-10 uppercase italic tracking-tighter">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-px w-8 bg-amber-500/60" />
+              <span className="text-amber-500 font-black uppercase tracking-[0.5em] text-[10px] md:text-xs">
+                {data.title || "The Orbit Experience"}
+              </span>
+            </div>
+            <h1 className="text-6xl md:text-7xl lg:text-[7.5rem] font-black text-white font-display leading-[0.8] mb-6 lg:mb-8 uppercase italic tracking-tighter">
               WE ARE <br /> 
-              <span className="text-white/20 not-italic">OPEN!</span>
+              <span className="text-slate-400 dark:text-slate-600 not-italic">OPEN!</span>
             </h1>
           </div>
 
           <p
-            className="text-lg md:text-2xl text-white/50 mb-10 md:mb-14 max-w-md mx-auto md:mx-0 leading-relaxed font-bold uppercase tracking-tight"
+            className="text-lg lg:text-2xl text-slate-300 mb-10 lg:mb-14 leading-tight font-black uppercase tracking-tighter opacity-90"
           >
-            {data.subtitle || "Experience the finest artisanal coffee crafted with passion and precision. Your daily ritual, elevated."}
+            {data.subtitle || "Elevate your daily ritual in our galactic sanctuary."}
           </p>
 
           <button
             onClick={onStart}
-            className="group relative inline-flex items-center justify-center w-full md:w-auto gap-6 bg-white text-black px-10 md:px-14 py-5 md:py-7 rounded-[2rem] font-black text-xl md:text-2xl shadow-[0_20px_40px_rgba(255,255,255,0.1)] hover:shadow-[0_25px_50px_rgba(255,255,255,0.15)] transition-all active:scale-95 overflow-hidden"
+            className="group relative inline-flex items-center justify-center w-full gap-8 bg-white text-[#020617] px-10 py-5 lg:py-6 rounded-[2rem] font-black text-xl lg:text-2xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] transition-all active:scale-95 overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-            <span className="relative uppercase tracking-widest">{data.buttonText || "Order Now"}</span>
-            <div className="relative w-10 h-10 bg-black rounded-full flex items-center justify-center group-hover:translate-x-3 transition-transform shrink-0">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#020617]/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+            <span className="relative uppercase tracking-[0.2em]">{data.buttonText || "Begin Mission"}</span>
+            <div className="relative w-10 h-10 bg-[#020617] rounded-xl flex items-center justify-center group-hover:translate-x-3 transition-transform shrink-0 shadow-inner">
               <ArrowRight className="w-5 h-5 text-white" />
             </div>
           </button>
         </div>
       </main>
+
       {/* Footer Decoration */}
-      <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-white/10 to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-white/5 to-transparent pointer-events-none z-1" />
     </div>
   );
 }

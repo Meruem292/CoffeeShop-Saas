@@ -17,14 +17,18 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     subtitle: '',
     imageUrl: '',
     buttonText: '',
-    isActive: true
+    isActive: true,
+    useGlb: true,
+    glbUrl: '/coffee_cup_with_plate.glb'
   });
 
   const [shopData, setShopData] = useState<Partial<ShopSettings>>({
     name: '',
     initials: '',
     logoUrl: '',
-    themeColor: '#4b2c20'
+    themeColor: '#4b2c20',
+    gridColumns: 4,
+    mobileGridColumns: 2
   });
 
   const [saving, setSaving] = useState(false);
@@ -36,7 +40,9 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         subtitle: splashScreen.subtitle,
         imageUrl: splashScreen.imageUrl,
         buttonText: splashScreen.buttonText,
-        isActive: splashScreen.isActive
+        isActive: splashScreen.isActive,
+        useGlb: splashScreen.useGlb !== undefined ? splashScreen.useGlb : true,
+        glbUrl: splashScreen.glbUrl || '/coffee_cup_with_plate.glb'
       });
     }
   }, [splashScreen]);
@@ -47,7 +53,9 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         name: shopSettings.name,
         initials: shopSettings.initials,
         logoUrl: shopSettings.logoUrl,
-        themeColor: shopSettings.themeColor
+        themeColor: shopSettings.themeColor,
+        gridColumns: shopSettings.gridColumns || 4,
+        mobileGridColumns: shopSettings.mobileGridColumns || 2
       });
     }
   }, [shopSettings]);
@@ -159,6 +167,33 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Desktop Columns</label>
+                  <select 
+                    value={shopData.gridColumns}
+                    onChange={e => setShopData({ ...shopData, gridColumns: parseInt(e.target.value) })}
+                    className="w-full px-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm appearance-none cursor-pointer"
+                  >
+                    {[2, 3, 4, 5, 6, 7, 8].map(num => (
+                      <option key={num} value={num} className="bg-slate-900 text-white">{num} Columns</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Mobile Columns</label>
+                  <select 
+                    value={shopData.mobileGridColumns}
+                    onChange={e => setShopData({ ...shopData, mobileGridColumns: parseInt(e.target.value) })}
+                    className="w-full px-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm appearance-none cursor-pointer"
+                  >
+                    {[1, 2, 3, 4].map(num => (
+                      <option key={num} value={num} className="bg-slate-900 text-white">{num} Columns</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Logo Uplink (URL)</label>
                 <div className="relative">
@@ -203,6 +238,35 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                   className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm h-24 resize-none"
                   placeholder="The finest orbital roast..."
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Hero Asset Mode</label>
+                  <button
+                    type="button"
+                    onClick={() => setSplashData({ ...splashData, useGlb: !splashData.useGlb })}
+                    className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                      splashData.useGlb 
+                        ? 'bg-purple-500/10 border-purple-500/30 text-purple-400 font-black' 
+                        : 'bg-blue-500/10 border-blue-500/30 text-blue-400 font-black'
+                    }`}
+                  >
+                    {splashData.useGlb ? '3D GLB MODEL' : 'SKETCHFAB EMBED'}
+                  </button>
+                </div>
+                {splashData.useGlb && (
+                  <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                    <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">3D Model File Path</label>
+                    <input 
+                      type="text" 
+                      value={splashData.glbUrl}
+                      onChange={e => setSplashData({ ...splashData, glbUrl: e.target.value })}
+                      className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
+                      placeholder="e.g. /coffee.glb"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
