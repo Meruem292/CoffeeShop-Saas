@@ -228,27 +228,27 @@ export function AdminProducts({
   };
 
   return (
-    <div className="h-screen bg-transparent p-4 md:p-8 overflow-y-auto scrollbar-hide">
+    <div className="min-h-screen bg-transparent p-3 sm:p-6 md:p-8 overflow-y-auto scrollbar-hide">
       <div className="max-w-6xl mx-auto">
-        <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
+        <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 md:mb-12">
           <div>
-            <div className="flex items-center gap-4 mb-4">
-              <div className="px-3 py-1 bg-white/5 text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-white/10">
+            <div className="flex items-center gap-4 mb-3 md:mb-4">
+              <div className="px-3 py-1 bg-white/5 text-amber-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-white/10">
                 Catalog
               </div>
               <div className="h-[1px] flex-1 lg:w-48 bg-white/5" />
             </div>
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white font-display uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-4">
-              Product <span className="text-white/20 not-italic font-medium text-4xl md:text-5xl lg:text-6xl">Database</span>
+            <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white font-display uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-3 sm:gap-x-4">
+              Product <span className="text-white/20 not-italic font-medium text-2xl sm:text-4xl md:text-5xl lg:text-6xl">Database</span>
             </h1>
-            <div className="flex items-center gap-3 mt-6">
-              <div className="h-1.5 w-16 bg-amber-600 rounded-full shadow-[0_0_15px_rgba(217,119,6,0.5)]" />
-              <span className="text-xs font-bold text-coffee-500 uppercase tracking-widest">
+            <div className="flex items-center gap-3 mt-4 sm:mt-6">
+              <div className="h-1.5 w-12 sm:w-16 bg-amber-600 rounded-full shadow-[0_0_15px_rgba(217,119,6,0.5)] shrink-0" />
+              <span className="text-[10px] sm:text-xs font-bold text-coffee-500 uppercase tracking-widest leading-relaxed">
                 Manage menu items and inventory catalog
               </span>
             </div>
           </div>
-          <div className="flex gap-3 shrink-0">
+          <div className="flex flex-wrap gap-2.5 sm:gap-3 shrink-0">
             {activeTab === 'products' && (
               <button
                 onClick={() => { setIsAdding(true); setIsEditing(null); setFormData(initialFormState); }}
@@ -282,21 +282,21 @@ export function AdminProducts({
         <div className="flex bg-white/5 backdrop-blur-md rounded-2xl p-1.5 shadow-sm border border-white/10 overflow-x-auto scrollbar-hide max-w-full shrink-0 mb-8 w-fit">
           <button 
             onClick={() => setActiveTab('products')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'products' ? 'bg-white text-black shadow-lg scale-105' : 'text-coffee-500 hover:text-white'}`}
+            className={`flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'products' ? 'bg-white text-black shadow-lg scale-105' : 'text-coffee-500 hover:text-white'}`}
           >
             <Coffee className="w-4 h-4" />
             Products
           </button>
           <button 
             onClick={() => setActiveTab('addons')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'addons' ? 'bg-amber-600 text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-white'}`}
+            className={`flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'addons' ? 'bg-amber-600 text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-white'}`}
           >
             <Plus className="w-4 h-4" />
             Add-ons
           </button>
           <button 
             onClick={() => setActiveTab('categories')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'categories' ? 'bg-violet-600 text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-white'}`}
+            className={`flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'categories' ? 'bg-violet-600 text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-white'}`}
           >
             <Layout className="w-4 h-4" />
             Categories
@@ -306,7 +306,7 @@ export function AdminProducts({
         {activeTab === 'products' && (
           <>
             {(isAdding || isEditing) && (
-              <div className="bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-2xl border border-white/10 mb-8 animate-in fade-in slide-in-from-top-4">
+              <div className="bg-white/5 backdrop-blur-xl p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-white/10 mb-6 sm:mb-8 animate-in fade-in slide-in-from-top-4">
                 <h2 className="text-xl font-bold text-white mb-6 uppercase tracking-widest">{isEditing ? 'Edit Product' : 'Add New Product'}</h2>
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -378,7 +378,7 @@ export function AdminProducts({
                     />
                   </div>
                   
-                  <div className="flex items-center gap-8 pt-4 md:col-span-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 pt-2 sm:pt-4 md:col-span-2">
                     <div className="flex items-center gap-3">
                       <input type="checkbox" id="isActive" checked={formData.isActive} onChange={e => setFormData({ ...formData, isActive: e.target.checked })} className="w-5 h-5 text-amber-600 rounded-lg focus:ring-amber-500 border-white/10 bg-white/5" />
                       <label htmlFor="isActive" className="text-xs font-black text-coffee-500 uppercase tracking-widest">Available for Sale</label>
@@ -389,7 +389,7 @@ export function AdminProducts({
                     </div>
                   </div>
                   
-                  <div className="md:col-span-2 bg-white/5 p-6 rounded-3xl border border-white/5">
+                  <div className="md:col-span-2 bg-white/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/5">
                     <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xs font-black text-white uppercase tracking-widest">Product Sizes</h3>
                       <button type="button" onClick={handleAddSize} className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 bg-white/10 border border-white/10 px-4 py-2 rounded-xl hover:bg-white/20 transition-all text-white">
@@ -445,64 +445,66 @@ export function AdminProducts({
               </div>
             )}
 
-            <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden mb-12">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-white/10 text-white/40 uppercase text-[10px] font-black tracking-[0.2em]">
-                    <th className="p-6">Product & Actions</th>
-                    <th className="hidden sm:table-cell p-6 text-center">Price</th>
-                    <th className="hidden xs:table-cell p-6 text-center">Stock</th>
-                    <th className="hidden md:table-cell p-6">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {products.map((product) => (
-                    <tr key={product.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="p-6">
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl overflow-hidden border border-white/10 group-hover:border-amber-500/50 transition-colors shrink-0">
-                              <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden mb-12">
+              <div className="overflow-x-auto scrollbar-hide">
+                <table className="w-full text-left border-collapse min-w-0">
+                  <thead>
+                    <tr className="bg-white/10 text-white/40 uppercase text-[10px] font-black tracking-[0.2em]">
+                      <th className="p-3 sm:p-6">Product & Actions</th>
+                      <th className="hidden sm:table-cell p-3 sm:p-6 text-center">Price</th>
+                      <th className="hidden xs:table-cell p-3 sm:p-6 text-center">Stock</th>
+                      <th className="hidden md:table-cell p-3 sm:p-6">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {products.map((product) => (
+                      <tr key={product.id} className="hover:bg-white/5 transition-colors group">
+                        <td className="p-3 sm:p-6">
+                          <div className="flex items-center justify-between gap-3 sm:gap-4">
+                            <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl overflow-hidden border border-white/10 group-hover:border-amber-500/50 transition-colors shrink-0">
+                                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-black text-white text-xs sm:text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors whitespace-normal break-words max-w-[130px] xs:max-w-[180px] sm:max-w-[250px]">{product.name}</div>
+                                <div className="text-[9px] sm:text-[10px] text-coffee-600 font-bold uppercase tracking-widest">{product.category}</div>
+                                <div className="sm:hidden text-xs font-black text-amber-500 mt-1">₱{product.price.toLocaleString()}</div>
+                              </div>
                             </div>
-                            <div>
-                              <div className="font-black text-white text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors whitespace-normal break-words max-w-[150px] md:max-w-[250px]">{product.name}</div>
-                              <div className="text-[10px] text-coffee-600 font-bold uppercase tracking-widest">{product.category}</div>
-                              <div className="sm:hidden text-xs font-black text-amber-500 mt-1">₱{product.price.toLocaleString()}</div>
+                            
+                            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                              <button onClick={() => handleEdit(product)} className="p-2.5 sm:p-3 text-coffee-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all">
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => setDeleteTarget({ id: product.id, type: 'product', name: product.name })} className="p-2.5 sm:p-3 text-red-500/50 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => handleEdit(product)} className="p-3 text-coffee-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all">
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setDeleteTarget({ id: product.id, type: 'product', name: product.name })} className="p-3 text-red-500/50 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="hidden sm:table-cell p-6 text-sm font-black text-white text-center">₱{product.price.toLocaleString()}</td>
-                      <td className="hidden xs:table-cell p-6 text-center">
-                        <span className={`text-xs font-black ${product.stock <= product.lowStockThreshold ? 'text-red-400' : 'text-coffee-500'}`}>
-                          {product.stock} <span className="text-[8px] opacity-50 uppercase tracking-widest">{product.unit}</span>
-                        </span>
-                      </td>
-                      <td className="hidden md:table-cell p-6">
-                        <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full ${product.isActive ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-white/5 text-white/30 border border-white/5'}`}>
-                          {product.isActive ? 'Live' : 'Draft'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {products.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="p-8 text-center text-coffee-400 font-medium text-sm">
-                        No products found. Add one to get started.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                        </td>
+                        <td className="hidden sm:table-cell p-3 sm:p-6 text-sm font-black text-white text-center">₱{product.price.toLocaleString()}</td>
+                        <td className="hidden xs:table-cell p-3 sm:p-6 text-center">
+                          <span className={`text-xs font-black ${product.stock <= product.lowStockThreshold ? 'text-red-400' : 'text-coffee-500'}`}>
+                            {product.stock} <span className="text-[8px] opacity-50 uppercase tracking-widest">{product.unit}</span>
+                          </span>
+                        </td>
+                        <td className="hidden md:table-cell p-3 sm:p-6">
+                          <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full ${product.isActive ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-white/5 text-white/30 border border-white/5'}`}>
+                            {product.isActive ? 'Live' : 'Draft'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {products.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-coffee-400 font-medium text-sm">
+                          No products found. Add one to get started.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </>
         )}
@@ -510,7 +512,7 @@ export function AdminProducts({
         {activeTab === 'addons' && (
           <>
             {(isAddingAddon || isEditingAddon) && (
-              <div className="bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-2xl border border-white/10 mb-8 animate-in fade-in slide-in-from-top-4">
+              <div className="bg-white/5 backdrop-blur-xl p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-white/10 mb-6 sm:mb-8 animate-in fade-in slide-in-from-top-4">
                 <h2 className="text-xl font-bold text-white mb-6 uppercase tracking-widest">{isEditingAddon ? 'Edit Add-on' : 'Add New Add-on'}</h2>
                 <form onSubmit={handleAddonSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -545,52 +547,54 @@ export function AdminProducts({
               </div>
             )}
 
-            <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden mb-12">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-amber-600/20 text-amber-500 uppercase text-[10px] font-black tracking-[0.2em]">
-                    <th className="p-6">Add-on & Actions</th>
-                    <th className="hidden sm:table-cell p-6 text-center">Price</th>
-                    <th className="hidden sm:table-cell p-6">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {addons.map((addon) => (
-                    <tr key={addon.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="p-6">
-                        <div className="flex items-center justify-between gap-4">
-                          <div>
-                            <div className="font-black text-white text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors whitespace-normal break-words max-w-[200px] md:max-w-[350px]">{addon.name}</div>
-                            <div className="sm:hidden text-[10px] font-black text-amber-700 mt-1">₱{addon.price.toLocaleString()}</div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => handleEditAddon(addon)} className="p-3 text-coffee-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all">
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => setDeleteTarget({ id: addon.id, type: 'addon', name: addon.name })} className="p-3 text-red-500/50 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="hidden sm:table-cell p-6 text-sm font-black text-white text-center">₱{addon.price.toLocaleString()}</td>
-                      <td className="hidden sm:table-cell p-6">
-                        <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full ${addon.isActive ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-white/5 text-white/30 border border-white/5'}`}>
-                          {addon.isActive ? 'Live' : 'Draft'}
-                        </span>
-                      </td>
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden mb-12">
+              <div className="overflow-x-auto scrollbar-hide">
+                <table className="w-full text-left border-collapse min-w-0">
+                  <thead>
+                    <tr className="bg-amber-600/20 text-amber-500 uppercase text-[10px] font-black tracking-[0.2em]">
+                      <th className="p-3 sm:p-6">Add-on & Actions</th>
+                      <th className="hidden sm:table-cell p-3 sm:p-6 text-center">Price</th>
+                      <th className="hidden sm:table-cell p-3 sm:p-6">Status</th>
                     </tr>
-                  ))}
-                  {addons.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="p-12 text-center text-coffee-700 uppercase font-black text-[10px] tracking-widest">
-                        No add-ons found. Create one to get started.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {addons.map((addon) => (
+                      <tr key={addon.id} className="hover:bg-white/5 transition-colors group">
+                        <td className="p-3 sm:p-6">
+                          <div className="flex items-center justify-between gap-3 sm:gap-4">
+                            <div className="min-w-0">
+                              <div className="font-black text-white text-xs sm:text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors whitespace-normal break-words max-w-[140px] xs:max-w-[200px] sm:max-w-[350px]">{addon.name}</div>
+                              <div className="sm:hidden text-[10px] font-black text-amber-700 mt-1">₱{addon.price.toLocaleString()}</div>
+                            </div>
+                            
+                            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                              <button onClick={() => handleEditAddon(addon)} className="p-2.5 sm:p-3 text-coffee-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all">
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => setDeleteTarget({ id: addon.id, type: 'addon', name: addon.name })} className="p-2.5 sm:p-3 text-red-500/50 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="hidden sm:table-cell p-3 sm:p-6 text-sm font-black text-white text-center">₱{addon.price.toLocaleString()}</td>
+                        <td className="hidden sm:table-cell p-3 sm:p-6">
+                          <span className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full ${addon.isActive ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-white/5 text-white/30 border border-white/5'}`}>
+                            {addon.isActive ? 'Live' : 'Draft'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                    {addons.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-12 text-center text-coffee-700 uppercase font-black text-[10px] tracking-widest">
+                          No add-ons found. Create one to get started.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </>
         )}
@@ -598,7 +602,7 @@ export function AdminProducts({
         {activeTab === 'categories' && (
           <>
             {(isAddingCategory || isEditingCategory) && (
-              <div className="bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] shadow-2xl border border-white/10 mb-8 animate-in fade-in slide-in-from-top-4">
+              <div className="bg-white/5 backdrop-blur-xl p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-white/10 mb-6 sm:mb-8 animate-in fade-in slide-in-from-top-4">
                 <h2 className="text-xl font-bold text-white mb-6 uppercase tracking-widest">{isEditingCategory ? 'Edit Category' : 'Add New Category'}</h2>
                 <form onSubmit={handleCategorySubmit} className="flex flex-col gap-6">
                   <div>
@@ -649,53 +653,55 @@ export function AdminProducts({
               </div>
             )}
 
-            <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden mb-12">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-violet-600/20 text-violet-400 uppercase text-[10px] font-black tracking-[0.2em]">
-                    <th className="p-6">Icon</th>
-                    <th className="p-6">Category Name & Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {categories.map((category) => {
-                    const IconComponent = iconLookup[category.iconName] || Coffee;
-                    return (
-                      <tr key={category.id} className="hover:bg-white/5 transition-colors group">
-                        <td className="p-6 w-24">
-                          <div className="w-12 h-12 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center text-violet-400 group-hover:border-violet-500/50 group-hover:text-violet-300 transition-all">
-                            <IconComponent className="w-6 h-6" />
-                          </div>
-                        </td>
-                        <td className="p-6">
-                          <div className="flex items-center justify-between gap-4">
-                            <div>
-                              <div className="font-black text-white text-base uppercase tracking-tight group-hover:text-violet-400 transition-colors">{category.name}</div>
-                              <div className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest mt-0.5">Icon: {category.iconName}</div>
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden mb-12">
+              <div className="overflow-x-auto scrollbar-hide">
+                <table className="w-full text-left border-collapse min-w-0">
+                  <thead>
+                    <tr className="bg-violet-600/20 text-violet-400 uppercase text-[10px] font-black tracking-[0.2em]">
+                      <th className="p-3 sm:p-6 w-16 sm:w-24">Icon</th>
+                      <th className="p-3 sm:p-6">Category Name & Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {categories.map((category) => {
+                      const IconComponent = iconLookup[category.iconName] || Coffee;
+                      return (
+                        <tr key={category.id} className="hover:bg-white/5 transition-colors group">
+                          <td className="p-3 sm:p-6 w-16 sm:w-24">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center text-violet-400 group-hover:border-violet-500/50 group-hover:text-violet-300 transition-all">
+                              <IconComponent className="w-5 h-5 sm:w-6 h-6" />
                             </div>
-                            
-                            <div className="flex items-center gap-2">
-                              <button onClick={() => handleEditCategory(category)} className="p-3 text-coffee-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all">
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button onClick={() => setDeleteTarget({ id: category.id, type: 'category', name: category.name })} className="p-3 text-red-500/50 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                          </td>
+                          <td className="p-3 sm:p-6">
+                            <div className="flex items-center justify-between gap-3 sm:gap-4">
+                              <div className="min-w-0">
+                                <div className="font-black text-white text-sm sm:text-base uppercase tracking-tight group-hover:text-violet-400 transition-colors whitespace-normal break-words max-w-[120px] xs:max-w-[180px] sm:max-w-[350px]">{category.name}</div>
+                                <div className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest mt-0.5">Icon: {category.iconName}</div>
+                              </div>
+                              
+                              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                <button onClick={() => handleEditCategory(category)} className="p-2.5 sm:p-3 text-coffee-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all">
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => setDeleteTarget({ id: category.id, type: 'category', name: category.name })} className="p-2.5 sm:p-3 text-red-500/50 hover:text-red-500 bg-white/5 hover:bg-red-500/10 rounded-xl transition-all">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
-                          </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {categories.length === 0 && (
+                      <tr>
+                        <td colSpan={2} className="p-12 text-center text-coffee-700 uppercase font-black text-[10px] tracking-widest">
+                          No categories found. Create one to get started.
                         </td>
                       </tr>
-                    );
-                  })}
-                  {categories.length === 0 && (
-                    <tr>
-                      <td colSpan={2} className="p-12 text-center text-coffee-700 uppercase font-black text-[10px] tracking-widest">
-                        No categories found. Create one to get started.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </>
         )}
