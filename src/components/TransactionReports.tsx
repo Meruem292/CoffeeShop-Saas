@@ -130,136 +130,146 @@ export function TransactionReports({ orders }: TransactionReportsProps) {
   };
 
   return (
-    <div className="h-screen bg-coffee-50 p-4 md:p-8 overflow-y-auto">
+    <div className="h-screen bg-transparent p-4 md:p-8 overflow-y-auto scrollbar-hide">
       <div className="max-w-6xl mx-auto">
-        <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
+        <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-coffee-900 flex items-center gap-3">
-              <TableIcon className="w-8 h-8 text-coffee-600 shrink-0" />
-              <span className="leading-tight">Transaction Reports</span>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="px-3 py-1 bg-white/5 text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-white/10">
+                Performance
+              </div>
+              <div className="h-[1px] flex-1 lg:w-48 bg-white/5" />
+            </div>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white font-display uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-4">
+              Transaction <span className="text-white/20 not-italic font-medium text-4xl md:text-5xl lg:text-6xl">Reports</span>
             </h1>
-            <p className="text-coffee-600 mt-1">Review performance and export historical data</p>
+            <div className="flex items-center gap-3 mt-6">
+              <div className="h-1.5 w-16 bg-amber-600 rounded-full shadow-[0_0_15px_rgba(217,119,6,0.5)]" />
+              <span className="text-xs font-bold text-white/30 uppercase tracking-widest">
+                Review performance and export mission logs
+              </span>
+            </div>
           </div>
           
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={exportToExcel}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition-colors shadow-sm text-sm font-bold"
+              className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3.5 rounded-2xl hover:bg-emerald-500 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] text-[10px] font-black uppercase tracking-widest active:scale-95"
             >
               <Download className="w-4 h-4" /> Excel
             </button>
             <button
               onClick={exportToPDF}
-              className="flex items-center gap-2 bg-rose-600 text-white px-4 py-2 rounded-xl hover:bg-rose-700 transition-colors shadow-sm text-sm font-bold"
+              className="flex items-center gap-2 bg-rose-600 text-white px-6 py-3.5 rounded-2xl hover:bg-rose-500 transition-all shadow-[0_0_20px_rgba(225,29,72,0.2)] text-[10px] font-black uppercase tracking-widest active:scale-95"
             >
               <FileText className="w-4 h-4" /> PDF
             </button>
             <button
               onClick={exportToWord}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors shadow-sm text-sm font-bold"
+              className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3.5 rounded-2xl hover:bg-blue-500 transition-all shadow-[0_0_20px_rgba(37,99,235,0.2)] text-[10px] font-black uppercase tracking-widest active:scale-95"
             >
               <FileWord className="w-4 h-4" /> Word
             </button>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-coffee-100 flex flex-col justify-center">
-            <span className="text-xs font-bold text-coffee-400 uppercase tracking-widest mb-1">Total Orders</span>
-            <span className="text-2xl font-black text-coffee-950">{filteredOrders.length}</span>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          <div className="bg-white/5 backdrop-blur-md p-6 rounded-[2rem] border border-white/10 flex flex-col justify-center">
+            <span className="text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-2 opacity-50">Launch Count</span>
+            <span className="text-3xl font-black text-white">{filteredOrders.length}</span>
           </div>
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-coffee-100 flex flex-col justify-center">
-            <span className="text-xs font-bold text-coffee-400 uppercase tracking-widest mb-1">Total Revenue</span>
-            <span className="text-2xl font-black text-amber-600">₱{totalRevenue.toLocaleString()}</span>
+          <div className="bg-white/5 backdrop-blur-md p-6 rounded-[2rem] border border-white/10 flex flex-col justify-center">
+            <span className="text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-2 opacity-50">Total Fuel</span>
+            <span className="text-3xl font-black text-amber-500">₱{totalRevenue.toLocaleString()}</span>
           </div>
-          <div className="md:col-span-2 bg-white p-4 rounded-2xl shadow-sm border border-coffee-100">
-            <div className="flex flex-col sm:flex-row gap-4">
+          <div className="md:col-span-2 bg-white/5 backdrop-blur-md p-6 rounded-[2rem] border border-white/10">
+            <div className="flex flex-col sm:flex-row gap-6">
               <div className="flex-1">
-                <label className="block text-[10px] font-bold text-coffee-400 uppercase mb-1">From</label>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase mb-2 tracking-widest opacity-50">Start Vector</label>
                 <input 
                   type="date" 
                   value={startDate} 
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full p-2 text-sm border border-coffee-100 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full p-3 bg-white/5 border border-white/5 rounded-xl focus:border-amber-500/50 outline-none text-white font-bold transition-all text-xs"
                 />
               </div>
               <div className="flex-1">
-                <label className="block text-[10px] font-bold text-coffee-400 uppercase mb-1">To</label>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase mb-2 tracking-widest opacity-50">End Vector</label>
                 <input 
                   type="date" 
                   value={endDate} 
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full p-2 text-sm border border-coffee-100 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none"
+                  className="w-full p-3 bg-white/5 border border-white/5 rounded-xl focus:border-amber-500/50 outline-none text-white font-bold transition-all text-xs"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl border border-coffee-100 overflow-hidden">
-          <div className="p-4 border-b border-coffee-50 bg-coffee-50/30 flex items-center gap-3">
-            <Search className="w-5 h-5 text-coffee-300" />
+        <div className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-white/10 overflow-hidden mb-12">
+          <div className="p-6 border-b border-white/5 bg-white/5 flex items-center gap-4">
+            <Search className="w-5 h-5 text-white/20" />
             <input 
               type="text" 
-              placeholder="Search customer, table or order ID..." 
+              placeholder="Search missions, pilots or stations..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-transparent border-none outline-none text-sm w-full font-medium text-coffee-900 placeholder:text-coffee-300"
+              className="bg-transparent border-none outline-none text-sm w-full font-black text-white placeholder:text-white/10 uppercase tracking-tight"
             />
           </div>
           <div className="overflow-x-auto scrollbar-hide">
             <table className="w-full text-left border-collapse min-w-[540px] sm:min-w-[700px]">
               <thead>
-                <tr className="bg-coffee-900 text-white">
-                  <th className="p-3 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider">Date & Time</th>
-                  <th className="p-3 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider">Customer</th>
-                  <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider text-center">Type</th>
-                  <th className="hidden md:table-cell p-3 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider text-center">Source</th>
-                  <th className="p-3 pr-5 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider text-center whitespace-nowrap">Status</th>
-                  <th className="hidden sm:table-cell p-3 sm:p-4 font-semibold text-[10px] sm:text-xs uppercase tracking-wider text-right">Total</th>
+                <tr className="bg-white/10 text-white/40 uppercase text-[10px] font-black tracking-[0.2em]">
+                  <th className="p-6">Date & Time</th>
+                  <th className="p-6">Customer</th>
+                  <th className="hidden sm:table-cell p-6 text-center">Type</th>
+                  <th className="hidden md:table-cell p-6 text-center">Source</th>
+                  <th className="p-6 text-center whitespace-nowrap">Status</th>
+                  <th className="hidden sm:table-cell p-6 text-right">Total</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-white/5">
                 {filteredOrders.map((order) => (
-                  <tr key={order.id} className="border-b border-coffee-50 hover:bg-coffee-50/50 transition-colors">
-                    <td className="p-3 sm:p-4">
-                      <div className="text-[11px] sm:text-sm font-bold text-coffee-900 whitespace-nowrap">{new Date(order.createdAt).toLocaleDateString()}</div>
-                      <div className="text-[9px] sm:text-[10px] text-coffee-400 font-mono whitespace-nowrap">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                  <tr key={order.id} className="hover:bg-white/5 transition-colors group">
+                    <td className="p-6">
+                      <div className="text-xs font-black text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors">{new Date(order.createdAt).toLocaleDateString()}</div>
+                      <div className="text-[10px] text-white/20 font-bold uppercase tracking-widest mt-1 opacity-50">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                     </td>
-                    <td className="p-3 sm:p-4">
-                      <div className="text-[11px] sm:text-sm font-bold text-coffee-900 break-words line-clamp-2 max-w-[100px] sm:max-w-none">{order.customerName}</div>
-                      <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                        {order.tableNumber && <div className="text-[9px] sm:text-[10px] text-amber-600 font-bold uppercase whitespace-nowrap">Table {order.tableNumber}</div>}
-                        <div className="sm:hidden text-[10px] font-black text-coffee-950 bg-coffee-100 px-1 rounded">₱{order.total.toLocaleString()}</div>
+                    <td className="p-6">
+                      <div className="text-xs font-black text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors break-words line-clamp-2 max-w-[100px] sm:max-w-none">{order.customerName}</div>
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        {order.tableNumber && <div className="text-[9px] text-amber-500 font-black uppercase tracking-widest">Table {order.tableNumber}</div>}
+                        <div className="sm:hidden text-[9px] font-black text-white bg-white/10 px-2 py-0.5 rounded-full border border-white/10 uppercase tracking-widest">₱{order.total.toLocaleString()}</div>
                       </div>
                     </td>
-                    <td className="hidden sm:table-cell p-3 sm:p-4 text-center">
-                      <span className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-black uppercase whitespace-nowrap ${order.orderType === 'dine-in' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'}`}>
+                    <td className="hidden sm:table-cell p-6 text-center">
+                      <span className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${order.orderType === 'dine-in' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'}`}>
                         {order.orderType}
                       </span>
                     </td>
-                    <td className="hidden md:table-cell p-3 sm:p-4 text-center">
-                      <span className="text-[10px] sm:text-xs font-medium text-coffee-600 capitalize whitespace-nowrap">{order.source}</span>
+                    <td className="hidden md:table-cell p-6 text-center">
+                      <span className="text-[10px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap opacity-50">{order.source}</span>
                     </td>
-                    <td className="p-3 pr-5 sm:p-4 text-center">
-                      <span className={`text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full font-black uppercase whitespace-nowrap ${
-                        order.status === 'completed' ? 'bg-green-100 text-green-700' : 
-                        order.status === 'unpaid' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                    <td className="p-6 text-center">
+                      <span className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${
+                        order.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 
+                        order.status === 'unpaid' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                       }`}>
                         {order.status}
                       </span>
                     </td>
-                    <td className="hidden sm:table-cell p-3 sm:p-4 text-right">
-                      <div className="text-[11px] sm:text-sm font-black text-coffee-950 whitespace-nowrap">₱{order.total.toLocaleString()}</div>
+                    <td className="hidden sm:table-cell p-6 text-right">
+                      <div className="text-sm font-black text-white whitespace-nowrap">₱{order.total.toLocaleString()}</div>
                     </td>
                   </tr>
                 ))}
                 {filteredOrders.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="p-12 text-center">
-                      <div className="flex flex-col items-center gap-2 opacity-30">
-                        <Calendar className="w-12 h-12" />
-                        <p className="font-bold">No transactions found for this selection</p>
+                    <td colSpan={6} className="p-24 text-center">
+                      <div className="flex flex-col items-center gap-4 opacity-20">
+                        <Calendar className="w-16 h-16 text-white" />
+                        <p className="font-black uppercase tracking-[0.3em] text-xs text-white">No transactions found</p>
                       </div>
                     </td>
                   </tr>

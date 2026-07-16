@@ -73,25 +73,37 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-8">
-      <div className="mb-10">
-        <h2 className="text-3xl md:text-4xl font-black text-coffee-950 flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-4">
-          <Building className="w-8 h-8 md:w-10 md:h-10 text-amber-600 shrink-0" />
-          <span className="leading-tight">Shop Console</span>
-        </h2>
-        <p className="text-coffee-600 mt-2 font-medium">Configure your SAAS brand identity and display presence.</p>
-      </div>
+    <div className="min-h-screen bg-transparent p-4 md:p-8 lg:p-12 overflow-y-auto">
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
+        <div>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="px-3 py-1 bg-white/5 text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-white/10">
+              Control Panel
+            </div>
+            <div className="h-[1px] flex-1 lg:w-48 bg-white/5" />
+          </div>
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-4">
+            System <span className="text-white/20 not-italic font-medium text-4xl md:text-5xl lg:text-6xl">Settings</span>
+          </h1>
+          <div className="flex items-center gap-3 mt-6">
+            <div className="h-1.5 w-16 bg-amber-600 rounded-full shadow-[0_0_15px_rgba(217,119,6,0.5)]" />
+            <span className="text-xs font-bold text-white/30 uppercase tracking-widest">
+              Configure your brand identity and display presence.
+            </span>
+          </div>
+        </div>
+      </header>
 
-      <div className="flex gap-4 mb-8 border-b border-coffee-200">
+      <div className="flex bg-white/5 backdrop-blur-md rounded-2xl p-1.5 shadow-sm border border-white/10 overflow-x-auto scrollbar-hide max-w-full shrink-0 mb-12 w-fit">
         <button 
           onClick={() => setActiveTab('shop')}
-          className={`pb-4 px-6 font-black text-sm uppercase tracking-widest transition-all ${activeTab === 'shop' ? 'text-amber-600 border-b-4 border-amber-600' : 'text-coffee-400 hover:text-coffee-600'}`}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shrink-0 ${activeTab === 'shop' ? 'text-white bg-amber-600 shadow-[0_10px_20px_rgba(245,158,11,0.3)]' : 'text-white/40 hover:text-white'}`}
         >
           Brand Identity
         </button>
         <button 
           onClick={() => setActiveTab('splash')}
-          className={`pb-4 px-6 font-black text-sm uppercase tracking-widest transition-all ${activeTab === 'splash' ? 'text-amber-600 border-b-4 border-amber-600' : 'text-coffee-400 hover:text-coffee-600'}`}
+          className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shrink-0 ${activeTab === 'splash' ? 'text-white bg-amber-600 shadow-[0_10px_20px_rgba(245,158,11,0.3)]' : 'text-white/40 hover:text-white'}`}
         >
           Splash Screen
         </button>
@@ -101,62 +113,62 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         {/* Form Area */}
         <div className="space-y-8">
           {activeTab === 'shop' ? (
-            <form onSubmit={handleShopSubmit} className="space-y-6 bg-white p-8 rounded-[2.5rem] border-2 border-coffee-100 shadow-xl">
+            <form onSubmit={handleShopSubmit} className="space-y-6 bg-white/5 backdrop-blur-xl p-10 rounded-[2.5rem] border border-white/10 shadow-2xl">
               <div>
-                <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Shop Name</label>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Shop Designation</label>
                 <div className="relative">
-                  <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-coffee-300" />
+                  <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
                   <input 
                     type="text" 
                     value={shopData.name}
                     onChange={e => setShopData({ ...shopData, name: e.target.value })}
-                    className="w-full pl-12 pr-4 py-4 bg-coffee-50 border-2 border-transparent rounded-2xl focus:border-amber-500 focus:bg-white outline-none transition-all font-bold text-coffee-900"
-                    placeholder="e.g. Artisanal Roasters"
+                    className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
+                    placeholder="e.g. Astro Coffee"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Initials</label>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Initials</label>
                   <input 
                     type="text" 
                     maxLength={3}
                     value={shopData.initials}
                     onChange={e => setShopData({ ...shopData, initials: e.target.value.toUpperCase() })}
-                    className="w-full px-4 py-4 bg-coffee-50 border-2 border-transparent rounded-2xl focus:border-amber-500 focus:bg-white outline-none transition-all font-bold text-coffee-900 text-center"
-                    placeholder="CH"
+                    className="w-full px-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-center text-sm"
+                    placeholder="AC"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Theme Color</label>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Theme Color</label>
                   <div className="flex gap-3">
                     <input 
                       type="color" 
                       value={shopData.themeColor}
                       onChange={e => setShopData({ ...shopData, themeColor: e.target.value })}
-                      className="w-14 h-14 bg-transparent border-none cursor-pointer"
+                      className="w-14 h-14 bg-white/5 border border-white/10 rounded-2xl cursor-pointer overflow-hidden p-0"
                     />
                     <input 
                       type="text" 
                       value={shopData.themeColor}
                       onChange={e => setShopData({ ...shopData, themeColor: e.target.value })}
-                      className="flex-1 px-4 py-4 bg-coffee-50 border-2 border-transparent rounded-2xl focus:border-amber-500 focus:bg-white outline-none transition-all font-mono font-bold text-coffee-900"
+                      className="flex-1 px-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-mono font-black text-white text-xs"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Logo URL</label>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Logo Uplink (URL)</label>
                 <div className="relative">
-                  <Image className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-coffee-300" />
+                  <Image className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
                   <input 
                     type="text" 
                     value={shopData.logoUrl}
                     onChange={e => setShopData({ ...shopData, logoUrl: e.target.value })}
-                    className="w-full pl-12 pr-4 py-4 bg-coffee-50 border-2 border-transparent rounded-2xl focus:border-amber-500 focus:bg-white outline-none transition-all font-bold text-coffee-900"
-                    placeholder="https://...logo.png"
+                    className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
+                    placeholder="https://..."
                   />
                 </div>
               </div>
@@ -164,57 +176,57 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
               <button 
                 type="submit" 
                 disabled={saving}
-                className="w-full py-5 bg-amber-600 text-white rounded-2xl font-black text-xl flex items-center justify-center gap-3 hover:bg-amber-500 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                className="w-full py-5 bg-white text-black rounded-3xl font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-white/90 transition-all shadow-xl active:scale-95 disabled:opacity-50"
               >
-                <Save className="w-6 h-6" />
-                {saving ? 'UPDATING...' : 'SAVE BRAND'}
+                <Save className="w-4 h-4" />
+                {saving ? 'UPDATING...' : 'SAVE CHANGES'}
               </button>
             </form>
           ) : (
-            <form onSubmit={handleSplashSubmit} className="space-y-6 bg-white p-8 rounded-[2.5rem] border-2 border-coffee-100 shadow-xl">
+            <form onSubmit={handleSplashSubmit} className="space-y-6 bg-white/5 backdrop-blur-xl p-10 rounded-[2.5rem] border border-white/10 shadow-2xl">
               <div>
-                <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Hero Title</label>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Terminal Title</label>
                 <input 
                   type="text" 
                   value={splashData.title}
                   onChange={e => setSplashData({ ...splashData, title: e.target.value })}
-                  className="w-full px-6 py-4 bg-coffee-50 border-2 border-transparent rounded-2xl focus:border-amber-500 focus:bg-white outline-none transition-all font-bold text-coffee-900"
-                  placeholder="e.g. We are Open!"
+                  className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
+                  placeholder="e.g. Galaxy Terminal"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Tagline</label>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Subtitle</label>
                 <textarea 
                   value={splashData.subtitle}
                   onChange={e => setSplashData({ ...splashData, subtitle: e.target.value })}
-                  className="w-full px-6 py-4 bg-coffee-50 border-2 border-transparent rounded-2xl focus:border-amber-500 focus:bg-white outline-none transition-all font-bold text-coffee-900 h-24"
-                  placeholder="Experience the finest artisanal coffee..."
+                  className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm h-24 resize-none"
+                  placeholder="The finest orbital roast..."
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Button CTA</label>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Action CTA</label>
                   <input 
                     type="text" 
                     value={splashData.buttonText}
                     onChange={e => setSplashData({ ...splashData, buttonText: e.target.value })}
-                    className="w-full px-6 py-4 bg-coffee-50 border-2 border-transparent rounded-2xl focus:border-amber-500 focus:bg-white outline-none transition-all font-bold text-coffee-900"
+                    className="w-full px-6 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Status</label>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">State</label>
                   <button
                     type="button"
                     onClick={() => setSplashData({ ...splashData, isActive: !splashData.isActive })}
-                    className={`w-full py-4 rounded-2xl font-black transition-all border-2 ${
+                    className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${
                       splashData.isActive 
-                        ? 'bg-green-50 border-green-200 text-green-700' 
-                        : 'bg-red-50 border-red-200 text-red-700'
+                        ? 'bg-green-500/10 border-green-500/30 text-green-400' 
+                        : 'bg-red-500/10 border-red-500/30 text-red-400'
                     }`}
                   >
-                    {splashData.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    {splashData.isActive ? 'ACTIVE' : 'OFFLINE'}
                   </button>
                 </div>
               </div>
@@ -222,9 +234,9 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
               <button 
                 type="submit" 
                 disabled={saving}
-                className="w-full py-5 bg-coffee-900 text-white rounded-2xl font-black text-xl flex items-center justify-center gap-3 hover:bg-coffee-800 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                className="w-full py-5 bg-white text-black rounded-3xl font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-white/90 transition-all shadow-xl active:scale-95 disabled:opacity-50"
               >
-                <Save className="w-6 h-6" />
+                <Save className="w-4 h-4" />
                 {saving ? 'UPDATING...' : 'SAVE DISPLAY'}
               </button>
             </form>
@@ -233,14 +245,18 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
 
         {/* Live Preview Area */}
         <div className="space-y-6">
-          <h3 className="text-xs font-black text-coffee-500 uppercase tracking-[0.3em] flex items-center gap-3">
-            <Eye className="w-4 h-4" /> Live System Preview
+          <h3 className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] flex items-center gap-3">
+            <Eye className="w-4 h-4" /> System Vision
           </h3>
           
           {activeTab === 'shop' ? (
-            <div className="bg-coffee-50 rounded-[3rem] p-12 flex flex-col items-center justify-center border-4 border-dashed border-coffee-200 aspect-square">
+            <div className="bg-[#020205] rounded-[3rem] p-12 flex flex-col items-center justify-center border-2 border-white/5 aspect-square shadow-2xl relative overflow-hidden">
+               <div className="absolute inset-0 opacity-20">
+                 <div className="absolute top-0 -left-20 w-64 h-64 bg-purple-600 rounded-full blur-[100px]" />
+                 <div className="absolute bottom-0 -right-20 w-64 h-64 bg-amber-600 rounded-full blur-[100px]" />
+               </div>
                <div 
-                className="w-48 h-48 rounded-full flex items-center justify-center shadow-2xl mb-8 relative overflow-hidden group"
+                className="w-48 h-48 rounded-[2rem] flex items-center justify-center shadow-2xl mb-8 relative overflow-hidden group border border-white/10 z-10 bg-white/5"
                 style={{ backgroundColor: shopData.themeColor || '#4b2c20' }}
                >
                  {shopData.logoUrl ? (
@@ -249,40 +265,42 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                    <span className="text-7xl font-black text-white italic tracking-tighter">{shopData.initials || 'CH'}</span>
                  )}
                </div>
-               <h4 className="text-4xl font-black text-coffee-950 text-center leading-tight mb-2">
-                 {shopData.name || 'CoffeeHouse OS'}
+               <h4 className="text-3xl font-black text-white text-center leading-tight mb-2 uppercase italic tracking-tighter">
+                 {shopData.name || 'Astro Coffee'}
                </h4>
-               <p className="text-coffee-500 font-bold uppercase tracking-widest">Brand Mark Preview</p>
+               <p className="text-[10px] text-coffee-600 font-black uppercase tracking-[0.2em]">Signature Mark Preview</p>
             </div>
           ) : (
-            <div className="relative aspect-[9/16] w-full rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white bg-coffee-100">
-               <div className="absolute inset-0 bg-[#F5EBE0]" />
+            <div className="relative aspect-[9/16] w-full rounded-[3rem] overflow-hidden shadow-2xl border-8 border-black/80 bg-[#020205]">
+               <div className="absolute inset-0 bg-[#020205]" />
+               <div className="absolute top-0 -left-20 w-64 h-64 bg-purple-900/20 rounded-full blur-[100px]" />
+               <div className="absolute bottom-0 -right-20 w-64 h-64 bg-amber-900/20 rounded-full blur-[100px]" />
                <div className="relative h-full flex flex-col p-8">
                   <header className="flex justify-between items-center mb-12">
-                     <div className="w-8 h-8 rounded-full" style={{ backgroundColor: shopData.themeColor }} />
+                     <div className="w-8 h-8 rounded-xl border border-white/10" style={{ backgroundColor: shopData.themeColor }} />
                      <div className="flex gap-2">
-                        <div className="w-4 h-4 rounded-full bg-coffee-200" />
-                        <div className="w-4 h-4 rounded-full bg-coffee-200" />
+                        <div className="w-4 h-4 rounded-full bg-white/10" />
+                        <div className="w-4 h-4 rounded-full bg-white/10" />
                      </div>
                   </header>
 
                   <main className="flex-1 flex flex-col justify-center">
-                    <div className="aspect-square w-full rounded-[2rem] overflow-hidden border-4 border-white shadow-xl mb-8">
+                    <div className="aspect-square w-full rounded-[2.5rem] overflow-hidden border-2 border-white/10 shadow-2xl mb-8">
                       <img 
                         src="https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80" 
                         alt="Hero"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover opacity-60"
                       />
                     </div>
-                    <span className="text-amber-700 font-black uppercase tracking-[0.3em] text-[10px] mb-2">
+                    <span className="text-amber-500 font-black uppercase tracking-[0.4em] text-[8px] mb-3 opacity-50">
                       {splashData.title || "Premium Coffee"}
                     </span>
-                    <h1 className="text-4xl font-black text-coffee-950 leading-none mb-4 uppercase italic tracking-tighter">
-                      We are <br /> 
-                      <span className="text-coffee-700">Open!</span>
+                    <h1 className="text-4xl font-black text-white leading-tight mb-4 uppercase italic tracking-tighter">
+                      Galaxy <br /> 
+                      <span className="text-white/40">Launch.</span>
                     </h1>
-                    <p className="text-xs text-coffee-700 leading-relaxed font-bold opacity-80">
-                      {splashData.subtitle || "Your daily ritual, elevated."}
+                    <p className="text-[10px] text-coffee-600 leading-relaxed font-black uppercase tracking-widest">
+                      {splashData.subtitle || "Your cosmic ritual, elevated."}
                     </p>
                   </main>
                </div>

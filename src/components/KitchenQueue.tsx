@@ -15,10 +15,10 @@ export function KitchenQueue({ orders, onUpdateStatus }: KitchenQueueProps) {
 
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
-      case 'pending': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'preparing': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'ready': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'pending': return 'bg-amber-500/10 text-amber-500 border-amber-500/30';
+      case 'preparing': return 'bg-blue-500/10 text-blue-500 border-blue-500/30';
+      case 'ready': return 'bg-green-500/10 text-green-500 border-green-500/30';
+      default: return 'bg-white/5 text-white/40 border-white/10';
     }
   };
 
@@ -38,25 +38,35 @@ export function KitchenQueue({ orders, onUpdateStatus }: KitchenQueueProps) {
   };
 
   return (
-    <div className="h-screen bg-coffee-50 p-4 md:p-8 overflow-y-auto">
+    <div className="h-screen bg-transparent p-4 md:p-8 overflow-y-auto">
       <div className="max-w-7xl mx-auto">
-        <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
+        <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-coffee-900 flex items-center gap-3">
-              <ChefHat className="w-8 h-8 text-coffee-600 shrink-0" />
-              <span className="leading-tight">Kitchen Display System (KDS)</span>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="px-3 py-1 bg-white/5 text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-white/10">
+                Production
+              </div>
+              <div className="h-[1px] flex-1 lg:w-48 bg-white/5" />
+            </div>
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-4">
+              Kitchen <span className="text-white/20 not-italic font-medium text-4xl md:text-5xl lg:text-6xl">Display</span>
             </h1>
-            <p className="text-coffee-600 mt-1">FIFO Queue Processing</p>
+            <div className="flex items-center gap-3 mt-6">
+              <div className="h-1.5 w-16 bg-amber-600 rounded-full shadow-[0_0_15px_rgba(217,119,6,0.5)]" />
+              <span className="text-xs font-bold text-coffee-500 uppercase tracking-widest">
+                Command Center Queue
+              </span>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2 md:gap-4">
-            <div className="flex items-center gap-2 text-sm bg-white px-3 py-1.5 rounded-full border border-coffee-200 shadow-sm shrink-0">
-              <div className="w-3 h-3 rounded-full bg-amber-400 shrink-0"></div> Pending
+          <div className="flex flex-wrap gap-2 md:gap-3 bg-white/5 p-2 rounded-2xl border border-white/10 backdrop-blur-xl">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-500 px-3 py-2 rounded-xl border border-amber-500/20">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></div> Incoming
             </div>
-            <div className="flex items-center gap-2 text-sm bg-white px-3 py-1.5 rounded-full border border-coffee-200 shadow-sm shrink-0">
-              <div className="w-3 h-3 rounded-full bg-blue-400 shrink-0"></div> Preparing
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-400 px-3 py-2 rounded-xl border border-blue-500/20">
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></div> Active
             </div>
-            <div className="flex items-center gap-2 text-sm bg-white px-3 py-1.5 rounded-full border border-coffee-200 shadow-sm shrink-0">
-              <div className="w-3 h-3 rounded-full bg-green-400 shrink-0"></div> Ready
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-green-500/10 text-green-400 px-3 py-2 rounded-xl border border-green-500/20">
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div> Launch
             </div>
           </div>
         </header>
@@ -64,69 +74,70 @@ export function KitchenQueue({ orders, onUpdateStatus }: KitchenQueueProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {activeOrders.length === 0 ? (
               <div 
-                className="col-span-full flex flex-col items-center justify-center py-20 text-coffee-400 bg-white rounded-2xl border border-dashed border-coffee-300"
+                className="col-span-full flex flex-col items-center justify-center py-32 text-coffee-600 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10 backdrop-blur-xl"
               >
-                <CheckCircle className="w-16 h-16 mb-4 text-coffee-300" />
-                <h3 className="text-xl font-medium text-coffee-600">All caught up!</h3>
-                <p>No active orders in the queue.</p>
+                <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-6 border border-amber-500/20">
+                  <CheckCircle className="w-10 h-10 text-amber-500" />
+                </div>
+                <h3 className="text-xl font-black uppercase italic tracking-tighter text-white">All Clear</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest mt-2">The orbit is empty</p>
               </div>
             ) : (
               activeOrders.map((order, index) => (
                 <div
                   key={order.id}
-                  className={`bg-white rounded-2xl p-5 shadow-lg border-2 ${getStatusColor(order.status).split(' ')[2]} flex flex-col h-full relative overflow-hidden`}
+                  className={`bg-white/5 backdrop-blur-xl rounded-[2rem] p-6 border-2 ${getStatusColor(order.status).split(' ')[2]} flex flex-col h-full relative overflow-hidden transition-all hover:scale-[1.02] hover:bg-white/[0.08] shadow-2xl`}
                 >
                   {/* FIFO Position Indicator */}
                   {index === 0 && order.status === 'pending' && (
-                     <div className="absolute top-0 right-0 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
-                       NEXT UP
+                     <div className="absolute top-0 right-0 bg-amber-500 text-black text-[10px] font-black px-4 py-1.5 rounded-bl-xl uppercase tracking-widest italic">
+                       Priority 01
                      </div>
                   )}
 
-                  <div className="flex justify-between items-start mb-4">
+                  <div className="flex justify-between items-start mb-6">
                     <div>
-                      <h3 className="font-bold text-lg text-coffee-900">Order #{order.id?.slice(-4)}</h3>
-                      <div className="flex items-center gap-2">
-                        <p className="text-coffee-600 text-sm font-medium">{order.customerName}</p>
+                      <h3 className="font-black text-xl text-white uppercase italic tracking-tighter">#{order.id?.slice(-4)}</h3>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <p className="text-white/40 text-xs font-black uppercase tracking-tighter italic">{order.customerName}</p>
                         {order.tableNumber && (
-                          <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-1.5 py-0.5 rounded border border-amber-200 uppercase">
-                            Table {order.tableNumber}
-                          </span>
-                        )}
-                        {order.orderType && (
-                          <span className="bg-coffee-100 text-coffee-700 text-[10px] font-black px-1.5 py-0.5 rounded border border-coffee-200 uppercase">
-                            {order.orderType.replace('-', ' ')}
+                          <span className="bg-amber-500/20 text-amber-500 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 uppercase tracking-widest">
+                            Bay {order.tableNumber}
                           </span>
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${getStatusColor(order.status).split(' ').slice(0,2).join(' ')}`}>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${getStatusColor(order.status)}`}>
                         {order.status}
                       </span>
-                      <span className="flex items-center gap-1 text-xs text-coffee-500 font-medium">
-                        {getSourceIcon(order.source)} <span className="capitalize">{order.source}</span>
+                      <span className="flex items-center gap-1.5 text-[10px] text-white/30 font-black uppercase tracking-widest">
+                        {getSourceIcon(order.source)} {order.source}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-xs text-coffee-500 mb-4 bg-coffee-50 w-fit px-2 py-1 rounded">
+                  <div className="flex items-center gap-1.5 text-[10px] font-black text-amber-500/50 mb-6 bg-white/5 w-fit px-2.5 py-1.5 rounded-lg border border-white/5 uppercase tracking-widest">
                     <Clock className="w-3.5 h-3.5" />
                     {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
 
-                  <div className="flex-1 bg-coffee-50/50 rounded-xl p-3 mb-4 space-y-3">
+                  <div className="flex-1 bg-black/20 rounded-2xl p-4 mb-6 space-y-4 border border-white/5">
                     {order.items.map((item, idx) => (
-                      <div key={idx} className="flex gap-3 items-start border-b border-coffee-100 last:border-0 pb-2 last:pb-0">
-                        <div className="font-bold text-coffee-800 bg-white w-6 h-6 rounded-md shadow-sm flex items-center justify-center shrink-0">
+                      <div key={idx} className="flex gap-4 items-start border-b border-white/5 last:border-0 pb-3 last:pb-0">
+                        <div className="font-black text-xs text-white bg-white/10 w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-white/10">
                           {item.quantity}
                         </div>
-                        <div className="text-sm font-medium text-coffee-900 mt-0.5">
-                          {item.name}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-black text-white uppercase tracking-tight italic truncate">
+                            {item.name}
+                          </div>
                           {item.selectedSize && (
-                            <span className="ml-1 text-[10px] text-coffee-500 font-bold bg-white px-1 py-0.5 rounded uppercase border border-coffee-100">
-                              {item.selectedSize.name}
-                            </span>
+                            <div className="mt-1">
+                              <span className="text-[9px] text-white/40 font-black px-2 py-0.5 rounded bg-white/5 uppercase border border-white/5 tracking-widest">
+                                {item.selectedSize.name}
+                              </span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -135,11 +146,12 @@ export function KitchenQueue({ orders, onUpdateStatus }: KitchenQueueProps) {
 
                   <button
                     onClick={() => onUpdateStatus(order.id, advanceStatus(order.status))}
-                    className="w-full py-3 rounded-xl font-bold text-white transition-transform active:scale-95 shadow-md flex justify-center items-center gap-2
-                      bg-coffee-900 hover:bg-coffee-800"
+                    className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl flex justify-center items-center gap-2 
+                      ${order.status === 'pending' ? 'bg-amber-600 text-white hover:bg-amber-500' : 
+                        order.status === 'preparing' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-green-600 text-white hover:bg-green-500'}`}
                   >
-                    {order.status === 'pending' ? 'Start Preparing' :
-                     order.status === 'preparing' ? 'Mark Ready' : 'Complete Order'}
+                    {order.status === 'pending' ? 'Initiate Sequence' :
+                     order.status === 'preparing' ? 'Docking Ready' : 'Confirm Launch'}
                   </button>
                 </div>
               ))

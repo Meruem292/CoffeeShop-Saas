@@ -38,7 +38,7 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
   };
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col bg-coffee-50">
+    <div className="flex-1 overflow-hidden flex flex-col bg-transparent">
       <style>
         {`
           @media print {
@@ -54,6 +54,7 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
               top: 0;
               width: 100%;
               padding: 20px;
+              color: black !important;
             }
           }
         `}
@@ -97,87 +98,97 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
       )}
 
       <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 scrollbar-hide print:hidden">
-        <div className="max-w-5xl mx-auto">
-          <header className="mb-8 flex flex-col md:flex-row md:items-end justify-between border-b border-coffee-200 pb-6 gap-4">
+        <div className="max-w-6xl mx-auto">
+          <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <Banknote className="w-8 h-8 text-amber-600" />
-                <h2 className="text-3xl md:text-4xl font-black text-coffee-950 uppercase italic tracking-tighter leading-none">
-                  Cashier
-                </h2>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="px-3 py-1 bg-white/5 text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-white/10">
+                  Payments
+                </div>
+                <div className="h-[1px] flex-1 lg:w-48 bg-white/5" />
               </div>
-              <p className="text-coffee-600 font-medium">Manage payments and receipts</p>
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white font-display uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-4">
+                Cashier <span className="text-white/20 not-italic font-medium text-4xl md:text-5xl lg:text-6xl">Console</span>
+              </h1>
+              <div className="flex items-center gap-3 mt-6">
+                <div className="h-1.5 w-16 bg-amber-600 rounded-full shadow-[0_0_15px_rgba(217,119,6,0.5)]" />
+                <span className="text-xs font-bold text-coffee-500 uppercase tracking-widest">
+                  Manage payments and receipts
+                </span>
+              </div>
             </div>
             
-            <div className="flex bg-white rounded-xl p-1 shadow-sm border border-coffee-100 overflow-x-auto scrollbar-hide max-w-full shrink-0">
+            <div className="flex bg-white/5 backdrop-blur-md rounded-2xl p-1.5 shadow-sm border border-white/10 overflow-x-auto scrollbar-hide max-w-full shrink-0 w-fit">
               <button 
                 onClick={() => setActiveTab('unpaid')}
-                className={`px-4 py-2 rounded-lg font-bold text-sm transition-all shrink-0 ${activeTab === 'unpaid' ? 'bg-amber-500 text-white shadow-md' : 'text-coffee-500 hover:text-coffee-800'}`}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'unpaid' ? 'bg-amber-600 text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-white'}`}
               >
                 Awaiting Payment
                 {unpaidOrders.length > 0 && (
-                  <span className="ml-2 bg-black/10 px-2 py-0.5 rounded-full text-xs">{unpaidOrders.length}</span>
+                  <span className="ml-2 bg-black/20 px-2 py-0.5 rounded-full text-[10px]">{unpaidOrders.length}</span>
                 )}
               </button>
               <button 
                 onClick={() => setActiveTab('history')}
-                className={`px-4 py-2 rounded-lg font-bold text-sm transition-all shrink-0 ${activeTab === 'history' ? 'bg-amber-500 text-white shadow-md' : 'text-coffee-500 hover:text-coffee-800'}`}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'history' ? 'bg-amber-600 text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-white'}`}
               >
                 Active / Paid
               </button>
             </div>
           </header>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {activeTab === 'unpaid' ? (
               unpaidOrders.length === 0 ? (
-                <div className="col-span-full flex flex-col items-center justify-center py-20 text-coffee-400 bg-white rounded-2xl border border-dashed border-coffee-300">
-                  <CheckCircle className="w-16 h-16 mb-4 text-coffee-300" />
-                  <h3 className="text-xl font-bold text-coffee-900 mb-2">No Unpaid Orders</h3>
-                  <p>All kiosk and mobile orders have been settled.</p>
+                <div className="col-span-full flex flex-col items-center justify-center py-24 text-coffee-700 bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/5">
+                  <CheckCircle className="w-16 h-16 mb-4 opacity-20" />
+                  <h3 className="text-xl font-black text-white uppercase tracking-widest mb-2">No Unpaid Orders</h3>
+                  <p className="text-xs font-bold uppercase tracking-widest opacity-50">All kiosk and mobile orders have been settled.</p>
                 </div>
               ) : (
                 unpaidOrders.map((order) => (
-                  <div key={order.id} className="bg-white rounded-2xl p-5 shadow-lg border-2 border-amber-400 flex flex-col h-full relative overflow-hidden">
-                    <div className="flex justify-between items-start mb-4 relative z-10">
+                  <div key={order.id} className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border-2 border-amber-500/50 flex flex-col h-full relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-[50px] -mr-16 -mt-16 group-hover:bg-amber-500/20 transition-all" />
+                    
+                    <div className="flex justify-between items-start mb-6 relative z-10">
                       <div>
-                        <span className="text-3xl font-black text-coffee-950 block leading-none mb-1">
+                        <span className="text-4xl font-black text-white block leading-none mb-2 font-display">
                           #{order.id?.slice(-4)}
                         </span>
-                        <div className="text-sm font-bold text-coffee-500">{order.customerName}</div>
+                        <div className="text-[10px] font-black text-coffee-500 uppercase tracking-[0.2em]">{order.customerName}</div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         {getSourceBadge(order.source)}
-                        <span className="text-sm font-black text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">Unpaid</span>
+                        <span className="text-[9px] font-black text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 uppercase tracking-widest">Unpaid</span>
                       </div>
                     </div>
 
-                    <div className="flex-1 bg-coffee-50 rounded-xl p-3 mb-4 overflow-y-auto min-h-[100px] relative z-10">
-                      <ul className="space-y-3">
+                    <div className="flex-1 bg-white/5 border border-white/5 rounded-2xl p-4 mb-6 overflow-y-auto min-h-[120px] relative z-10 scrollbar-hide">
+                      <ul className="space-y-4">
                         {order.items.map((item, idx) => (
-                          <li key={idx} className="flex justify-between text-sm items-start">
-                            <div className="flex-1 pr-2">
-                              <span className="font-bold text-coffee-900">{item.quantity}x {item.name}</span>
-                              {item.selectedSize && <div className="text-xs text-coffee-500">Size: {item.selectedSize.name}</div>}
-                              {item.notes && <div className="text-xs text-coffee-400 italic">"{item.notes}"</div>}
+                          <li key={idx} className="flex justify-between text-xs items-start">
+                            <div className="flex-1 pr-4">
+                              <div className="font-black text-white uppercase tracking-tight">{item.quantity}x {item.name}</div>
+                              {item.selectedSize && <div className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest mt-1">Size: {item.selectedSize.name}</div>}
+                              {item.notes && <div className="text-[9px] text-amber-500/70 font-bold italic mt-1 uppercase tracking-widest">"{item.notes}"</div>}
                             </div>
-                            <span className="font-bold text-coffee-700">₱{(item.price * item.quantity).toLocaleString()}</span>
+                            <span className="font-black text-white opacity-40 whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
 
                     <div className="mt-auto relative z-10">
-                      <div className="flex justify-between items-end mb-4 border-t border-coffee-100 pt-3">
-                        <span className="text-sm font-bold text-coffee-400 uppercase">Total Due</span>
-                        <span className="text-2xl font-black text-coffee-950">₱{order.total.toLocaleString()}</span>
+                      <div className="flex justify-between items-end mb-6 border-t border-white/5 pt-4">
+                        <span className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Total Due</span>
+                        <span className="text-3xl font-black text-white">₱{order.total.toLocaleString()}</span>
                       </div>
                       <button 
                         onClick={() => handleMarkPaid(order)}
-                        className="w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold transition-colors shadow-lg flex items-center justify-center gap-2"
+                        className="w-full py-4 bg-white hover:bg-white/90 text-black rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95"
                       >
                         <Banknote className="w-5 h-5" />
-                        Receive Cash & Print
+                        Collect Payment
                       </button>
                     </div>
                   </div>
@@ -185,35 +196,35 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
               )
             ) : (
               pendingOrders.length === 0 ? (
-                <div className="col-span-full flex flex-col items-center justify-center py-20 text-coffee-400 bg-white rounded-2xl border border-dashed border-coffee-300">
-                  <Receipt className="w-16 h-16 mb-4 text-coffee-300" />
-                  <h3 className="text-xl font-bold text-coffee-900 mb-2">No Active Orders</h3>
-                  <p>Paid orders currently in progress will appear here.</p>
+                <div className="col-span-full flex flex-col items-center justify-center py-24 text-coffee-700 bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/5">
+                  <Receipt className="w-16 h-16 mb-4 opacity-20" />
+                  <h3 className="text-xl font-black text-white uppercase tracking-widest mb-2">No Active Orders</h3>
+                  <p className="text-xs font-bold uppercase tracking-widest opacity-50">Paid orders currently in progress will appear here.</p>
                 </div>
               ) : (
                 pendingOrders.map((order) => (
-                  <div key={order.id} className={`bg-white rounded-2xl p-5 shadow-sm border border-coffee-200 flex flex-col h-full relative overflow-hidden ${order.status === 'completed' ? 'opacity-50 grayscale' : ''}`}>
-                    <div className="flex justify-between items-start mb-4 relative z-10">
+                  <div key={order.id} className={`bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-white/10 flex flex-col h-full relative overflow-hidden transition-all ${order.status === 'completed' ? 'opacity-30' : 'hover:border-white/20'}`}>
+                    <div className="flex justify-between items-start mb-6 relative z-10">
                       <div>
-                        <span className="text-xl font-black text-coffee-950 block leading-none mb-1">
+                        <span className="text-3xl font-black text-white block leading-none mb-2 font-display">
                           #{order.id?.slice(-4)}
                         </span>
-                        <div className="text-sm font-bold text-coffee-500">{order.customerName}</div>
+                        <div className="text-[10px] font-black text-coffee-500 uppercase tracking-[0.2em]">{order.customerName}</div>
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         {getSourceBadge(order.source)}
-                        <span className="text-sm font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg">Paid</span>
+                        <span className="text-[9px] font-black text-green-400 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20 uppercase tracking-widest">Paid</span>
                       </div>
                     </div>
                     
-                    <div className="flex justify-between items-end mt-auto pt-3 border-t border-coffee-100 relative z-10">
-                      <span className="text-xs font-bold text-coffee-400 uppercase">Status</span>
-                      <span className="text-sm font-black text-coffee-700 uppercase">{order.status}</span>
+                    <div className="flex justify-between items-end mt-auto pt-4 border-t border-white/5 relative z-10">
+                      <span className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Status</span>
+                      <span className="text-xs font-black text-amber-500 uppercase tracking-[0.1em]">{order.status}</span>
                     </div>
                     {order.status === 'ready' && (
                       <button 
                         onClick={() => onUpdateStatus(order.id!, 'completed')}
-                        className="mt-4 w-full py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold transition-colors shadow-sm flex items-center justify-center gap-2"
+                        className="mt-6 w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
                       >
                         <CheckCircle className="w-4 h-4" />
                         Release / Claim

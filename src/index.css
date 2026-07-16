@@ -1,27 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", var(--font-sans);
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-coffee-50: #fcf9f5;
-  --color-coffee-100: #f6efe6;
-  --color-coffee-200: #eadcca;
-  --color-coffee-300: #d6c0a5;
-  --color-coffee-400: #bfa17d;
-  --color-coffee-500: #ad845b;
-  --color-coffee-600: #9c6c49;
-  --color-coffee-700: #82543d;
-  --color-coffee-800: #6b4435;
-  --color-coffee-900: #57382d;
-  --color-coffee-950: #2d1b15;
+  --color-coffee-50: #0a0a0c;
+  --color-coffee-100: #1a1a1e;
+  --color-coffee-200: #2a2a2e;
+  --color-coffee-300: #3a3a3e;
+  --color-coffee-400: #4a4a4e;
+  --color-coffee-500: #5a5a5e;
+  --color-coffee-600: #6a6a6e;
+  --color-coffee-700: #7a7a7e;
+  --color-coffee-800: #8a8a8e;
+  --color-coffee-900: #9a9a9e;
+  --color-coffee-950: #050507;
   
   --breakpoint-xs: 480px;
 }
 
 body {
-  background-color: var(--color-coffee-50);
-  color: var(--color-coffee-950);
+  background-color: #020205;
+  color: #ffffff;
+  font-family: var(--font-sans);
 }
 
 @theme inline {
