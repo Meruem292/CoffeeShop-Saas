@@ -98,9 +98,26 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
     try {
       let port;
       if (serialSearchType === 'bluetooth') {
-        port = await (navigator as any).serial.requestPort({
-          filters: [{ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' }]
-        });
+        try {
+          port = await (navigator as any).serial.requestPort({
+            filters: [{ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' }]
+          });
+        } catch (e: any) {
+          if (e.name === 'NotFoundError' || e.message?.includes("No compatible devices found")) {
+            const fallback = confirm(
+              "Direct Bluetooth RFCOMM scanning could not discover your printer.\n\n" +
+              "Tip: Make sure the printer is paired inside your computer's Bluetooth settings first.\n\n" +
+              "Often, the OS registers paired printers as Virtual COM Ports. Would you like to scan via all available Virtual COM/USB ports instead?"
+            );
+            if (fallback) {
+              port = await (navigator as any).serial.requestPort();
+            } else {
+              throw e;
+            }
+          } else {
+            throw e;
+          }
+        }
       } else {
         port = await (navigator as any).serial.requestPort();
       }
@@ -109,9 +126,7 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
       alert(`${serialSearchType === 'bluetooth' ? 'Bluetooth (Classic SPP)' : 'USB/Serial'} thermal printer authorized and connected successfully!`);
     } catch (e: any) {
       console.log("Port selection canceled or failed", e);
-      if (e.message?.includes("No compatible devices found") && serialSearchType === 'bluetooth') {
-        alert("No compatible bluetooth serial devices were found.\n\nTip: Make sure your bluetooth printer is paired with your PC inside your Operating System settings first before trying to authorize/connect here.");
-      } else {
+      if (e.name !== 'AbortError' && !e.message?.includes("canceled") && !e.message?.includes("cancelled")) {
         alert("Error connecting printer: " + e.message);
       }
     }
@@ -130,9 +145,25 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
           port = ports[0];
         } else {
           if (serialSearchType === 'bluetooth') {
-            port = await (navigator as any).serial.requestPort({
-              filters: [{ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' }]
-            });
+            try {
+              port = await (navigator as any).serial.requestPort({
+                filters: [{ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' }]
+              });
+            } catch (e: any) {
+              if (e.name === 'NotFoundError' || e.message?.includes("No compatible devices found")) {
+                const fallback = confirm(
+                  "Direct Bluetooth RFCOMM scanning could not discover your printer.\n\n" +
+                  "Would you like to scan via all available Virtual COM/USB ports instead?"
+                );
+                if (fallback) {
+                  port = await (navigator as any).serial.requestPort();
+                } else {
+                  throw e;
+                }
+              } else {
+                throw e;
+              }
+            }
           } else {
             port = await (navigator as any).serial.requestPort();
           }
@@ -203,9 +234,25 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
         } else {
           try {
             if (serialSearchType === 'bluetooth') {
-              port = await (navigator as any).serial.requestPort({
-                filters: [{ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' }]
-              });
+              try {
+                port = await (navigator as any).serial.requestPort({
+                  filters: [{ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' }]
+                });
+              } catch (e: any) {
+                if (e.name === 'NotFoundError' || e.message?.includes("No compatible devices found")) {
+                  const fallback = confirm(
+                    "Direct Bluetooth RFCOMM scanning could not discover your printer.\n\n" +
+                    "Would you like to scan via all available Virtual COM/USB ports instead?"
+                  );
+                  if (fallback) {
+                    port = await (navigator as any).serial.requestPort();
+                  } else {
+                    throw e;
+                  }
+                } else {
+                  throw e;
+                }
+              }
             } else {
               port = await (navigator as any).serial.requestPort();
             }
