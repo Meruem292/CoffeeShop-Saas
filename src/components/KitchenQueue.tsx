@@ -1,13 +1,16 @@
 import React from 'react';
 import { Order, OrderStatus } from '../types';
-import { Clock, CheckCircle, ChefHat, Smartphone, MonitorSmartphone, Tablet } from 'lucide-react';
+import { Clock, CheckCircle, ChefHat, Smartphone, MonitorSmartphone, Tablet, Trash2 } from 'lucide-react';
+import { ConfirmationModal } from './ConfirmationModal';
 
 interface KitchenQueueProps {
   orders: Order[];
-  onUpdateStatus: (orderId: string, newStatus: OrderStatus) => void;
+  onUpdateStatus: (orderId: string, newStatus: OrderStatus) => Promise<void>;
+  onDeleteOrder: (id: string) => Promise<void>;
 }
 
-export function KitchenQueue({ orders, onUpdateStatus }: KitchenQueueProps) {
+export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder }: KitchenQueueProps) {
+  const [orderToCancel, setOrderToCancel] = React.useState<Order | null>(null);
   // Sort by created time (FIFO) - oldest first
   const activeOrders = orders
     .filter((o) => o.status !== 'completed' && o.status !== 'unpaid')
@@ -144,6 +147,17 @@ export function KitchenQueue({ orders, onUpdateStatus }: KitchenQueueProps) {
                     ))}
                   </div>
 
+                  <div className="mb-3">
+                    <button 
+                      onClick={() => setOrderToCancel(order)}
+                      className="w-full py-2.5 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1 active:scale-95"
+                      title="Cancel Order"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Cancel Order
+                    </button>
+                  </div>
+
                   <button
                     onClick={() => onUpdateStatus(order.id, advanceStatus(order.status))}
                     className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-95 shadow-xl flex justify-center items-center gap-2 
@@ -158,6 +172,18 @@ export function KitchenQueue({ orders, onUpdateStatus }: KitchenQueueProps) {
             )}
         </div>
       </div>
+      <ConfirmationModal
+        isOpen={orderToCancel !== null}
+        onClose={() => setOrderToCancel(null)}
+        onConfirm={async () => {
+          if (orderToCancel) {
+            await onUpdateStatus(orderToCancel.id!, 'cancelled').catch(console.error);
+            setOrderToCancel(null);
+          }
+        }}
+        title="Cancel Order"
+        message="Are you sure you want to cancel and void this order?"
+      />
     </div>
   );
 }

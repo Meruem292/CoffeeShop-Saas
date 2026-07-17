@@ -286,6 +286,17 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     }
   };
 
+  const updateOrder = async (id: string, updates: Partial<Order>) => {
+    try {
+      const cleanData = Object.fromEntries(
+        Object.entries(updates).filter(([_, v]) => v !== undefined)
+      );
+      await updateDoc(doc(db, 'orders', id), cleanData);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `orders/${id}`);
+    }
+  };
+
   const updateStock = async (id: string, delta: number) => {
     const product = products.find(p => p.id === id);
     if (product) {
@@ -340,6 +351,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     deleteCategory,
     addOrder,
     updateOrderStatus,
+    updateOrder,
     updateStock,
     deleteOrder,
     clearOrders

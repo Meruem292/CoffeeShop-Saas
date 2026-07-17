@@ -72,7 +72,7 @@ export interface SplashScreen {
   glbUrl?: string;
 }
 
-export type OrderStatus = 'unpaid' | 'pending' | 'preparing' | 'ready' | 'completed';
+export type OrderStatus = 'unpaid' | 'pending' | 'preparing' | 'ready' | 'completed' | 'cancelled';
 
 export interface Order {
   id?: string;

@@ -1,12 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Order, OrderStatus, ShopSettings } from '../types';
-import { CheckCircle, Clock, Banknote, Coffee, Receipt, Printer, Settings, AlertCircle } from 'lucide-react';
+import { Order, OrderStatus, ShopSettings, CartItem } from '../types';
+import { CheckCircle, Clock, Banknote, Coffee, Receipt, Printer, Settings, AlertCircle, Edit3, Trash2 } from 'lucide-react';
+import { EditOrderModal } from './EditOrderModal';
+import { ConfirmationModal } from './ConfirmationModal';
 
 interface CashierViewProps {
   orders: Order[];
-  onUpdateStatus: (id: string, status: OrderStatus) => void;
+  onUpdateStatus: (id: string, status: OrderStatus) => Promise<void>;
+  onUpdateOrder: (id: string, updates: Partial<Order>) => Promise<void>;
+  onDeleteOrder: (id: string) => Promise<void>;
   shopSettings: ShopSettings | null;
+  addons: Addon[];
 }
 
 // Keep track of the active serial and Bluetooth ports globally at module scope to preserve the connection
@@ -14,13 +19,15 @@ let activeSerialPort: any = null;
 let activeBleDevice: any = null;
 let activeBleCharacteristic: any = null;
 
-export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierViewProps) {
+export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrder, shopSettings, addons }: CashierViewProps) {
   // Only show unpaid orders
   const unpaidOrders = orders.filter((o) => o.status === 'unpaid');
   const pendingOrders = orders.filter((o) => o.status === 'pending' || o.status === 'preparing' || o.status === 'ready' || o.status === 'completed');
 
   const [activeTab, setActiveTab] = useState<'unpaid' | 'history'>('unpaid');
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [orderToCancel, setOrderToCancel] = useState<{order: Order, action: 'delete' | 'status'} | null>(null);
 
   // Printer Settings State
   const [printMode, setPrintMode] = useState<'browser' | 'serial'>(() => {
@@ -1156,6 +1163,24 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                         <span className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Total Due</span>
                         <span className="text-3xl font-black text-white">₱{order.total.toLocaleString()}</span>
                       </div>
+                      
+                      <div className="flex gap-2 mb-3">
+                        <button 
+                          onClick={() => setEditingOrder(order)}
+                          className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-amber-500" />
+                          Edit Order
+                        </button>
+                        <button 
+                          onClick={() => setOrderToCancel({order, action: 'delete'})}
+                          className="py-3 px-4 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                          title="Cancel Order"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
                       <button 
                         onClick={() => handleMarkPaid(order)}
                         className="w-full py-4 bg-white hover:bg-white/90 text-black rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95"
@@ -1195,7 +1220,7 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                       <span className="text-xs font-black text-amber-500 uppercase tracking-[0.1em]">{order.status}</span>
                     </div>
 
-                    <div className="mt-6 space-y-2 relative z-10">
+                     <div className="mt-6 space-y-2 relative z-10">
                       {order.status === 'ready' && (
                         <button 
                           onClick={() => onUpdateStatus(order.id!, 'completed')}
@@ -1205,6 +1230,27 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                           Release / Claim
                         </button>
                       )}
+                      
+                      {order.status !== 'completed' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button 
+                            onClick={() => setEditingOrder(order)}
+                            className="py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-1 active:scale-95"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-amber-500" />
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => setOrderToCancel({order, action: 'status'})}
+                            className="py-2.5 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1 active:scale-95"
+                            title="Cancel Order"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+
                       <button 
                         onClick={() => handleReprintReceipt(order)}
                         className="w-full py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 active:scale-95"
@@ -1220,6 +1266,38 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
           </div>
         </div>
       </div>
+
+      <EditOrderModal
+        isOpen={editingOrder !== null}
+        onClose={() => setEditingOrder(null)}
+        order={editingOrder}
+        availableAddons={addons}
+        onSave={async (orderId, updatedItems, updatedTotal) => {
+          await onUpdateOrder(orderId, { items: updatedItems, total: updatedTotal });
+          setEditingOrder(null);
+        }}
+        onCancelOrder={async (orderId) => {
+          await onDeleteOrder(orderId);
+          setEditingOrder(null);
+        }}
+      />
+      
+      <ConfirmationModal
+        isOpen={orderToCancel !== null}
+        onClose={() => setOrderToCancel(null)}
+        onConfirm={async () => {
+          if (orderToCancel) {
+            if (orderToCancel.action === 'delete') {
+              await onDeleteOrder(orderToCancel.order.id!).catch(console.error);
+            } else {
+              await onUpdateStatus(orderToCancel.order.id!, 'cancelled').catch(console.error);
+            }
+            setOrderToCancel(null);
+          }
+        }}
+        title="Cancel Order"
+        message="Are you sure you want to cancel and void this order?"
+      />
     </div>
   );
 }

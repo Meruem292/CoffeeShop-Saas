@@ -44,6 +44,7 @@ export default function App() {
     deleteAddon,
     addOrder,
     updateOrderStatus,
+    updateOrder,
     updateStock,
     deleteOrder,
     clearOrders,
@@ -551,7 +552,7 @@ export default function App() {
                   {currentView === 'pos' && (
                     <OrderingScreen 
                       mode="pos" 
-                      menu={products.filter(p => p.isActive)} 
+                      menu={products} 
                       addons={addons.filter(a => a.isActive)} 
                       onPlaceOrder={handlePlaceOrder} 
                       searchQuery={searchQuery}
@@ -562,7 +563,7 @@ export default function App() {
                   {currentView === 'kiosk' && (
                     <OrderingScreen 
                       mode="kiosk" 
-                      menu={products.filter(p => p.isActive)} 
+                      menu={products} 
                       addons={addons.filter(a => a.isActive)} 
                       onPlaceOrder={handlePlaceOrder} 
                       searchQuery={searchQuery}
@@ -573,7 +574,7 @@ export default function App() {
                   {currentView === 'mobile' && (
                     <OrderingScreen 
                       mode="mobile" 
-                      menu={products.filter(p => p.isActive)} 
+                      menu={products} 
                       addons={addons.filter(a => a.isActive)} 
                       onPlaceOrder={handlePlaceOrder} 
                       searchQuery={searchQuery}
@@ -582,13 +583,24 @@ export default function App() {
                     />
                   )}
                   {currentView === 'cashier' && (
-                    <CashierView orders={orders} onUpdateStatus={updateOrderStatus} shopSettings={shopSettings} />
+                    <CashierView 
+                      orders={orders} 
+                      onUpdateStatus={updateOrderStatus} 
+                      onUpdateOrder={updateOrder}
+                      onDeleteOrder={deleteOrder}
+                      shopSettings={shopSettings} 
+                      addons={addons}
+                    />
                   )}
                   {currentView === 'reports' && (
                     <TransactionReports orders={orders} onDeleteOrder={deleteOrder} onClearOrders={clearOrders} />
                   )}
                   {currentView === 'queue' && (
-                    <KitchenQueue orders={orders} onUpdateStatus={updateOrderStatus} />
+                    <KitchenQueue 
+                      orders={orders} 
+                      onUpdateStatus={updateOrderStatus} 
+                      onDeleteOrder={deleteOrder}
+                    />
                   )}
                   {currentView === 'inventory' && (
                     <InventoryManager products={products} onUpdateStock={updateStock} />
