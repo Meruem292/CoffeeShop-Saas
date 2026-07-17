@@ -42,6 +42,9 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
   const [drawerCommand, setDrawerCommand] = useState<'primary' | 'alternative2' | 'alternative3'>(() => {
     return (localStorage.getItem('pos_drawer_command') as 'primary' | 'alternative2' | 'alternative3') || 'primary';
   });
+  const [serialSearchType, setSerialSearchType] = useState<'usb' | 'bluetooth'>(() => {
+    return (localStorage.getItem('pos_serial_search_type') as 'usb' | 'bluetooth') || 'usb';
+  });
   const [isPrinterConnected, setIsPrinterConnected] = useState<boolean>(false);
 
   useEffect(() => {
@@ -82,18 +85,35 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
     localStorage.setItem('pos_drawer_command', cmd);
   };
 
+  const saveSerialSearchType = (type: 'usb' | 'bluetooth') => {
+    setSerialSearchType(type);
+    localStorage.setItem('pos_serial_search_type', type);
+  };
+
   const connectPrinter = async () => {
     if (!("serial" in navigator)) {
       alert("Web Serial API is not supported in this browser. Please use Chrome or Edge.");
       return;
     }
     try {
-      const port = await (navigator as any).serial.requestPort();
+      let port;
+      if (serialSearchType === 'bluetooth') {
+        port = await (navigator as any).serial.requestPort({
+          filters: [{ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' }]
+        });
+      } else {
+        port = await (navigator as any).serial.requestPort();
+      }
       activeSerialPort = port;
       setIsPrinterConnected(true);
-      alert("Thermal printer authorized and connected successfully!");
-    } catch (e) {
-      console.log("Port selection canceled", e);
+      alert(`${serialSearchType === 'bluetooth' ? 'Bluetooth (Classic SPP)' : 'USB/Serial'} thermal printer authorized and connected successfully!`);
+    } catch (e: any) {
+      console.log("Port selection canceled or failed", e);
+      if (e.message?.includes("No compatible devices found") && serialSearchType === 'bluetooth') {
+        alert("No compatible bluetooth serial devices were found.\n\nTip: Make sure your bluetooth printer is paired with your PC inside your Operating System settings first before trying to authorize/connect here.");
+      } else {
+        alert("Error connecting printer: " + e.message);
+      }
     }
   };
 
@@ -109,7 +129,13 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
         if (ports && ports.length > 0) {
           port = ports[0];
         } else {
-          port = await (navigator as any).serial.requestPort();
+          if (serialSearchType === 'bluetooth') {
+            port = await (navigator as any).serial.requestPort({
+              filters: [{ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' }]
+            });
+          } else {
+            port = await (navigator as any).serial.requestPort();
+          }
         }
         activeSerialPort = port;
         setIsPrinterConnected(true);
@@ -176,7 +202,13 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
           port = ports[0];
         } else {
           try {
-            port = await (navigator as any).serial.requestPort();
+            if (serialSearchType === 'bluetooth') {
+              port = await (navigator as any).serial.requestPort({
+                filters: [{ bluetoothServiceClassId: '00001101-0000-1000-8000-00805f9b34fb' }]
+              });
+            } else {
+              port = await (navigator as any).serial.requestPort();
+            }
           } catch (e) {
             console.log("Port selection canceled or failed", e);
             return; // User canceled the dialog
@@ -605,7 +637,7 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                   Select printing mode, paper widths, and print copies for cash payments.
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
                   {/* Printer Mode */}
                   <div>
                     <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-2.5">
@@ -623,6 +655,29 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                         className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${printMode === 'serial' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
                       >
                         Direct Thermal
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Port Discovery Filter */}
+                  <div>
+                    <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-2.5">
+                      Port Type / Discovery
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => saveSerialSearchType('usb')}
+                        disabled={printMode !== 'serial'}
+                        className={`py-2.5 px-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'usb' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        USB / COM
+                      </button>
+                      <button
+                        onClick={() => saveSerialSearchType('bluetooth')}
+                        disabled={printMode !== 'serial'}
+                        className={`py-2.5 px-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'bluetooth' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        Bluetooth
                       </button>
                     </div>
                   </div>
@@ -746,7 +801,7 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                       onClick={connectPrinter}
                       className={`flex-1 py-2.5 px-4 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all active:scale-95 h-[42px] ${isPrinterConnected ? 'bg-green-600/20 text-green-400 border-green-500/20' : 'bg-amber-500 text-black font-black hover:bg-amber-400 border-transparent'}`}
                     >
-                      {isPrinterConnected ? '✓ Port Authorized' : 'Connect Printer'}
+                      {isPrinterConnected ? '✓ Port Authorized' : serialSearchType === 'bluetooth' ? 'Search Bluetooth' : 'Connect USB / COM'}
                     </button>
                     {kickDrawer && (
                       <button
@@ -767,9 +822,9 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                       <div className="space-y-1">
                         <h4 className="text-[10px] font-black text-white uppercase tracking-wider">Pairing Your Bluetooth / USB Printer (Desktop / Laptop):</h4>
                         <p className="text-[9px] font-bold text-coffee-600 leading-relaxed uppercase tracking-wider normal-case">
-                          1. Pair your printer inside your OS Bluetooth settings first.<br />
-                          2. Click <span className="text-white font-black">&quot;Connect Printer&quot;</span> above to authorize Chrome/Edge to access the serial port.<br />
-                          3. Choose your thermal printer&apos;s paired virtual COM port from the browser picker.
+                          1. For Bluetooth, select <span className="text-amber-500 font-black">Bluetooth</span> in the grid above first and pair your printer inside your OS Bluetooth settings.<br />
+                          2. For USB cables, select <span className="text-amber-500 font-black">USB / COM</span> above first.<br />
+                          3. Click <span className="text-white font-black">&quot;Search Bluetooth&quot;</span> or <span className="text-white font-black">&quot;Connect USB / COM&quot;</span> above to authorize the device.
                         </p>
                       </div>
                     </div>
