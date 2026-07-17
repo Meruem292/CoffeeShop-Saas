@@ -58,6 +58,7 @@ export interface ShopSettings {
   mobileGridColumns?: number;
   address?: string;
   phone?: string;
+  tagline?: string;
 }
 
 export interface SplashScreen {

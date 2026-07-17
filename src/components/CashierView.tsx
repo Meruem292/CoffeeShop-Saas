@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Order, OrderStatus, ShopSettings } from '../types';
 import { CheckCircle, Clock, Banknote, Coffee, Receipt, Printer, Settings, AlertCircle } from 'lucide-react';
@@ -35,6 +35,23 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
   });
   const [showPrinterSettings, setShowPrinterSettings] = useState<boolean>(false);
 
+  // Cash Register State
+  const [kickDrawer, setKickDrawer] = useState<boolean>(() => {
+    return localStorage.getItem('pos_kick_drawer') !== 'false';
+  });
+  const [drawerCommand, setDrawerCommand] = useState<'primary' | 'alternative2' | 'alternative3'>(() => {
+    return (localStorage.getItem('pos_drawer_command') as 'primary' | 'alternative2' | 'alternative3') || 'primary';
+  });
+  const [isPrinterConnected, setIsPrinterConnected] = useState<boolean>(false);
+
+  useEffect(() => {
+    if ("serial" in navigator) {
+      (navigator as any).serial.getPorts().then((ports: any[]) => {
+        setIsPrinterConnected(ports && ports.length > 0);
+      }).catch((e: any) => console.log("Error checking serial ports:", e));
+    }
+  }, []);
+
   const savePrintMode = (mode: 'browser' | 'serial') => {
     setPrintMode(mode);
     localStorage.setItem('pos_print_mode', mode);
@@ -53,6 +70,76 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
   const saveCopies = (c: 'customer' | 'merchant' | 'both') => {
     setCopies(c);
     localStorage.setItem('pos_copies', c);
+  };
+
+  const saveKickDrawer = (kick: boolean) => {
+    setKickDrawer(kick);
+    localStorage.setItem('pos_kick_drawer', kick ? 'true' : 'false');
+  };
+
+  const saveDrawerCommand = (cmd: 'primary' | 'alternative2' | 'alternative3') => {
+    setDrawerCommand(cmd);
+    localStorage.setItem('pos_drawer_command', cmd);
+  };
+
+  const connectPrinter = async () => {
+    if (!("serial" in navigator)) {
+      alert("Web Serial API is not supported in this browser. Please use Chrome or Edge.");
+      return;
+    }
+    try {
+      const port = await (navigator as any).serial.requestPort();
+      activeSerialPort = port;
+      setIsPrinterConnected(true);
+      alert("Thermal printer authorized and connected successfully!");
+    } catch (e) {
+      console.log("Port selection canceled", e);
+    }
+  };
+
+  const testCashDrawer = async () => {
+    if (!("serial" in navigator)) {
+      alert("Web Serial API is not supported in this browser.");
+      return;
+    }
+    try {
+      let port = activeSerialPort;
+      if (!port) {
+        const ports = await (navigator as any).serial.getPorts();
+        if (ports && ports.length > 0) {
+          port = ports[0];
+        } else {
+          port = await (navigator as any).serial.requestPort();
+        }
+        activeSerialPort = port;
+        setIsPrinterConnected(true);
+      }
+
+      if (!port.writable) {
+        await port.open({ baudRate: parseInt(baudRate, 10) });
+      }
+
+      const encoder = new TextEncoder();
+      const writer = port.writable.getWriter();
+
+      let kickCode = "";
+      if (drawerCommand === 'primary') {
+        kickCode = "\x1b\x70\x00\x19\xfa";
+      } else if (drawerCommand === 'alternative2') {
+        kickCode = "\x1b\x70\x01\x19\xfa";
+      } else if (drawerCommand === 'alternative3') {
+        kickCode = "\x10\x14\x01\x00\x05";
+      }
+
+      await writer.write(encoder.encode(kickCode));
+      writer.releaseLock();
+      console.log("Test cash drawer kick code sent successfully.");
+    } catch (error: any) {
+      activeSerialPort = null;
+      setIsPrinterConnected(false);
+      console.error("Cash drawer test failed:", error);
+      alert("Failed to kick cash drawer: " + error.message);
+    }
   };
 
   const printToSerial = async (order: Order) => {
@@ -124,7 +211,7 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
         
         // Header
         data += centerText(nameToPrint.toUpperCase());
-        data += centerText("REFUEL STATION");
+        data += centerText((shopSettings?.tagline || "Refuel Station").toUpperCase());
         data += centerText((shopSettings?.address || "123 NEBULA BLVD, SPACEPORT").toUpperCase());
         data += centerText((shopSettings?.phone ? `TEL: ${shopSettings.phone}` : "TEL: +63 900 123 4567").toUpperCase());
         data += divider;
@@ -189,7 +276,18 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
         return data;
       };
 
-      let fullOutput = "";
+      let drawerKickCode = "";
+      if (kickDrawer) {
+        if (drawerCommand === 'primary') {
+          drawerKickCode = "\x1b\x70\x00\x19\xfa";
+        } else if (drawerCommand === 'alternative2') {
+          drawerKickCode = "\x1b\x70\x01\x19\xfa";
+        } else if (drawerCommand === 'alternative3') {
+          drawerKickCode = "\x10\x14\x01\x00\x05";
+        }
+      }
+
+      let fullOutput = drawerKickCode;
       if (copies === 'both' || copies === 'customer') {
         fullOutput += buildReceiptText("CUSTOMER COPY");
       }
@@ -295,7 +393,7 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
               {/* Header */}
               <div className="text-center mb-4">
                 <h2 className="text-xl font-black uppercase tracking-tight mb-0.5">{(shopSettings?.name || 'Astro Coffee').toUpperCase()}</h2>
-                <p className="text-[9px] uppercase tracking-widest font-black text-gray-800">Refuel Station</p>
+                <p className="text-[9px] uppercase tracking-widest font-black text-gray-800">{shopSettings?.tagline || 'Refuel Station'}</p>
                 <p className="text-[8px] text-gray-500 mt-0.5">{shopSettings?.address || '123 Nebula Boulevard, Spaceport'}</p>
                 <p className="text-[8px] text-gray-500">{shopSettings?.phone ? `Tel: ${shopSettings.phone}` : 'Tel: +63 900 123 4567'}</p>
                 <div className="border-b border-black border-double my-2" />
@@ -601,6 +699,67 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                   </div>
                 </div>
 
+                {/* Cash Drawer & Connection Controls */}
+                <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                  {/* Drawer Kick Toggle */}
+                  <div>
+                    <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-2.5">
+                      Cash Drawer Auto-Open
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => saveKickDrawer(true)}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${kickDrawer ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        Enabled
+                      </button>
+                      <button
+                        onClick={() => saveKickDrawer(false)}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${!kickDrawer ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        Disabled
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Drawer Trigger Selection */}
+                  <div>
+                    <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-2.5">
+                      Drawer Command / Pin Pulse
+                    </label>
+                    <select
+                      value={drawerCommand}
+                      onChange={(e) => saveDrawerCommand(e.target.value as any)}
+                      disabled={!kickDrawer}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-[10px] text-white font-black uppercase tracking-widest outline-none disabled:opacity-40 h-[42px]"
+                    >
+                      <option value="primary" className="bg-neutral-900 text-white">Primary Pin 2 (1B 70 00 19 FA)</option>
+                      <option value="alternative2" className="bg-neutral-900 text-white">Alt Pin 5 (1B 70 01 19 FA)</option>
+                      <option value="alternative3" className="bg-neutral-900 text-white">Status Pulse (10 14 01 00 05)</option>
+                    </select>
+                  </div>
+
+                  {/* Test Trigger / Manual Connect Actions */}
+                  <div className="flex gap-2.5">
+                    <button
+                      type="button"
+                      onClick={connectPrinter}
+                      className={`flex-1 py-2.5 px-4 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all active:scale-95 h-[42px] ${isPrinterConnected ? 'bg-green-600/20 text-green-400 border-green-500/20' : 'bg-amber-500 text-black font-black hover:bg-amber-400 border-transparent'}`}
+                    >
+                      {isPrinterConnected ? '✓ Port Authorized' : 'Connect Printer'}
+                    </button>
+                    {kickDrawer && (
+                      <button
+                        type="button"
+                        onClick={testCashDrawer}
+                        className="flex-1 py-2.5 px-4 rounded-xl text-[9px] font-black uppercase tracking-wider bg-white/5 text-white border border-white/10 hover:bg-white/10 transition-all active:scale-95 h-[42px]"
+                      >
+                        Test Drawer
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {printMode === 'serial' && (
                   <div className="mt-6 p-4 bg-amber-600/10 border border-amber-500/20 rounded-2xl flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
@@ -608,7 +767,7 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                       <h4 className="text-[10px] font-black text-white uppercase tracking-wider">Pairing Your Bluetooth / USB Thermal Printer:</h4>
                       <p className="text-[9px] font-bold text-coffee-600 leading-relaxed uppercase tracking-wider normal-case">
                         1. First, pair your thermal printer inside your computer/Android OS Bluetooth settings.<br />
-                        2. When you click <span className="text-white font-black">&quot;Collect Payment&quot;</span> or <span className="text-white font-black">&quot;Print Invoice&quot;</span>, a Google Chrome / Edge selection pop-up will show paired serial devices.<br />
+                        2. Click <span className="text-white font-black">&quot;Connect Printer&quot;</span> above to authorize your computer to print without asking for permissions each time.<br />
                         3. Choose your thermal printer&apos;s paired virtual serial port to instantly execute direct driverless ESC/POS hardware printing.
                       </p>
                     </div>

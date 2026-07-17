@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SplashScreen, ShopSettings } from '../types';
-import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone } from 'lucide-react';
+import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload } from 'lucide-react';
 
 interface AdminSettingsProps {
   splashScreen: SplashScreen | null;
@@ -30,7 +30,8 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     gridColumns: 4,
     mobileGridColumns: 2,
     address: '',
-    phone: ''
+    phone: '',
+    tagline: ''
   });
 
   const [saving, setSaving] = useState(false);
@@ -59,10 +60,30 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         gridColumns: shopSettings.gridColumns || 4,
         mobileGridColumns: shopSettings.mobileGridColumns || 2,
         address: shopSettings.address || '',
-        phone: shopSettings.phone || ''
+        phone: shopSettings.phone || '',
+        tagline: shopSettings.tagline || ''
       });
     }
   }, [shopSettings]);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 1.5 * 1024 * 1024) {
+      alert("Image size is too large. Please select an image under 1.5MB to ensure reliable storage.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target?.result as string;
+      if (base64String) {
+        setShopData(prev => ({ ...prev, logoUrl: base64String }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSplashSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,20 +147,35 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         <div className="space-y-8">
           {activeTab === 'shop' ? (
             <form onSubmit={handleShopSubmit} className="space-y-6 bg-white/5 backdrop-blur-xl p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-[2.5rem] border border-white/10 shadow-2xl">
-              <div>
-                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Shop & Receipt Name</label>
-                <div className="relative">
-                  <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
-                  <input 
-                    type="text" 
-                    value={shopData.name}
-                    onChange={e => setShopData({ ...shopData, name: e.target.value })}
-                    className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
-                    placeholder="e.g. Astro Coffee"
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Shop & Receipt Name</label>
+                  <div className="relative">
+                    <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.name}
+                      onChange={e => setShopData({ ...shopData, name: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
+                      placeholder="e.g. Astro Coffee"
+                    />
+                  </div>
                 </div>
-                <p className="text-[9px] text-white/40 mt-2 ml-1 uppercase tracking-wider font-bold">This controls the branding throughout the application and on printed invoices/receipts.</p>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Tagline / Designation</label>
+                  <div className="relative">
+                    <Building className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.tagline || ''}
+                      onChange={e => setShopData({ ...shopData, tagline: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
+                      placeholder="e.g. Refuel Station"
+                    />
+                  </div>
+                </div>
               </div>
+              <p className="text-[9px] text-white/40 mt-1 ml-1 uppercase tracking-wider font-bold">These control the branding and tagline printed on system & direct thermal receipts.</p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
@@ -200,16 +236,37 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Logo Uplink (URL)</label>
-                <div className="relative">
-                  <Image className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
-                  <input 
-                    type="text" 
-                    value={shopData.logoUrl}
-                    onChange={e => setShopData({ ...shopData, logoUrl: e.target.value })}
-                    className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
-                    placeholder="https://..."
-                  />
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Logo of the Web / App</label>
+                <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center bg-white/5 p-4 rounded-2xl border border-white/10">
+                  {/* File Upload Box */}
+                  <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-white/10 hover:border-amber-500/50 rounded-xl p-4 cursor-pointer transition-all hover:bg-white/5 text-center group">
+                    <Upload className="w-6 h-6 text-white/40 group-hover:text-amber-500 mb-2 transition-all" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-wider">Upload Logo</span>
+                    <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest mt-1">PNG, JPG up to 1.5MB</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleLogoUpload}
+                      className="hidden" 
+                    />
+                  </label>
+
+                  <div className="flex items-center justify-center font-bold text-[10px] text-white/30 uppercase tracking-[0.2em] px-2">OR</div>
+
+                  {/* URL Input Box */}
+                  <div className="flex-[2] relative flex flex-col justify-center">
+                    <span className="text-[8px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-1.5 ml-1">Paste Image URL</span>
+                    <div className="relative">
+                      <Image className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                      <input 
+                        type="text" 
+                        value={shopData.logoUrl || ''}
+                        onChange={e => setShopData({ ...shopData, logoUrl: e.target.value })}
+                        className="w-full pl-10 pr-4 py-3 bg-[#111115] border border-white/10 rounded-xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-xs"
+                        placeholder="https://example.com/logo.png"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -366,7 +423,10 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                <h4 className="text-2xl sm:text-3xl font-black text-white text-center leading-tight mb-2 uppercase italic tracking-tighter">
                  {shopData.name || 'Astro Coffee'}
                </h4>
-               <p className="text-[9px] sm:text-[10px] text-coffee-600 font-black uppercase tracking-[0.2em]">Signature Mark Preview</p>
+               <p className="text-[10px] sm:text-xs text-amber-500 font-black uppercase tracking-[0.25em] mb-4">
+                 {shopData.tagline || 'Refuel Station'}
+               </p>
+               <p className="text-[8px] sm:text-[9px] text-coffee-600 font-black uppercase tracking-[0.2em]">Signature Mark Preview</p>
             </div>
           ) : (
             <div className="relative aspect-[9/16] w-full max-w-sm mx-auto rounded-[2rem] sm:rounded-[3rem] overflow-hidden shadow-2xl border-4 sm:border-8 border-black/80 bg-[#020205]">
