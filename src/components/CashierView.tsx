@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Order, OrderStatus, ShopSettings } from '../types';
-import { CheckCircle, Clock, Banknote, Coffee, Receipt, Printer } from 'lucide-react';
+import { CheckCircle, Clock, Banknote, Coffee, Receipt, Printer, Settings, AlertCircle } from 'lucide-react';
 
 interface CashierViewProps {
   orders: Order[];
@@ -17,21 +17,200 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
   const [activeTab, setActiveTab] = useState<'unpaid' | 'history'>('unpaid');
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
 
+  // Printer Settings State
+  const [printMode, setPrintMode] = useState<'browser' | 'serial'>(() => {
+    return (localStorage.getItem('pos_print_mode') as 'browser' | 'serial') || 'browser';
+  });
+  const [paperSize, setPaperSize] = useState<'58mm' | '80mm'>(() => {
+    return (localStorage.getItem('pos_paper_size') as '58mm' | '80mm') || '58mm';
+  });
+  const [baudRate, setBaudRate] = useState<string>(() => {
+    return localStorage.getItem('pos_baud_rate') || '115200';
+  });
+  const [copies, setCopies] = useState<'customer' | 'merchant' | 'both'>(() => {
+    return (localStorage.getItem('pos_copies') as 'customer' | 'merchant' | 'both') || 'both';
+  });
+  const [showPrinterSettings, setShowPrinterSettings] = useState<boolean>(false);
+
+  const savePrintMode = (mode: 'browser' | 'serial') => {
+    setPrintMode(mode);
+    localStorage.setItem('pos_print_mode', mode);
+  };
+
+  const savePaperSize = (size: '58mm' | '80mm') => {
+    setPaperSize(size);
+    localStorage.setItem('pos_paper_size', size);
+  };
+
+  const saveBaudRate = (baud: string) => {
+    setBaudRate(baud);
+    localStorage.setItem('pos_baud_rate', baud);
+  };
+
+  const saveCopies = (c: 'customer' | 'merchant' | 'both') => {
+    setCopies(c);
+    localStorage.setItem('pos_copies', c);
+  };
+
+  const printToSerial = async (order: Order) => {
+    if (!("serial" in navigator)) {
+      alert("Web Serial API is not supported in this browser. Please use Google Chrome or Microsoft Edge on a desktop computer or Android device.");
+      return;
+    }
+
+    const width = paperSize === '58mm' ? 32 : 42;
+    const lineChar = '-';
+    const divider = lineChar.repeat(width) + '\n';
+
+    const centerText = (text: string) => {
+      const trimmed = text.trim();
+      const space = Math.max(0, Math.floor((width - trimmed.length) / 2));
+      return " ".repeat(space) + trimmed + "\n";
+    };
+
+    const padText = (left: string, right: string) => {
+      const spaceCount = width - left.length - right.length;
+      if (spaceCount <= 0) {
+        return left.slice(0, width - right.length - 1) + " " + right + "\n";
+      }
+      return left + " ".repeat(spaceCount) + right + "\n";
+    };
+
+    try {
+      let port;
+      try {
+        port = await (navigator as any).serial.requestPort();
+      } catch (e) {
+        console.log("Port selection canceled or failed", e);
+        return; // User canceled the dialog
+      }
+
+      await port.open({ baudRate: parseInt(baudRate, 10) });
+      const encoder = new TextEncoder();
+      const writer = port.writable.getWriter();
+
+      // ESC/POS Commands
+      const ESC = "\x1b";
+      const INIT = ESC + "@";
+
+      const nameToPrint = shopSettings?.name || 'Astro Coffee';
+
+      const buildReceiptText = (copyLabel: string) => {
+        let data = INIT;
+        
+        // Header
+        data += centerText(nameToPrint.toUpperCase());
+        data += centerText("REFUEL STATION");
+        data += centerText("123 NEBULA BLVD, SPACEPORT");
+        data += centerText("TEL: +63 900 123 4567");
+        data += divider;
+        data += centerText(`[ ${copyLabel} ]`);
+        data += divider;
+
+        // Meta Info
+        data += padText("ORDER ID:", `#${order.id?.toUpperCase().slice(-6) || 'N/A'}`);
+        data += padText("DATE:", new Date(order.createdAt || Date.now()).toLocaleDateString());
+        data += padText("TIME:", new Date(order.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        data += padText("CUSTOMER:", (order.customerName || 'GUEST').toUpperCase());
+        if (order.orderType) {
+          data += padText("ORDER TYPE:", order.orderType.toUpperCase());
+        }
+        if (order.tableNumber) {
+          data += padText("TABLE/STATION:", order.tableNumber.toUpperCase());
+        }
+        data += padText("SOURCE:", (order.source || 'POS').toUpperCase());
+        data += divider;
+
+        // Columns
+        data += padText("ITEM", "QTY   PRICE");
+        data += divider;
+
+        // Items list
+        order.items.forEach(item => {
+          const namePart = item.name.toUpperCase();
+          const priceStr = `PHP ${Math.round(item.price * item.quantity).toLocaleString()}`;
+          const qtyStr = `${item.quantity}`;
+          
+          // Print main item line
+          data += padText(namePart, `${qtyStr}   ${priceStr}`);
+
+          // Customizations
+          if (item.selectedSize) {
+            data += `  * SIZE: ${item.selectedSize.name.toUpperCase()}\n`;
+          }
+          if (item.sugarLevel) {
+            data += `  * SUGAR: ${item.sugarLevel.toUpperCase()}\n`;
+          }
+          if (item.selectedAddons && item.selectedAddons.length > 0) {
+            item.selectedAddons.forEach(addon => {
+              data += `  + ${addon.name.toUpperCase()} (PHP ${addon.price})\n`;
+            });
+          }
+          if (item.notes) {
+            data += `  * "${item.notes.toUpperCase()}"\n`;
+          }
+        });
+
+        data += divider;
+        data += padText("TOTAL AMOUNT:", `PHP ${Math.round(order.total).toLocaleString()}`);
+        data += padText("PAYMENT:", order.source === 'pos' ? 'CASH' : 'ONLINE');
+        data += padText("STATUS:", "PAID");
+        data += divider;
+
+        // Footer Messages
+        data += centerText("THANK YOU FOR REFUELING!");
+        data += centerText("PLEASE COME AGAIN!");
+        data += "\n\n\n\n"; // Feeds paper to allow clean tearing
+
+        return data;
+      };
+
+      let fullOutput = "";
+      if (copies === 'both' || copies === 'customer') {
+        fullOutput += buildReceiptText("CUSTOMER COPY");
+      }
+      if (copies === 'both') {
+        fullOutput += "\n" + "-".repeat(width) + " [TEAR HERE] " + "-".repeat(width) + "\n\n\n";
+      }
+      if (copies === 'both' || copies === 'merchant') {
+        fullOutput += buildReceiptText("MERCHANT COPY");
+      }
+
+      const dataBuffer = encoder.encode(fullOutput);
+      await writer.write(dataBuffer);
+
+      writer.releaseLock();
+      await port.close();
+      console.log("Thermal print request successfully completed.");
+    } catch (error: any) {
+      console.error("Direct thermal printing failed:", error);
+      alert("Error printing directly to printer: " + error.message + "\n\nTip: Make sure the printer is paired, turned on, and you selected the correct Bluetooth/USB serial port.");
+    }
+  };
+
   const handleMarkPaid = (order: Order) => {
     onUpdateStatus(order.id!, 'pending');
-    setPrintingOrder(order);
-    setTimeout(() => {
-      window.print();
-      setPrintingOrder(null);
-    }, 250);
+    if (printMode === 'serial') {
+      printToSerial(order);
+    } else {
+      setPrintingOrder(order);
+      setTimeout(() => {
+        window.print();
+        setPrintingOrder(null);
+      }, 250);
+    }
   };
 
   const handleReprintReceipt = (order: Order) => {
-    setPrintingOrder(order);
-    setTimeout(() => {
-      window.print();
-      setPrintingOrder(null);
-    }, 250);
+    if (printMode === 'serial') {
+      printToSerial(order);
+    } else {
+      setPrintingOrder(order);
+      setTimeout(() => {
+        window.print();
+        setPrintingOrder(null);
+      }, 250);
+    }
   };
 
   const getSourceBadge = (source: string) => {
@@ -277,6 +456,142 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
               </button>
             </div>
           </header>
+
+          {/* Hardware Thermal Printer Setup Controls */}
+          <div className="mb-8">
+            <button 
+              onClick={() => setShowPrinterSettings(!showPrinterSettings)}
+              className="flex items-center gap-2.5 px-5 py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10 text-[10px] font-black uppercase tracking-widest transition-all hover:border-white/20 active:scale-95"
+            >
+              <Settings className="w-4 h-4 text-amber-500" />
+              Receipt Printer Setup
+              <span className={`text-[8px] px-2 py-0.5 rounded-full font-black tracking-widest ${printMode === 'serial' ? 'bg-green-500/20 text-green-400 border border-green-500/20' : 'bg-blue-500/20 text-blue-400 border border-blue-500/20'}`}>
+                {printMode === 'serial' ? 'Direct Thermal' : 'System PDF / Print'}
+              </span>
+            </button>
+
+            {showPrinterSettings && (
+              <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8 mt-4 backdrop-blur-xl animate-in fade-in slide-in-from-top-4 duration-200">
+                <div className="flex items-center gap-3 mb-2">
+                  <Printer className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                    Hardware Receipt Printer Configuration
+                  </h3>
+                </div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-coffee-600 mb-6">
+                  Select printing mode, paper widths, and print copies for cash payments.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {/* Printer Mode */}
+                  <div>
+                    <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-2.5">
+                      Print Method
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => savePrintMode('browser')}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${printMode === 'browser' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        System PDF
+                      </button>
+                      <button
+                        onClick={() => savePrintMode('serial')}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${printMode === 'serial' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        Direct Thermal
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Paper Size */}
+                  <div>
+                    <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-2.5">
+                      Roll Width (Chars)
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => savePaperSize('58mm')}
+                        disabled={printMode !== 'serial'}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all disabled:opacity-40 ${paperSize === '58mm' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        58mm (32 ch)
+                      </button>
+                      <button
+                        onClick={() => savePaperSize('80mm')}
+                        disabled={printMode !== 'serial'}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all disabled:opacity-40 ${paperSize === '80mm' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        80mm (42 ch)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Baud Rate */}
+                  <div>
+                    <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-2.5">
+                      Baud Rate
+                    </label>
+                    <select
+                      value={baudRate}
+                      onChange={(e) => saveBaudRate(e.target.value)}
+                      disabled={printMode !== 'serial'}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-[10px] text-white font-black uppercase tracking-widest outline-none disabled:opacity-40 h-[42px]"
+                    >
+                      <option value="9600" className="bg-neutral-900 text-white">9600 bps</option>
+                      <option value="19200" className="bg-neutral-900 text-white">19200 bps</option>
+                      <option value="38400" className="bg-neutral-900 text-white">38400 bps</option>
+                      <option value="115200" className="bg-neutral-900 text-white">115200 bps</option>
+                    </select>
+                  </div>
+
+                  {/* Print Copies */}
+                  <div>
+                    <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-2.5">
+                      Print Copies
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button
+                        onClick={() => saveCopies('customer')}
+                        disabled={printMode !== 'serial'}
+                        className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${copies === 'customer' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        Cust
+                      </button>
+                      <button
+                        onClick={() => saveCopies('merchant')}
+                        disabled={printMode !== 'serial'}
+                        className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${copies === 'merchant' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        Merch
+                      </button>
+                      <button
+                        onClick={() => saveCopies('both')}
+                        disabled={printMode !== 'serial'}
+                        className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${copies === 'both' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        Both
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {printMode === 'serial' && (
+                  <div className="mt-6 p-4 bg-amber-600/10 border border-amber-500/20 rounded-2xl flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="text-[10px] font-black text-white uppercase tracking-wider">Pairing Your Bluetooth / USB Thermal Printer:</h4>
+                      <p className="text-[9px] font-bold text-coffee-600 leading-relaxed uppercase tracking-wider normal-case">
+                        1. First, pair your thermal printer inside your computer/Android OS Bluetooth settings.<br />
+                        2. When you click <span className="text-white font-black">&quot;Collect Payment&quot;</span> or <span className="text-white font-black">&quot;Print Invoice&quot;</span>, a Google Chrome / Edge selection pop-up will show paired serial devices.<br />
+                        3. Choose your thermal printer&apos;s paired virtual serial port to instantly execute direct driverless ESC/POS hardware printing.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {activeTab === 'unpaid' ? (
