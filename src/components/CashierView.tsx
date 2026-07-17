@@ -9,8 +9,10 @@ interface CashierViewProps {
   shopSettings: ShopSettings | null;
 }
 
-// Keep track of the active serial port globally at module scope to preserve the connection
+// Keep track of the active serial and Bluetooth ports globally at module scope to preserve the connection
 let activeSerialPort: any = null;
+let activeBleDevice: any = null;
+let activeBleCharacteristic: any = null;
 
 export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierViewProps) {
   // Only show unpaid orders
@@ -42,8 +44,8 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
   const [drawerCommand, setDrawerCommand] = useState<'primary' | 'alternative2' | 'alternative3'>(() => {
     return (localStorage.getItem('pos_drawer_command') as 'primary' | 'alternative2' | 'alternative3') || 'primary';
   });
-  const [serialSearchType, setSerialSearchType] = useState<'usb' | 'bluetooth'>(() => {
-    return (localStorage.getItem('pos_serial_search_type') as 'usb' | 'bluetooth') || 'usb';
+  const [serialSearchType, setSerialSearchType] = useState<'usb' | 'bluetooth' | 'ble'>(() => {
+    return (localStorage.getItem('pos_serial_search_type') as 'usb' | 'bluetooth' | 'ble') || 'usb';
   });
   const [isPrinterConnected, setIsPrinterConnected] = useState<boolean>(false);
 
@@ -85,12 +87,96 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
     localStorage.setItem('pos_drawer_command', cmd);
   };
 
-  const saveSerialSearchType = (type: 'usb' | 'bluetooth') => {
+  const saveSerialSearchType = (type: 'usb' | 'bluetooth' | 'ble') => {
     setSerialSearchType(type);
     localStorage.setItem('pos_serial_search_type', type);
   };
 
   const connectPrinter = async () => {
+    if (serialSearchType === 'ble') {
+      if (!("bluetooth" in navigator)) {
+        alert("Web Bluetooth is not supported in this browser. Please use Google Chrome, Edge, or Opera over HTTPS.");
+        return;
+      }
+      try {
+        console.log("Requesting Bluetooth device...");
+        const device = await (navigator as any).bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: [
+            '0000ffe0-0000-1000-8000-00805f9b34fb', // Very common custom serial/printer service
+            '000018f0-0000-1000-8000-00805f9b34fb', // Generic thermal printer service
+            '49535343-fe7d-4ae5-8fa9-9fafd205e455', // ISSC Microchip
+            '6e400001-b5a3-f393-e0a9-e50e24dcca9e'  // Nordic UART
+          ]
+        });
+
+        setIsPrinterConnected(false);
+        console.log("Connecting to GATT Server of device:", device.name);
+        const server = await device.gatt.connect();
+
+        let service;
+        let characteristic;
+
+        const uuids = [
+          { service: '0000ffe0-0000-1000-8000-00805f9b34fb', char: '0000ffe1-0000-1000-8000-00805f9b34fb' },
+          { service: '000018f0-0000-1000-8000-00805f9b34fb', char: '00002af1-0000-1000-8000-00805f9b34fb' },
+          { service: '49535343-fe7d-4ae5-8fa9-9fafd205e455', char: '49535343-8841-43f4-a8d4-ecbe34729bb3' },
+          { service: '6e400001-b5a3-f393-e0a9-e50e24dcca9e', char: '6e400002-b5a3-f393-e0a9-e50e24dcca9e' }
+        ];
+
+        // Try standard UUIDs
+        for (const uuid of uuids) {
+          try {
+            service = await server.getPrimaryService(uuid.service);
+            characteristic = await service.getCharacteristic(uuid.char);
+            if (characteristic) {
+              console.log("Discovered BLE primary service:", uuid.service);
+              break;
+            }
+          } catch (e) {
+            // Silently try next UUID
+          }
+        }
+
+        // If not found via standard list, traverse ALL services and characteristics to auto-discover ANY writable characteristic!
+        if (!characteristic) {
+          try {
+            console.log("Searching all services for writable characteristic fallback...");
+            const services = await server.getPrimaryServices();
+            for (const s of services) {
+              const chars = await s.getCharacteristics();
+              for (const c of chars) {
+                if (c.properties.write || c.properties.writeWithoutResponse) {
+                  service = s;
+                  characteristic = c;
+                  console.log("Autodetected GATT fallback write service/char:", s.uuid, c.uuid);
+                  break;
+                }
+              }
+              if (characteristic) break;
+            }
+          } catch (e) {
+            console.log("Traversing GATT services failed:", e);
+          }
+        }
+
+        if (!characteristic) {
+          throw new Error("Could not find any compatible write/print characteristic on this device. Make sure it is a BLE-capable thermal printer.");
+        }
+
+        activeBleDevice = device;
+        activeBleCharacteristic = characteristic;
+        setIsPrinterConnected(true);
+        alert(`Bluetooth BLE printer "${device.name || 'Thermal Printer'}" paired and connected successfully!`);
+      } catch (e: any) {
+        console.error("BLE Connection failed", e);
+        if (e.name !== 'AbortError' && !e.message?.includes("canceled") && !e.message?.includes("cancelled")) {
+          alert("Bluetooth BLE Error: " + e.message);
+        }
+      }
+      return;
+    }
+
     if (!("serial" in navigator)) {
       alert("Web Serial API is not supported in this browser. Please use Chrome or Edge.");
       return;
@@ -133,6 +219,34 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
   };
 
   const testCashDrawer = async () => {
+    if (serialSearchType === 'ble') {
+      if (!activeBleCharacteristic) {
+        await connectPrinter();
+      }
+      if (!activeBleCharacteristic) {
+        alert("No active Bluetooth BLE printer connected.");
+        return;
+      }
+      try {
+        let kickCode = "";
+        if (drawerCommand === 'primary') {
+          kickCode = "\x1b\x70\x00\x19\xfa";
+        } else if (drawerCommand === 'alternative2') {
+          kickCode = "\x1b\x70\x01\x19\xfa";
+        } else if (drawerCommand === 'alternative3') {
+          kickCode = "\x10\x14\x01\x00\x05";
+        }
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(kickCode);
+        await activeBleCharacteristic.writeValue(bytes);
+        console.log("BLE Cash drawer kick code sent successfully.");
+      } catch (error: any) {
+        console.error("BLE cash drawer test failed:", error);
+        alert("Failed to kick cash drawer: " + error.message);
+      }
+      return;
+    }
+
     if (!("serial" in navigator)) {
       alert("Web Serial API is not supported in this browser.");
       return;
@@ -200,11 +314,6 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
   };
 
   const printToSerial = async (order: Order) => {
-    if (!("serial" in navigator)) {
-      alert("Web Serial API is not supported in this browser. Please use Google Chrome or Microsoft Edge on a desktop computer or Android device.");
-      return;
-    }
-
     const width = paperSize === '58mm' ? 32 : 42;
     const lineChar = '-';
     const divider = lineChar.repeat(width) + '\n';
@@ -223,10 +332,181 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
       return left + " ".repeat(spaceCount) + right + "\n";
     };
 
+    const buildReceiptText = (copyLabel: string) => {
+      const ESC = "\x1b";
+      const INIT = ESC + "@";
+      let data = INIT;
+      
+      // Header
+      const nameToPrint = shopSettings?.name || 'Astro Coffee';
+      data += centerText(nameToPrint.toUpperCase());
+      data += centerText((shopSettings?.tagline || "Refuel Station").toUpperCase());
+      data += centerText((shopSettings?.address || "123 NEBULA BLVD, SPACEPORT").toUpperCase());
+      data += centerText((shopSettings?.phone ? `TEL: ${shopSettings.phone}` : "TEL: +63 900 123 4567").toUpperCase());
+      data += divider;
+      data += centerText(`[ ${copyLabel} ]`);
+      data += divider;
+
+      // Meta Info
+      data += padText("ORDER ID:", `#${order.id?.toUpperCase().slice(-6) || 'N/A'}`);
+      data += padText("DATE:", new Date(order.createdAt || Date.now()).toLocaleDateString());
+      data += padText("TIME:", new Date(order.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      data += padText("CUSTOMER:", (order.customerName || 'GUEST').toUpperCase());
+      if (order.orderType) {
+        data += padText("ORDER TYPE:", order.orderType.toUpperCase());
+      }
+      if (order.tableNumber) {
+        data += padText("TABLE/STATION:", order.tableNumber.toUpperCase());
+      }
+      data += padText("SOURCE:", (order.source || 'POS').toUpperCase());
+      data += divider;
+
+      // Columns
+      data += padText("ITEM", "QTY   PRICE");
+      data += divider;
+
+      // Items list
+      order.items.forEach(item => {
+        const namePart = item.name.toUpperCase();
+        const priceStr = `PHP ${Math.round(item.price * item.quantity).toLocaleString()}`;
+        const qtyStr = `${item.quantity}`;
+        
+        // Print main item line
+        data += padText(namePart, `${qtyStr}   ${priceStr}`);
+
+        // Customizations
+        if (item.selectedSize) {
+          data += `  * SIZE: ${item.selectedSize.name.toUpperCase()}\n`;
+        }
+        if (item.sugarLevel) {
+          data += `  * SUGAR: ${item.sugarLevel.toUpperCase()}\n`;
+        }
+        if (item.selectedAddons && item.selectedAddons.length > 0) {
+          item.selectedAddons.forEach(addon => {
+            data += `  + ${addon.name.toUpperCase()} (PHP ${addon.price})\n`;
+          });
+        }
+        if (item.notes) {
+          data += `  * "${item.notes.toUpperCase()}"\n`;
+        }
+      });
+
+      data += divider;
+      data += padText("TOTAL AMOUNT:", `PHP ${Math.round(order.total).toLocaleString()}`);
+      data += padText("PAYMENT:", order.source === 'pos' ? 'CASH' : 'ONLINE');
+      data += padText("STATUS:", "PAID");
+      data += divider;
+
+      // Footer Messages
+      data += centerText("THANK YOU FOR REFUELING!");
+      data += centerText("PLEASE COME AGAIN!");
+      data += "\n\n\n\n"; // Feeds paper to allow clean tearing
+
+      return data;
+    };
+
+    if (serialSearchType === 'ble') {
+      let characteristic = activeBleCharacteristic;
+      if (!characteristic) {
+        if (activeBleDevice) {
+          try {
+            console.log("Reconnecting BLE device GATT...");
+            const server = await activeBleDevice.gatt.connect();
+            const uuids = [
+              { service: '0000ffe0-0000-1000-8000-00805f9b34fb', char: '0000ffe1-0000-1000-8000-00805f9b34fb' },
+              { service: '000018f0-0000-1000-8000-00805f9b34fb', char: '00002af1-0000-1000-8000-00805f9b34fb' },
+              { service: '49535343-fe7d-4ae5-8fa9-9fafd205e455', char: '49535343-8841-43f4-a8d4-ecbe34729bb3' },
+              { service: '6e400001-b5a3-f393-e0a9-e50e24dcca9e', char: '6e400002-b5a3-f393-e0a9-e50e24dcca9e' }
+            ];
+            for (const uuid of uuids) {
+              try {
+                const s = await server.getPrimaryService(uuid.service);
+                characteristic = await s.getCharacteristic(uuid.char);
+                if (characteristic) break;
+              } catch (e) {}
+            }
+            if (!characteristic) {
+              const services = await server.getPrimaryServices();
+              for (const s of services) {
+                const chars = await s.getCharacteristics();
+                for (const c of chars) {
+                  if (c.properties.write || c.properties.writeWithoutResponse) {
+                    characteristic = c;
+                    break;
+                  }
+                }
+                if (characteristic) break;
+              }
+            }
+            activeBleCharacteristic = characteristic;
+          } catch (e) {
+            console.log("BLE reconnect failed, forcing connection prompt", e);
+          }
+        }
+      }
+
+      if (!characteristic) {
+        await connectPrinter();
+        characteristic = activeBleCharacteristic;
+      }
+
+      if (!characteristic) {
+        alert("Please connect/pair a Bluetooth BLE printer first.");
+        return;
+      }
+
+      try {
+        let drawerKickCode = "";
+        if (kickDrawer) {
+          if (drawerCommand === 'primary') {
+            drawerKickCode = "\x1b\x70\x00\x19\xfa";
+          } else if (drawerCommand === 'alternative2') {
+            drawerKickCode = "\x1b\x70\x01\x19\xfa";
+          } else if (drawerCommand === 'alternative3') {
+            drawerKickCode = "\x10\x14\x01\x00\x05";
+          }
+        }
+
+        let fullOutput = drawerKickCode;
+        if (copies === 'both' || copies === 'customer') {
+          fullOutput += buildReceiptText("CUSTOMER COPY");
+        }
+        if (copies === 'both') {
+          fullOutput += "\n" + "-".repeat(width) + " [TEAR HERE] " + "-".repeat(width) + "\n\n\n";
+        }
+        if (copies === 'both' || copies === 'merchant') {
+          fullOutput += buildReceiptText("MERCHANT COPY");
+        }
+
+        const paperCutCommand = "\n\n\n\n\n\x1d\x56\x01";
+        fullOutput += paperCutCommand;
+
+        const encoder = new TextEncoder();
+        const dataBytes = encoder.encode(fullOutput);
+
+        const CHUNK_SIZE = 20;
+        for (let i = 0; i < dataBytes.length; i += CHUNK_SIZE) {
+          const chunk = dataBytes.slice(i, i + CHUNK_SIZE);
+          await characteristic.writeValue(chunk);
+          await new Promise(resolve => setTimeout(resolve, 15));
+        }
+        console.log("BLE print completed successfully!");
+      } catch (error: any) {
+        activeBleCharacteristic = null;
+        console.error("BLE printing failed:", error);
+        alert("Failed to print via Bluetooth: " + error.message);
+      }
+      return;
+    }
+
+    if (!("serial" in navigator)) {
+      alert("Web Serial API is not supported in this browser. Please use Google Chrome or Microsoft Edge on a desktop computer or Android device.");
+      return;
+    }
+
     try {
       let port = activeSerialPort;
 
-      // Check if we already have an authorized port list or need to request one
       if (!port) {
         const ports = await (navigator as any).serial.getPorts();
         if (ports && ports.length > 0) {
@@ -269,7 +549,6 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
         try {
           await port.open({ baudRate: parseInt(baudRate, 10) });
         } catch (openError: any) {
-          // If already open, we can ignore this error
           if (!openError.message?.includes("already open")) {
             throw openError;
           }
@@ -278,82 +557,6 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
 
       const encoder = new TextEncoder();
       const writer = port.writable.getWriter();
-
-      // ESC/POS Commands
-      const ESC = "\x1b";
-      const INIT = ESC + "@";
-
-      const nameToPrint = shopSettings?.name || 'Astro Coffee';
-
-      const buildReceiptText = (copyLabel: string) => {
-        let data = INIT;
-        
-        // Header
-        data += centerText(nameToPrint.toUpperCase());
-        data += centerText((shopSettings?.tagline || "Refuel Station").toUpperCase());
-        data += centerText((shopSettings?.address || "123 NEBULA BLVD, SPACEPORT").toUpperCase());
-        data += centerText((shopSettings?.phone ? `TEL: ${shopSettings.phone}` : "TEL: +63 900 123 4567").toUpperCase());
-        data += divider;
-        data += centerText(`[ ${copyLabel} ]`);
-        data += divider;
-
-        // Meta Info
-        data += padText("ORDER ID:", `#${order.id?.toUpperCase().slice(-6) || 'N/A'}`);
-        data += padText("DATE:", new Date(order.createdAt || Date.now()).toLocaleDateString());
-        data += padText("TIME:", new Date(order.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-        data += padText("CUSTOMER:", (order.customerName || 'GUEST').toUpperCase());
-        if (order.orderType) {
-          data += padText("ORDER TYPE:", order.orderType.toUpperCase());
-        }
-        if (order.tableNumber) {
-          data += padText("TABLE/STATION:", order.tableNumber.toUpperCase());
-        }
-        data += padText("SOURCE:", (order.source || 'POS').toUpperCase());
-        data += divider;
-
-        // Columns
-        data += padText("ITEM", "QTY   PRICE");
-        data += divider;
-
-        // Items list
-        order.items.forEach(item => {
-          const namePart = item.name.toUpperCase();
-          const priceStr = `PHP ${Math.round(item.price * item.quantity).toLocaleString()}`;
-          const qtyStr = `${item.quantity}`;
-          
-          // Print main item line
-          data += padText(namePart, `${qtyStr}   ${priceStr}`);
-
-          // Customizations
-          if (item.selectedSize) {
-            data += `  * SIZE: ${item.selectedSize.name.toUpperCase()}\n`;
-          }
-          if (item.sugarLevel) {
-            data += `  * SUGAR: ${item.sugarLevel.toUpperCase()}\n`;
-          }
-          if (item.selectedAddons && item.selectedAddons.length > 0) {
-            item.selectedAddons.forEach(addon => {
-              data += `  + ${addon.name.toUpperCase()} (PHP ${addon.price})\n`;
-            });
-          }
-          if (item.notes) {
-            data += `  * "${item.notes.toUpperCase()}"\n`;
-          }
-        });
-
-        data += divider;
-        data += padText("TOTAL AMOUNT:", `PHP ${Math.round(order.total).toLocaleString()}`);
-        data += padText("PAYMENT:", order.source === 'pos' ? 'CASH' : 'ONLINE');
-        data += padText("STATUS:", "PAID");
-        data += divider;
-
-        // Footer Messages
-        data += centerText("THANK YOU FOR REFUELING!");
-        data += centerText("PLEASE COME AGAIN!");
-        data += "\n\n\n\n"; // Feeds paper to allow clean tearing
-
-        return data;
-      };
 
       let drawerKickCode = "";
       if (kickDrawer) {
@@ -381,10 +584,9 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
       await writer.write(dataBuffer);
 
       writer.releaseLock();
-      // Keep connection open by not calling port.close()
       console.log("Thermal print request successfully completed.");
     } catch (error: any) {
-      activeSerialPort = null; // Reset cached port on error to allow clean re-prompting if connection breaks
+      activeSerialPort = null;
       console.error("Direct thermal printing failed:", error);
       alert("Error printing directly to printer: " + error.message + "\n\nTip: Make sure the printer is paired, turned on, and you selected the correct Bluetooth/USB serial port.");
     }
@@ -707,24 +909,31 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                   </div>
 
                   {/* Port Discovery Filter */}
-                  <div>
+                  <div className="lg:col-span-2">
                     <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-2.5">
                       Port Type / Discovery
                     </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <button
                         onClick={() => saveSerialSearchType('usb')}
                         disabled={printMode !== 'serial'}
-                        className={`py-2.5 px-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'usb' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 px-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'usb' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
                       >
                         USB / COM
                       </button>
                       <button
                         onClick={() => saveSerialSearchType('bluetooth')}
                         disabled={printMode !== 'serial'}
-                        className={`py-2.5 px-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'bluetooth' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 px-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'bluetooth' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
                       >
-                        Bluetooth
+                        OS Paired COM
+                      </button>
+                      <button
+                        onClick={() => saveSerialSearchType('ble')}
+                        disabled={printMode !== 'serial'}
+                        className={`py-2.5 px-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'ble' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                      >
+                        Direct BT Scan
                       </button>
                     </div>
                   </div>
@@ -846,9 +1055,16 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                     <button
                       type="button"
                       onClick={connectPrinter}
-                      className={`flex-1 py-2.5 px-4 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all active:scale-95 h-[42px] ${isPrinterConnected ? 'bg-green-600/20 text-green-400 border-green-500/20' : 'bg-amber-500 text-black font-black hover:bg-amber-400 border-transparent'}`}
+                      className={`flex-1 py-2.5 px-4 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all active:scale-95 h-[42px] ${
+                        (serialSearchType === 'ble' ? !!activeBleCharacteristic : isPrinterConnected)
+                          ? 'bg-green-600/20 text-green-400 border-green-500/20' 
+                          : 'bg-amber-500 text-black font-black hover:bg-amber-400 border-transparent'
+                      }`}
                     >
-                      {isPrinterConnected ? '✓ Port Authorized' : serialSearchType === 'bluetooth' ? 'Search Bluetooth' : 'Connect USB / COM'}
+                      {serialSearchType === 'ble' 
+                        ? (activeBleCharacteristic ? '✓ BLE Printer Paired' : 'Scan & Pair Printer (BLE)')
+                        : (isPrinterConnected ? '✓ Port Authorized' : serialSearchType === 'bluetooth' ? 'Search Bluetooth' : 'Connect USB / COM')
+                      }
                     </button>
                     {kickDrawer && (
                       <button
@@ -867,11 +1083,11 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                     <div className="flex items-start gap-3 flex-1">
                       <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                       <div className="space-y-1">
-                        <h4 className="text-[10px] font-black text-white uppercase tracking-wider">Pairing Your Bluetooth / USB Printer (Desktop / Laptop):</h4>
+                        <h4 className="text-[10px] font-black text-white uppercase tracking-wider">Pairing Your Printer (Desktop or Android Phone):</h4>
                         <p className="text-[9px] font-bold text-coffee-600 leading-relaxed uppercase tracking-wider normal-case">
-                          1. For Bluetooth, select <span className="text-amber-500 font-black">Bluetooth</span> in the grid above first and pair your printer inside your OS Bluetooth settings.<br />
-                          2. For USB cables, select <span className="text-amber-500 font-black">USB / COM</span> above first.<br />
-                          3. Click <span className="text-white font-black">&quot;Search Bluetooth&quot;</span> or <span className="text-white font-black">&quot;Connect USB / COM&quot;</span> above to authorize the device.
+                          1. For Bluetooth thermal printers, we highly recommend selecting <span className="text-amber-500 font-black">Direct BT Scan</span> in the grid above. It works perfectly on BOTH Android phones and desktop computers without system pairing hacks!<br />
+                          2. Click <span className="text-white font-black">&quot;Scan & Pair Printer (BLE)&quot;</span> below, select your printer, and start printing instantly.<br />
+                          3. For USB cables or older Bluetooth adapters, use <span className="text-amber-500 font-black">USB / COM</span> or <span className="text-amber-500 font-black">OS Paired COM</span>.
                         </p>
                       </div>
                     </div>
@@ -879,11 +1095,12 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                     <div className="flex items-start gap-3 flex-1">
                       <AlertCircle className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                       <div className="space-y-1">
-                        <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-wider">Android Phone Bluetooth Limitations & Solutions:</h4>
+                        <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-wider">How to resolve connection issues:</h4>
                         <p className="text-[9px] font-bold text-coffee-600 leading-relaxed uppercase tracking-wider normal-case">
-                          Android OS does not map classic Bluetooth SPP devices as virtual serial files, so they won't appear in Chrome's Web Serial list.<br />
-                          <span className="text-white font-black">Option A:</span> Connect your printer via a <span className="text-amber-500 font-black">USB-C OTG cable adapter</span> directly to your phone. It will pop up instantly as a USB Serial device!<br />
-                          <span className="text-white font-black">Option B:</span> Switch the <span className="text-amber-500 font-black">Print Method</span> above to <span className="text-white font-black">System PDF</span>. Install a free app like RawBT or ESC/POS Bluetooth Print Service to print directly from Chrome's system print dialog.
+                          If your printer fails to connect or says no compatible devices found:<br />
+                          <span className="text-white font-black">Tip 1:</span> Ensure the printer is fully powered on and not connected to another device/phone.<br />
+                          <span className="text-white font-black">Tip 2:</span> If using Direct BT Scan, make sure Location/Bluetooth is enabled on your device.<br />
+                          <span className="text-white font-black">Tip 3:</span> For Android users on older hardware, use <span className="text-amber-500 font-black">Direct BT Scan</span> first, or switch to <span className="text-white font-black">System PDF</span> mode as a bulletproof fallback.
                         </p>
                       </div>
                     </div>
