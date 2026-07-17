@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Order, OrderStatus } from '../types';
+import { Order, OrderStatus, ShopSettings } from '../types';
 import { CheckCircle, Clock, Banknote, Coffee, Receipt, Printer } from 'lucide-react';
 
 interface CashierViewProps {
   orders: Order[];
   onUpdateStatus: (id: string, status: OrderStatus) => void;
+  shopSettings: ShopSettings | null;
 }
 
-export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
+export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierViewProps) {
   // Only show unpaid orders
   const unpaidOrders = orders.filter((o) => o.status === 'unpaid');
   const pendingOrders = orders.filter((o) => o.status === 'pending' || o.status === 'preparing' || o.status === 'ready' || o.status === 'completed');
@@ -89,7 +90,7 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
               
               {/* Header */}
               <div className="text-center mb-4">
-                <h2 className="text-xl font-black uppercase tracking-tight mb-0.5">ASTRO COFFEE</h2>
+                <h2 className="text-xl font-black uppercase tracking-tight mb-0.5">{(shopSettings?.name || 'Astro Coffee').toUpperCase()}</h2>
                 <p className="text-[9px] uppercase tracking-widest font-black text-gray-800">Refuel Station</p>
                 <p className="text-[8px] text-gray-500 mt-0.5">123 Nebula Boulevard, Spaceport</p>
                 <p className="text-[8px] text-gray-500">Tel: +63 900 123 4567</p>

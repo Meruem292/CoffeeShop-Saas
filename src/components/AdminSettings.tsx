@@ -123,7 +123,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
           {activeTab === 'shop' ? (
             <form onSubmit={handleShopSubmit} className="space-y-6 bg-white/5 backdrop-blur-xl p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-[2.5rem] border border-white/10 shadow-2xl">
               <div>
-                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Shop Designation</label>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Shop & Receipt Name</label>
                 <div className="relative">
                   <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
                   <input 
@@ -134,6 +134,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                     placeholder="e.g. Astro Coffee"
                   />
                 </div>
+                <p className="text-[9px] text-white/40 mt-2 ml-1 uppercase tracking-wider font-bold">This controls the branding throughout the application and on printed invoices/receipts.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">

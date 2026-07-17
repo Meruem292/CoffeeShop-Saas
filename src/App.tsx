@@ -582,7 +582,7 @@ export default function App() {
                     />
                   )}
                   {currentView === 'cashier' && (
-                    <CashierView orders={orders} onUpdateStatus={updateOrderStatus} />
+                    <CashierView orders={orders} onUpdateStatus={updateOrderStatus} shopSettings={shopSettings} />
                   )}
                   {currentView === 'reports' && (
                     <TransactionReports orders={orders} onDeleteOrder={deleteOrder} onClearOrders={clearOrders} />
