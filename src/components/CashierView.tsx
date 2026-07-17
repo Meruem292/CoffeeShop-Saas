@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Order, OrderStatus } from '../types';
-import { CheckCircle, Clock, Banknote, Coffee, Receipt } from 'lucide-react';
+import { CheckCircle, Clock, Banknote, Coffee, Receipt, Printer } from 'lucide-react';
 
 interface CashierViewProps {
   orders: Order[];
@@ -17,11 +17,14 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
 
   const handleMarkPaid = (order: Order) => {
     onUpdateStatus(order.id!, 'pending');
+  };
+
+  const handleReprintReceipt = (order: Order) => {
     setPrintingOrder(order);
     setTimeout(() => {
       window.print();
       setPrintingOrder(null);
-    }, 100);
+    }, 250);
   };
 
   const getSourceBadge = (source: string) => {
@@ -42,58 +45,188 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
       <style>
         {`
           @media print {
-            body * {
-              visibility: hidden;
+            body {
+              background: white !important;
+              color: black !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
-            #printable-receipt, #printable-receipt * {
-              visibility: visible;
+            #root, .print\\:hidden, header, nav, button {
+              display: none !important;
             }
             #printable-receipt {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
-              padding: 20px;
+              display: block !important;
+              width: 76mm !important;
+              margin: 0 auto !important;
+              padding: 5px 10px !important;
+              background: white !important;
               color: black !important;
+              font-family: 'Courier New', Courier, monospace !important;
+            }
+            @page {
+              size: auto;
+              margin: 0;
             }
           }
         `}
       </style>
 
       {printingOrder && (
-        <div id="printable-receipt" className="hidden print:block bg-white text-black p-8 max-w-sm mx-auto font-mono text-sm">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-black uppercase mb-1">CoffeeHouse</h2>
-            <p className="text-gray-500">Official Receipt</p>
-          </div>
-          
-          <div className="mb-4 border-b border-dashed border-gray-400 pb-4">
-            <div className="flex justify-between"><span>Order #:</span> <span>{printingOrder.id?.slice(-4)}</span></div>
-            <div className="flex justify-between"><span>Date:</span> <span>{new Date().toLocaleDateString()}</span></div>
-            <div className="flex justify-between"><span>Time:</span> <span>{new Date().toLocaleTimeString()}</span></div>
-            <div className="flex justify-between"><span>Customer:</span> <span>{printingOrder.customerName}</span></div>
-          </div>
-
-          <div className="mb-4 border-b border-dashed border-gray-400 pb-4">
-            {printingOrder.items.map((item, idx) => (
-              <div key={idx} className="mb-2">
-                <div className="flex justify-between font-bold">
-                  <span>{item.quantity}x {item.name}</span>
-                  <span>₱{(item.price * item.quantity).toLocaleString()}</span>
+        <div id="printable-receipt" className="hidden print:block bg-white text-black p-4 font-mono text-xs w-[76mm] mx-auto">
+          {[
+            { label: 'CUSTOMER COPY', isMerchant: false },
+            { label: 'MERCHANT COPY', isMerchant: true }
+          ].map((copy, copyIdx) => (
+            <div key={copyIdx} className={copyIdx > 0 ? 'mt-8 border-t border-dashed border-black pt-8' : ''}>
+              
+              {/* Header */}
+              <div className="text-center mb-4">
+                <h2 className="text-xl font-black uppercase tracking-tight mb-0.5">ASTRO COFFEE</h2>
+                <p className="text-[9px] uppercase tracking-widest font-black text-gray-800">Refuel Station</p>
+                <p className="text-[8px] text-gray-500 mt-0.5">123 Nebula Boulevard, Spaceport</p>
+                <p className="text-[8px] text-gray-500">Tel: +63 900 123 4567</p>
+                <div className="border-b border-black border-double my-2" />
+                <div className="bg-black text-white py-1 px-3 text-[10px] font-black uppercase tracking-widest inline-block rounded">
+                  {copy.label}
                 </div>
-                {item.selectedSize && <div className="text-gray-500 ml-4">Size: {item.selectedSize.name}</div>}
               </div>
-            ))}
-          </div>
 
-          <div className="flex justify-between text-lg font-black mt-4">
-            <span>TOTAL:</span>
-            <span>₱{printingOrder.total.toLocaleString()}</span>
-          </div>
-          
-          <div className="text-center mt-8 text-gray-500">
-            <p>Thank you for your order!</p>
-          </div>
+              {/* Order Meta */}
+              <div className="space-y-1 text-[9px] mb-3">
+                <div className="flex justify-between">
+                  <span>ORDER ID:</span>
+                  <span className="font-bold">#{printingOrder.id?.toUpperCase().slice(-6) || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>DATE/TIME:</span>
+                  <span>
+                    {new Date(printingOrder.createdAt || Date.now()).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                    })}{' '}
+                    {new Date(printingOrder.createdAt || Date.now()).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>CUSTOMER:</span>
+                  <span className="font-bold uppercase">{printingOrder.customerName || 'GUEST'}</span>
+                </div>
+                {printingOrder.orderType && (
+                  <div className="flex justify-between">
+                    <span>ORDER TYPE:</span>
+                    <span className="font-bold uppercase">{printingOrder.orderType === 'dine-in' ? 'DINE-IN' : 'TAKE-OUT'}</span>
+                  </div>
+                )}
+                {printingOrder.tableNumber && (
+                  <div className="flex justify-between">
+                    <span>STATION / TABLE:</span>
+                    <span className="font-bold">{printingOrder.tableNumber}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>CHANNEL/SOURCE:</span>
+                  <span className="font-bold uppercase">{printingOrder.source || 'POS'}</span>
+                </div>
+              </div>
+
+              {/* Line Divider */}
+              <div className="border-b border-dashed border-black my-2" />
+              
+              {/* Table Columns */}
+              <div className="grid grid-cols-12 gap-1 text-[9px] font-bold pb-1 text-gray-800">
+                <span className="col-span-8">ITEM</span>
+                <span className="col-span-1 text-center">QTY</span>
+                <span className="col-span-3 text-right">PRICE</span>
+              </div>
+              <div className="border-b border-dashed border-black mb-2" />
+
+              {/* Items List */}
+              <div className="space-y-2 text-[9px]">
+                {printingOrder.items.map((item, idx) => (
+                  <div key={idx} className="space-y-0.5">
+                    <div className="grid grid-cols-12 gap-1 font-bold">
+                      <span className="col-span-8 truncate uppercase">{item.name}</span>
+                      <span className="col-span-1 text-center">{item.quantity}</span>
+                      <span className="col-span-3 text-right">₱{(item.price * item.quantity).toLocaleString()}</span>
+                    </div>
+                    {/* Item Customizations */}
+                    {item.selectedSize && (
+                      <div className="text-[8px] text-gray-700 pl-3 uppercase">
+                        • SIZE: {item.selectedSize.name}
+                      </div>
+                    )}
+                    {item.sugarLevel && (
+                      <div className="text-[8px] text-gray-700 pl-3 uppercase">
+                        • SUGAR: {item.sugarLevel}
+                      </div>
+                    )}
+                    {item.selectedAddons && item.selectedAddons.length > 0 && (
+                      <div className="text-[8px] text-gray-700 pl-3 space-y-0.5">
+                        {item.selectedAddons.map((addon) => (
+                          <div key={addon.id} className="flex justify-between">
+                            <span>+ {addon.name.toUpperCase()}</span>
+                            <span>₱{addon.price.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {item.notes && (
+                      <div className="text-[8px] text-gray-600 pl-3 italic">
+                        * "{item.notes}"
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Line Divider */}
+              <div className="border-b border-dashed border-black my-2" />
+
+              {/* Summary Block */}
+              <div className="space-y-1 text-[10px] mt-2">
+                <div className="flex justify-between font-black text-xs">
+                  <span>TOTAL AMOUNT:</span>
+                  <span>₱{printingOrder.total.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-[8px] mt-1">
+                  <span>PAYMENT METHOD:</span>
+                  <span className="font-bold uppercase">{printingOrder.source === 'pos' ? 'CASH' : 'ONLINE'}</span>
+                </div>
+                <div className="flex justify-between text-[8px]">
+                  <span>PAYMENT STATUS:</span>
+                  <span className="font-bold uppercase px-1 border border-black leading-none py-0.5 bg-black text-white">
+                    PAID
+                  </span>
+                </div>
+              </div>
+
+              {/* Line Divider */}
+              <div className="border-b border-dashed border-black my-2" />
+
+              {/* Footer messages */}
+              <div className="text-center space-y-1 mt-3">
+                <p className="text-[8px] font-black uppercase tracking-wider">THANK YOU FOR REFUELING!</p>
+                <p className="text-[7px] text-gray-500">Please keep this ticket for your order collection.</p>
+                <div className="text-[7px] font-mono tracking-tight mt-2 opacity-80 select-none">
+                  ||||| | |||| ||| ||| ||| | ||| ||| | |||||
+                  <br />
+                  ASTRO-{printingOrder.id?.toUpperCase().slice(-6) || '000000'}
+                </div>
+              </div>
+
+              {copyIdx === 0 && (
+                <div className="text-center text-[8px] text-black font-black uppercase tracking-widest my-4 border-y border-dashed border-black/40 py-1.5 select-none">
+                  ✂️ [TEAR HERE] ------------------------
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
@@ -137,6 +270,18 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
             </div>
           </header>
 
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-3xl p-5 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex gap-3">
+              <Printer className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-black text-white uppercase tracking-wider">Thermal Printing Station Ready</h4>
+                <p className="text-[11px] text-white/60 font-bold uppercase tracking-wide mt-1 leading-relaxed">
+                  Dual layout produces 76mm Customer Copy and Merchant Copy duplicates. For seamless physical printing, click the "Open in new tab" icon in the top right.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {activeTab === 'unpaid' ? (
               unpaidOrders.length === 0 ? (
@@ -178,18 +323,27 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
                       </ul>
                     </div>
 
-                    <div className="mt-auto relative z-10">
-                      <div className="flex justify-between items-end mb-6 border-t border-white/5 pt-4">
+                    <div className="mt-auto relative z-10 space-y-3">
+                      <div className="flex justify-between items-end mb-4 border-t border-white/5 pt-4">
                         <span className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Total Due</span>
                         <span className="text-3xl font-black text-white">₱{order.total.toLocaleString()}</span>
                       </div>
-                      <button 
-                        onClick={() => handleMarkPaid(order)}
-                        className="w-full py-4 bg-white hover:bg-white/90 text-black rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95"
-                      >
-                        <Banknote className="w-5 h-5" />
-                        Collect Payment
-                      </button>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button 
+                          onClick={() => handleMarkPaid(order)}
+                          className="w-full py-3.5 bg-white hover:bg-white/90 text-black rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs transition-all shadow-xl flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                          <Banknote className="w-4 h-4" />
+                          Collect
+                        </button>
+                        <button 
+                          onClick={() => handleReprintReceipt(order)}
+                          className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                        >
+                          <Printer className="w-4 h-4 text-amber-500" />
+                          Print
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -221,15 +375,25 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
                       <span className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Status</span>
                       <span className="text-xs font-black text-amber-500 uppercase tracking-[0.1em]">{order.status}</span>
                     </div>
-                    {order.status === 'ready' && (
+
+                    <div className="mt-6 space-y-2 relative z-10">
+                      {order.status === 'ready' && (
+                        <button 
+                          onClick={() => onUpdateStatus(order.id!, 'completed')}
+                          className="w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          Release / Claim
+                        </button>
+                      )}
                       <button 
-                        onClick={() => onUpdateStatus(order.id!, 'completed')}
-                        className="mt-6 w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                        onClick={() => handleReprintReceipt(order)}
+                        className="w-full py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 active:scale-95"
                       >
-                        <CheckCircle className="w-4 h-4" />
-                        Release / Claim
+                        <Printer className="w-4 h-4 text-amber-500" />
+                        Print Invoice
                       </button>
-                    )}
+                    </div>
                   </div>
                 ))
               )
