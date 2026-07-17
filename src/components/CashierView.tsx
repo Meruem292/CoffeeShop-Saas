@@ -761,15 +761,29 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
                 </div>
 
                 {printMode === 'serial' && (
-                  <div className="mt-6 p-4 bg-amber-600/10 border border-amber-500/20 rounded-2xl flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <h4 className="text-[10px] font-black text-white uppercase tracking-wider">Pairing Your Bluetooth / USB Thermal Printer:</h4>
-                      <p className="text-[9px] font-bold text-coffee-600 leading-relaxed uppercase tracking-wider normal-case">
-                        1. First, pair your thermal printer inside your computer/Android OS Bluetooth settings.<br />
-                        2. Click <span className="text-white font-black">&quot;Connect Printer&quot;</span> above to authorize your computer to print without asking for permissions each time.<br />
-                        3. Choose your thermal printer&apos;s paired virtual serial port to instantly execute direct driverless ESC/POS hardware printing.
-                      </p>
+                  <div className="mt-6 p-5 bg-[#111115] border border-amber-500/20 rounded-2xl flex flex-col md:flex-row gap-5">
+                    <div className="flex items-start gap-3 flex-1">
+                      <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <h4 className="text-[10px] font-black text-white uppercase tracking-wider">Pairing Your Bluetooth / USB Printer (Desktop / Laptop):</h4>
+                        <p className="text-[9px] font-bold text-coffee-600 leading-relaxed uppercase tracking-wider normal-case">
+                          1. Pair your printer inside your OS Bluetooth settings first.<br />
+                          2. Click <span className="text-white font-black">&quot;Connect Printer&quot;</span> above to authorize Chrome/Edge to access the serial port.<br />
+                          3. Choose your thermal printer&apos;s paired virtual COM port from the browser picker.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="h-px md:h-auto md:w-px bg-white/10" />
+                    <div className="flex items-start gap-3 flex-1">
+                      <AlertCircle className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-wider">Android Phone Bluetooth Limitations & Solutions:</h4>
+                        <p className="text-[9px] font-bold text-coffee-600 leading-relaxed uppercase tracking-wider normal-case">
+                          Android OS does not map classic Bluetooth SPP devices as virtual serial files, so they won't appear in Chrome's Web Serial list.<br />
+                          <span className="text-white font-black">Option A:</span> Connect your printer via a <span className="text-amber-500 font-black">USB-C OTG cable adapter</span> directly to your phone. It will pop up instantly as a USB Serial device!<br />
+                          <span className="text-white font-black">Option B:</span> Switch the <span className="text-amber-500 font-black">Print Method</span> above to <span className="text-white font-black">System PDF</span>. Install a free app like RawBT or ESC/POS Bluetooth Print Service to print directly from Chrome's system print dialog.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
