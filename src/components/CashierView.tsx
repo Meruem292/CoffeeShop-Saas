@@ -17,6 +17,11 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
 
   const handleMarkPaid = (order: Order) => {
     onUpdateStatus(order.id!, 'pending');
+    setPrintingOrder(order);
+    setTimeout(() => {
+      window.print();
+      setPrintingOrder(null);
+    }, 250);
   };
 
   const handleReprintReceipt = (order: Order) => {
@@ -270,18 +275,6 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
             </div>
           </header>
 
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-3xl p-5 mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex gap-3">
-              <Printer className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-xs font-black text-white uppercase tracking-wider">Thermal Printing Station Ready</h4>
-                <p className="text-[11px] text-white/60 font-bold uppercase tracking-wide mt-1 leading-relaxed">
-                  Dual layout produces 76mm Customer Copy and Merchant Copy duplicates. For seamless physical printing, click the "Open in new tab" icon in the top right.
-                </p>
-              </div>
-            </div>
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {activeTab === 'unpaid' ? (
               unpaidOrders.length === 0 ? (
@@ -323,27 +316,18 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
                       </ul>
                     </div>
 
-                    <div className="mt-auto relative z-10 space-y-3">
-                      <div className="flex justify-between items-end mb-4 border-t border-white/5 pt-4">
+                    <div className="mt-auto relative z-10">
+                      <div className="flex justify-between items-end mb-6 border-t border-white/5 pt-4">
                         <span className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Total Due</span>
                         <span className="text-3xl font-black text-white">₱{order.total.toLocaleString()}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <button 
-                          onClick={() => handleMarkPaid(order)}
-                          className="w-full py-3.5 bg-white hover:bg-white/90 text-black rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs transition-all shadow-xl flex items-center justify-center gap-1.5 active:scale-95"
-                        >
-                          <Banknote className="w-4 h-4" />
-                          Collect
-                        </button>
-                        <button 
-                          onClick={() => handleReprintReceipt(order)}
-                          className="w-full py-3.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl font-black uppercase tracking-widest text-[10px] sm:text-xs transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                        >
-                          <Printer className="w-4 h-4 text-amber-500" />
-                          Print
-                        </button>
-                      </div>
+                      <button 
+                        onClick={() => handleMarkPaid(order)}
+                        className="w-full py-4 bg-white hover:bg-white/90 text-black rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95"
+                      >
+                        <Banknote className="w-5 h-5" />
+                        Collect Payment
+                      </button>
                     </div>
                   </div>
                 ))
