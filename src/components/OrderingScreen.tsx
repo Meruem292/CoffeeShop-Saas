@@ -386,9 +386,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   );
 
   const renderCart = () => (
-    <div className="flex flex-col h-full bg-white/95 backdrop-blur-2xl">
-      <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-        <h2 className="text-xl font-black text-foreground flex items-center gap-3 uppercase tracking-tighter italic">
+    <div className="flex flex-col h-full bg-[#0D0F14]/95 backdrop-blur-2xl text-white">
+      <div className="p-6 border-b border-white/5 bg-[#131722]/80 flex justify-between items-center shrink-0">
+        <h2 className="text-xl font-black text-white flex items-center gap-3 uppercase tracking-tighter italic">
           <ShoppingBag className="w-5 h-5 text-amber-500" />
           Order Orbit
         </h2>
@@ -397,7 +397,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
             setIsMobileCartOpen(false);
             setIsKioskCartOpen(false);
             setIsPosCartDrawerOpen(false);
-          }} className="p-2 text-slate-400 bg-slate-100 rounded-full hover:bg-slate-200 hover:text-foreground transition-all">
+          }} className="p-2 text-white/40 bg-white/5 rounded-full hover:bg-white/10 hover:text-white transition-all">
             <X className="w-5 h-5" />
           </button>
         )}
@@ -405,9 +405,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
 
       <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 scrollbar-hide">
           {cart.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-300 space-y-4">
-              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100 opacity-50">
-                <Coffee className="w-10 h-10" />
+            <div className="flex-1 flex flex-col items-center justify-center text-white/40 space-y-4">
+              <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center border border-white/10 opacity-50">
+                <Coffee className="w-10 h-10 text-amber-500" />
               </div>
               <p className="font-black uppercase tracking-[0.3em] text-[10px]">Your orbit is empty</p>
             </div>
@@ -415,10 +415,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
             cart.map((item) => (
               <div
                 key={item.cartId}
-                className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-3xl shadow-sm group hover:border-amber-500/30 transition-all"
+                className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-3xl shadow-sm group hover:border-amber-500/30 transition-all"
               >
                 <div className="flex-1 pr-4">
-                  <div className="font-black text-foreground text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors">
+                  <div className="font-black text-white text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors">
                     {item.name}
                     {item.selectedSize && (
                       <span className="ml-2 text-[9px] text-amber-500 font-black bg-amber-500/10 px-2 py-0.5 rounded-full uppercase border border-amber-500/20">
@@ -427,26 +427,26 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                     )}
                   </div>
                   {(item.sugarLevel || (item.selectedAddons && item.selectedAddons.length > 0)) && (
-                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1 space-y-0.5">
+                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-widest mt-1 space-y-0.5">
                       {item.sugarLevel && <div>Sugar: {item.sugarLevel}</div>}
                       {item.selectedAddons && item.selectedAddons.length > 0 && (
                         <div className="text-amber-500/60">+ {item.selectedAddons.map(a => a.name).join(', ')}</div>
                       )}
                     </div>
                   )}
-                  <div className="text-foreground font-black text-xs mt-2">₱{(item.price * item.quantity).toLocaleString()}</div>
+                  <div className="text-white font-black text-xs mt-2">₱{(item.price * item.quantity).toLocaleString()}</div>
                 </div>
-                <div className="flex items-center gap-3 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
+                <div className="flex items-center gap-3 bg-white/5 p-1.5 rounded-2xl border border-white/10">
                   <button
                     onClick={() => updateQuantity(item.cartId, -1)}
-                    className="p-2 bg-white rounded-xl text-slate-400 hover:bg-slate-100 hover:text-foreground transition-all active:scale-90"
+                    className="p-2 bg-white/5 rounded-xl text-white/60 hover:bg-white/10 hover:text-white transition-all active:scale-90"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
-                  <span className="w-6 text-center font-black text-foreground text-sm">{item.quantity}</span>
+                  <span className="w-6 text-center font-black text-white text-sm">{item.quantity}</span>
                   <button
                     onClick={() => updateQuantity(item.cartId, 1)}
-                    className="p-2 bg-amber-500 text-white rounded-xl hover:bg-amber-600 shadow-lg transition-all active:scale-90"
+                    className="p-2 bg-amber-500 text-black rounded-xl hover:bg-amber-400 shadow-lg transition-all active:scale-90"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
@@ -456,42 +456,42 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
           )}
       </div>
 
-      <div className="p-6 bg-slate-50 backdrop-blur-xl border-t border-slate-100">
+      <div className="p-6 bg-[#131722]/80 backdrop-blur-xl border-t border-white/5 shrink-0">
         <div className="space-y-6 mb-8">
           <div className="flex gap-3">
             <button
               onClick={() => setOrderType('dine-in')}
-              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'dine-in' ? 'bg-amber-500 text-white border-amber-500 shadow-lg' : 'bg-white text-slate-400 border-slate-200 hover:text-foreground hover:bg-slate-50'}`}
+              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'dine-in' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-white/5 text-white/40 border-white/5 hover:text-white hover:bg-white/10'}`}
             >
               <Store className="w-4 h-4" /> Dine-in
             </button>
             <button
               onClick={() => setOrderType('take-away')}
-              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'take-away' ? 'bg-amber-500 text-white border-amber-500 shadow-lg' : 'bg-white text-slate-400 border-slate-200 hover:text-foreground hover:bg-slate-50'}`}
+              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'take-away' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-white/5 text-white/40 border-white/5 hover:text-white hover:bg-white/10'}`}
             >
               <ShoppingBag className="w-4 h-4" /> Take-out
             </button>
           </div>
 
           <div className="relative group">
-            <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2 ml-1 opacity-50">Reference Name</label>
+            <label className="block text-[9px] font-black text-white/40 uppercase tracking-[0.3em] mb-2 ml-1">Reference Name</label>
             <input
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-500/50 text-foreground text-sm font-bold transition-all placeholder:text-slate-300"
+              className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-white text-sm font-bold transition-all placeholder:text-white/20"
               placeholder="Who is this for?"
             />
           </div>
 
           {orderType === 'dine-in' && (
             <div className="animate-in fade-in slide-in-from-top-4 duration-500 relative group">
-              <label className="block text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2 ml-1 opacity-50">Table Number</label>
+              <label className="block text-[9px] font-black text-white/40 uppercase tracking-[0.3em] mb-2 ml-1">Table Number</label>
               <input
                 type="text"
                 value={tableNumber}
                 onChange={(e) => setTableNumber(e.target.value)}
-                className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:border-amber-500/50 text-foreground text-sm font-bold transition-all placeholder:text-slate-300"
+                className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-white text-sm font-bold transition-all placeholder:text-white/20"
                 placeholder="Station ID"
               />
             </div>
@@ -499,13 +499,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
         </div>
 
         <div className="flex justify-between items-center mb-8 px-2">
-          <span className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px]">Total Fuel</span>
-          <span className="text-3xl font-black text-foreground italic">₱{total.toLocaleString()}</span>
+          <span className="text-white/40 font-black uppercase tracking-[0.2em] text-[10px]">Total Fuel</span>
+          <span className="text-3xl font-black text-white italic">₱{total.toLocaleString()}</span>
         </div>
         <button
           onClick={handleCheckout}
           disabled={cart.length === 0}
-          className="w-full bg-foreground hover:bg-slate-800 disabled:bg-slate-100 disabled:text-slate-300 text-background py-5 rounded-[2rem] font-black text-xl uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] mb-2"
+          className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-white/5 disabled:text-white/20 text-black py-5 rounded-[2rem] font-black text-xl uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] mb-2"
         >
           {mode === 'mobile' ? 'Launch Order' : 'Checkout'}
         </button>
@@ -525,35 +525,35 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
 
         {/* Cart Area - Kiosk (Bottom Bar) */}
         {mode === 'kiosk' && (
-          <div className="h-32 bg-white/90 backdrop-blur-2xl border-t border-slate-100 shadow-[0_-20px_60px_-15px_rgba(0,0,0,0.05)] z-30 flex items-stretch px-8 py-5 gap-8">
+          <div className="h-32 bg-[#0D0F14]/90 backdrop-blur-2xl border-t border-white/5 shadow-[0_-20px_60px_-15px_rgba(0,0,0,0.5)] z-30 flex items-stretch px-8 py-5 gap-8">
             <button 
               onClick={() => {
                 setCart([]);
                 setOrderType(null);
               }}
-              className="px-10 bg-slate-100 text-slate-400 rounded-[2rem] border border-slate-200 font-black text-xs uppercase tracking-widest hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-all flex items-center gap-3 active:scale-95"
+              className="px-10 bg-white/5 text-white/40 rounded-[2rem] border border-white/5 font-black text-xs uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/20 transition-all flex items-center gap-3 active:scale-95"
             >
               <X className="w-5 h-5" />
               Abort
             </button>
             
-            <div className="flex-1 bg-slate-50 border border-slate-100 rounded-[2.5rem] flex items-center px-10 shadow-inner group">
+            <div className="flex-1 bg-white/5 border border-white/5 rounded-[2.5rem] flex items-center px-10 shadow-inner group">
               <div className="flex-1">
                 <div className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/50 mb-1">Total Fuel</div>
-                <div className="text-4xl font-black text-foreground italic">₱{total.toLocaleString()}</div>
+                <div className="text-4xl font-black text-white italic">₱{total.toLocaleString()}</div>
               </div>
               <div className="flex -space-x-4 overflow-hidden py-2">
                  {cart.slice(0, 4).map((item, i) => (
                    <div key={item.cartId} className="relative transition-transform duration-300 group-hover:translate-x-2" style={{ zIndex: 10 - i }}>
                      <img 
                       src={item.image} 
-                      className="w-14 h-14 rounded-full border-4 border-white shadow-xl object-cover" 
+                      className="w-14 h-14 rounded-full border-4 border-slate-900 shadow-xl object-cover" 
                       alt={item.name} 
                      />
                    </div>
                  ))}
                  {cart.length > 4 && (
-                   <div className="w-14 h-14 rounded-full border-4 border-white bg-slate-100 backdrop-blur-md flex items-center justify-center text-xs font-black text-slate-400 shadow-xl relative z-0">
+                   <div className="w-14 h-14 rounded-full border-4 border-slate-900 bg-white/5 backdrop-blur-md flex items-center justify-center text-xs font-black text-white/40 shadow-xl relative z-0">
                      +{cart.length - 4}
                    </div>
                  )}
@@ -563,7 +563,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
             <button 
               onClick={() => setIsKioskCartOpen(true)}
               disabled={cart.length === 0}
-              className="px-16 bg-foreground text-background rounded-[2.5rem] font-black text-2xl uppercase tracking-tighter italic hover:scale-[1.02] transition-all shadow-xl active:scale-95 disabled:opacity-30 disabled:grayscale flex items-center gap-4"
+              className="px-16 bg-amber-500 hover:bg-amber-400 text-black rounded-[2.5rem] font-black text-2xl uppercase tracking-tighter italic hover:scale-[1.02] transition-all shadow-xl active:scale-95 disabled:opacity-30 disabled:grayscale flex items-center gap-4"
             >
               Ignition
               <ArrowRight className="w-8 h-8" />

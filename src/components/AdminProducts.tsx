@@ -3,9 +3,11 @@ import { Product, ProductSize, Addon, DynamicCategory } from '../types';
 import { 
   Plus, Edit2, Trash2, Package, Database, ShieldAlert, X, Coffee,
   IceCream, CupSoda, Croissant, Utensils, Sparkles, Leaf,
-  GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Layout, AlertTriangle
+  GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Layout, AlertTriangle,
+  Upload, Info, Check
 } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
+import { uploadProductImage, isSupabaseConfigured } from '../lib/supabase';
 
 interface AdminProductsProps {
   products: Product[];
@@ -124,6 +126,28 @@ export function AdminProducts({
   const [addonData, setAddonData] = useState<Omit<Addon, 'id'>>(initialAddonState);
   const [categoryFormData, setCategoryFormData] = useState<Omit<DynamicCategory, 'id'>>(initialCategoryState);
 
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError(null);
+
+    try {
+      const publicUrl = await uploadProductImage(file);
+      setFormData(prev => ({ ...prev, image: publicUrl }));
+    } catch (err: any) {
+      console.error('Failed to upload image:', err);
+      setUploadError(err.message || 'An error occurred while uploading the image. Please verify your connection.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleAddSize = () => {
     setFormData({
       ...formData,
@@ -195,6 +219,13 @@ export function AdminProducts({
     setIsEditing(product);
     setFormData(product);
     setIsAdding(false);
+    setUploadError(null);
+    setUploading(false);
+    if (product.image && !product.image.includes('supabase')) {
+      setImageInputMode('url');
+    } else {
+      setImageInputMode('upload');
+    }
   };
 
   const handleEditAddon = (addon: Addon) => {
@@ -213,6 +244,9 @@ export function AdminProducts({
     setIsEditing(null);
     setIsAdding(false);
     setFormData(initialFormState);
+    setUploadError(null);
+    setUploading(false);
+    setImageInputMode('upload');
   };
 
   const cancelAddonEdit = () => {
@@ -251,7 +285,7 @@ export function AdminProducts({
           <div className="flex flex-wrap gap-2.5 sm:gap-3 shrink-0">
             {activeTab === 'products' && (
               <button
-                onClick={() => { setIsAdding(true); setIsEditing(null); setFormData(initialFormState); }}
+                onClick={() => { setIsAdding(true); setIsEditing(null); setFormData(initialFormState); setUploadError(null); setUploading(false); setImageInputMode('upload'); }}
                 className="flex items-center gap-2 bg-white text-black px-6 py-3.5 rounded-2xl hover:bg-white/90 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] font-black uppercase tracking-widest text-xs active:scale-95"
               >
                 <Plus className="w-5 h-5" />
@@ -339,9 +373,149 @@ export function AdminProducts({
                       className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl focus:border-amber-500 focus:bg-white/10 outline-none transition-all font-bold text-white" 
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Image URL</label>
-                    <input required type="url" value={formData.image} onChange={e => setFormData({ ...formData, image: e.target.value })} className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl focus:border-amber-500 focus:bg-white/10 outline-none transition-all font-bold text-white" />
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Product Image</label>
+                    <div className="flex gap-4 mb-4">
+                      <button
+                        type="button"
+                        onClick={() => setImageInputMode('upload')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${
+                          imageInputMode === 'upload' ? 'bg-amber-500 text-black shadow-md' : 'bg-white/5 text-white/60 hover:bg-white/10'
+                        }`}
+                      >
+                        Upload Photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImageInputMode('url')}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${
+                          imageInputMode === 'url' ? 'bg-amber-500 text-black shadow-md' : 'bg-white/5 text-white/60 hover:bg-white/10'
+                        }`}
+                      >
+                        Image URL
+                      </button>
+                    </div>
+
+                    {imageInputMode === 'upload' ? (
+                      <div className="space-y-4">
+                        <div 
+                          className={`relative border-2 border-dashed rounded-3xl p-6 text-center transition-all flex flex-col items-center justify-center min-h-[180px] ${
+                            uploading ? 'border-amber-500/50 bg-amber-500/5' : 
+                            uploadError ? 'border-red-500/30 bg-red-500/5' : 
+                            formData.image ? 'border-green-500/30 bg-green-500/5' : 
+                            'border-white/10 hover:border-white/20 bg-white/5'
+                          }`}
+                        >
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            onChange={handleFileChange}
+                            disabled={uploading}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                          />
+                          
+                          {uploading ? (
+                            <div className="flex flex-col items-center gap-3">
+                              <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                              <p className="text-xs font-black text-amber-500 uppercase tracking-widest animate-pulse">Uploading to Supabase Storage...</p>
+                            </div>
+                          ) : formData.image ? (
+                            <div className="flex flex-col md:flex-row items-center gap-6 w-full p-2">
+                              <img 
+                                src={formData.image} 
+                                alt="Preview" 
+                                className="w-24 h-24 rounded-2xl object-cover border border-white/10 shadow-lg shrink-0" 
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="text-left flex-1 min-w-0">
+                                <div className="flex items-center gap-2 text-green-500 font-bold text-xs uppercase tracking-wider mb-1">
+                                  <Check className="w-4 h-4" /> Uploaded Successfully
+                                </div>
+                                <p className="text-[10px] text-white/40 break-all font-mono line-clamp-1">{formData.image}</p>
+                                <button 
+                                  type="button" 
+                                  onClick={() => setFormData({ ...formData, image: '' })}
+                                  className="mt-3 text-[10px] font-black text-red-400 hover:text-red-300 uppercase tracking-widest bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 cursor-pointer"
+                                >
+                                  Remove Photo
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-3 py-4">
+                              <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/60">
+                                <Upload className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-white uppercase tracking-wider">Drag & drop your product photo here</p>
+                                <p className="text-[10px] text-white/40 font-bold mt-1 uppercase tracking-widest">or click to browse files (PNG, JPG, WEBP)</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {uploadError && (
+                          <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium space-y-2">
+                            <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
+                              <AlertTriangle className="w-4 h-4" /> Upload Failed
+                            </div>
+                            <p className="opacity-90 text-[11px] leading-relaxed">{uploadError}</p>
+                            
+                            {!isSupabaseConfigured() && (
+                              <div className="mt-4 p-4 rounded-xl bg-black/40 border border-red-500/10 text-[10px] leading-relaxed text-white/70 space-y-2">
+                                <p className="font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                                  <Info className="w-3.5 h-3.5 text-amber-500" /> SUPABASE ENVIRONMENT CONFIGURATION REQUIRED
+                                </p>
+                                <p>
+                                  To enable direct image uploads, you must configure your Supabase variables. Open the <strong>Secrets panel</strong> (or the <strong>Settings menu</strong>) in AI Studio and add:
+                                </p>
+                                <ul className="list-disc list-inside space-y-1 font-mono text-[9px] text-amber-300">
+                                  <li>VITE_SUPABASE_URL</li>
+                                  <li>VITE_SUPABASE_ANON_KEY</li>
+                                </ul>
+                                <p className="mt-2">
+                                  Also, remember to create a <strong>Public bucket</strong> named <code className="bg-white/10 px-1 py-0.5 rounded text-white font-mono">product-images</code> in your Supabase dashboard Storage settings!
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {!isSupabaseConfigured() && !uploadError && (
+                          <div className="p-4 rounded-2xl bg-[#131722]/50 border border-white/5 text-[11px] leading-relaxed text-white/60 space-y-2">
+                            <p className="font-black text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
+                              <Info className="w-4 h-4" /> Supabase Storage Setup Checklist:
+                            </p>
+                            <ol className="list-decimal list-inside space-y-1.5 pl-1">
+                              <li>Log in to your <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-amber-500 underline hover:text-amber-400">Supabase Dashboard</a>.</li>
+                              <li>Go to <strong>Storage</strong> and create a new bucket named <code className="bg-white/10 px-1 py-0.5 rounded text-white font-mono text-[10px]">product-images</code>.</li>
+                              <li>Toggle <strong>"Public bucket"</strong> to <span className="text-green-500 font-bold">Enabled</span> so files can be accessed publicly.</li>
+                              <li>Define <code className="bg-white/10 px-1.5 py-0.5 rounded text-white font-mono text-[10px]">VITE_SUPABASE_URL</code> and <code className="bg-white/10 px-1.5 py-0.5 rounded text-white font-mono text-[10px]">VITE_SUPABASE_ANON_KEY</code> in your environment secrets.</li>
+                            </ol>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <input 
+                          required={imageInputMode === 'url'} 
+                          type="url" 
+                          value={formData.image} 
+                          onChange={e => setFormData({ ...formData, image: e.target.value })} 
+                          className="w-full p-4 bg-white/5 border border-white/5 rounded-2xl focus:border-amber-500 focus:bg-white/10 outline-none transition-all font-bold text-white placeholder:text-white/25" 
+                          placeholder="https://example.com/image.jpg"
+                        />
+                        {formData.image && (
+                          <div className="mt-4 flex items-center gap-4 p-3 bg-white/5 rounded-2xl border border-white/5">
+                            <img src={formData.image} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-white/5" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=300&q=80' }} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Image URL Preview</p>
+                              <p className="text-xs text-white/60 truncate font-mono mt-0.5">{formData.image}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Description</label>

@@ -229,7 +229,7 @@ export default function App() {
 
         {/* Elegant iOS-Inclined Sidebar - Desktop (lg and up) */}
         {!(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
-          <aside className="hidden lg:flex flex-col w-72 bg-slate-950/40 border-r border-white/5 backdrop-blur-3xl h-screen shrink-0 relative z-30 transition-all duration-300">
+          <aside className="hidden lg:flex flex-col w-72 bg-slate-950/40 border-r border-white/5 backdrop-blur-3xl h-screen shrink-0 relative z-10 transition-all duration-300">
             {/* Store Brand Header */}
             <div className="p-6 border-b border-white/5 flex items-center gap-3 shrink-0">
               <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shadow-inner shrink-0">
@@ -341,7 +341,7 @@ export default function App() {
         )}
 
         {/* Main Content Workspace Panel */}
-        <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-10 min-w-0">
+        <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-20 min-w-0">
           
           {/* Top Bar - Mobile View Only (lg and below) */}
           {!(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
