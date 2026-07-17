@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SplashScreen, ShopSettings } from '../types';
-import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building } from 'lucide-react';
+import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone } from 'lucide-react';
 
 interface AdminSettingsProps {
   splashScreen: SplashScreen | null;
@@ -28,7 +28,9 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     logoUrl: '',
     themeColor: '#4b2c20',
     gridColumns: 4,
-    mobileGridColumns: 2
+    mobileGridColumns: 2,
+    address: '',
+    phone: ''
   });
 
   const [saving, setSaving] = useState(false);
@@ -55,7 +57,9 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         logoUrl: shopSettings.logoUrl,
         themeColor: shopSettings.themeColor,
         gridColumns: shopSettings.gridColumns || 4,
-        mobileGridColumns: shopSettings.mobileGridColumns || 2
+        mobileGridColumns: shopSettings.mobileGridColumns || 2,
+        address: shopSettings.address || '',
+        phone: shopSettings.phone || ''
       });
     }
   }, [shopSettings]);
@@ -206,6 +210,35 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                     className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
                     placeholder="https://..."
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Address</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.address || ''}
+                      onChange={e => setShopData({ ...shopData, address: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
+                      placeholder="e.g. 123 Nebula Boulevard, Spaceport"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Phone</label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.phone || ''}
+                      onChange={e => setShopData({ ...shopData, phone: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-white text-sm"
+                      placeholder="e.g. +63 900 123 4567"
+                    />
+                  </div>
                 </div>
               </div>
 

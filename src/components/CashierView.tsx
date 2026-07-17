@@ -9,6 +9,9 @@ interface CashierViewProps {
   shopSettings: ShopSettings | null;
 }
 
+// Keep track of the active serial port globally at module scope to preserve the connection
+let activeSerialPort: any = null;
+
 export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierViewProps) {
   // Only show unpaid orders
   const unpaidOrders = orders.filter((o) => o.status === 'unpaid');
@@ -77,15 +80,36 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
     };
 
     try {
-      let port;
-      try {
-        port = await (navigator as any).serial.requestPort();
-      } catch (e) {
-        console.log("Port selection canceled or failed", e);
-        return; // User canceled the dialog
+      let port = activeSerialPort;
+
+      // Check if we already have an authorized port list or need to request one
+      if (!port) {
+        const ports = await (navigator as any).serial.getPorts();
+        if (ports && ports.length > 0) {
+          port = ports[0];
+        } else {
+          try {
+            port = await (navigator as any).serial.requestPort();
+          } catch (e) {
+            console.log("Port selection canceled or failed", e);
+            return; // User canceled the dialog
+          }
+        }
+        activeSerialPort = port;
       }
 
-      await port.open({ baudRate: parseInt(baudRate, 10) });
+      // Check if port needs to be opened
+      if (!port.writable) {
+        try {
+          await port.open({ baudRate: parseInt(baudRate, 10) });
+        } catch (openError: any) {
+          // If already open, we can ignore this error
+          if (!openError.message?.includes("already open")) {
+            throw openError;
+          }
+        }
+      }
+
       const encoder = new TextEncoder();
       const writer = port.writable.getWriter();
 
@@ -101,8 +125,8 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
         // Header
         data += centerText(nameToPrint.toUpperCase());
         data += centerText("REFUEL STATION");
-        data += centerText("123 NEBULA BLVD, SPACEPORT");
-        data += centerText("TEL: +63 900 123 4567");
+        data += centerText((shopSettings?.address || "123 NEBULA BLVD, SPACEPORT").toUpperCase());
+        data += centerText((shopSettings?.phone ? `TEL: ${shopSettings.phone}` : "TEL: +63 900 123 4567").toUpperCase());
         data += divider;
         data += centerText(`[ ${copyLabel} ]`);
         data += divider;
@@ -180,9 +204,10 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
       await writer.write(dataBuffer);
 
       writer.releaseLock();
-      await port.close();
+      // Keep connection open by not calling port.close()
       console.log("Thermal print request successfully completed.");
     } catch (error: any) {
+      activeSerialPort = null; // Reset cached port on error to allow clean re-prompting if connection breaks
       console.error("Direct thermal printing failed:", error);
       alert("Error printing directly to printer: " + error.message + "\n\nTip: Make sure the printer is paired, turned on, and you selected the correct Bluetooth/USB serial port.");
     }
@@ -271,8 +296,8 @@ export function CashierView({ orders, onUpdateStatus, shopSettings }: CashierVie
               <div className="text-center mb-4">
                 <h2 className="text-xl font-black uppercase tracking-tight mb-0.5">{(shopSettings?.name || 'Astro Coffee').toUpperCase()}</h2>
                 <p className="text-[9px] uppercase tracking-widest font-black text-gray-800">Refuel Station</p>
-                <p className="text-[8px] text-gray-500 mt-0.5">123 Nebula Boulevard, Spaceport</p>
-                <p className="text-[8px] text-gray-500">Tel: +63 900 123 4567</p>
+                <p className="text-[8px] text-gray-500 mt-0.5">{shopSettings?.address || '123 Nebula Boulevard, Spaceport'}</p>
+                <p className="text-[8px] text-gray-500">{shopSettings?.phone ? `Tel: ${shopSettings.phone}` : 'Tel: +63 900 123 4567'}</p>
                 <div className="border-b border-black border-double my-2" />
                 <div className="bg-black text-white py-1 px-3 text-[10px] font-black uppercase tracking-widest inline-block rounded">
                   {copy.label}

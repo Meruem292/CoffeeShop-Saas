@@ -56,6 +56,8 @@ export interface ShopSettings {
   themeColor?: string;
   gridColumns?: number;
   mobileGridColumns?: number;
+  address?: string;
+  phone?: string;
 }
 
 export interface SplashScreen {
