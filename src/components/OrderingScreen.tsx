@@ -238,6 +238,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
     mobile: 'flex flex-col h-screen w-full bg-transparent relative',
   };
 
+  const getMobileGridClasses = (configuredCols: number) => {
+    if (configuredCols <= 1) return 'grid-cols-1';
+    if (configuredCols === 2) return 'grid-cols-2';
+    if (configuredCols === 3) return 'grid-cols-2 sm:grid-cols-3';
+    return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
+  };
+
   const gridColsMap: Record<number, string> = {
     1: 'grid-cols-1',
     2: 'grid-cols-2',
@@ -363,7 +370,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
             ) : (
               <div 
                 className={`grid ${
-                  mode === 'mobile' ? `${gridColsMap[shopSettings?.mobileGridColumns || 3]} gap-1.5` : 
+                  mode === 'mobile' ? `${getMobileGridClasses(shopSettings?.mobileGridColumns || 3)} gap-1.5` : 
                   `gap-3 md:gap-4 lg:gap-5 grid-cols-2 ${lgGridColsMap[gridColumns] || 'lg:grid-cols-5'}`
                 }`}
                 key={searchQuery ? 'search' : activeCategory}
