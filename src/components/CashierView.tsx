@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Order, OrderStatus } from '../types';
 import { CheckCircle, Clock, Banknote, Coffee, Receipt, Printer } from 'lucide-react';
 
@@ -71,14 +72,14 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
               font-family: 'Courier New', Courier, monospace !important;
             }
             @page {
-              size: auto;
+              size: 80mm auto;
               margin: 0;
             }
           }
         `}
       </style>
 
-      {printingOrder && (
+      {printingOrder && createPortal(
         <div id="printable-receipt" className="hidden print:block bg-white text-black p-4 font-mono text-xs w-[76mm] mx-auto">
           {[
             { label: 'CUSTOMER COPY', isMerchant: false },
@@ -232,7 +233,8 @@ export function CashierView({ orders, onUpdateStatus }: CashierViewProps) {
               )}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
 
       <div className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 scrollbar-hide print:hidden">
