@@ -25,6 +25,7 @@ export interface Product {
   id: string; // Firestore document ID
   name: string;
   category: string;
+  subCategory?: string;
   price: number;
   image: string;
   description: string;

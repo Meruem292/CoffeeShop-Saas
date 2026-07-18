@@ -53,6 +53,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   }, [categoriesData, menu]);
 
   const [activeCategory, setActiveCategory] = useState<string>(categories[0] || '');
+  const [activeSubCategory, setActiveSubCategory] = useState<string>('All');
 
   // Keep activeCategory in sync with available categories
   React.useEffect(() => {
@@ -89,6 +90,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   // Category Change Handler
   const handleCategoryChange = useCallback((cat: string) => {
     setActiveCategory(cat);
+    setActiveSubCategory('All');
   }, []);
 
   const isProductBeverage = (product: Product) => {
@@ -168,12 +170,33 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
     );
   };
 
+  const availableSubCategories = useMemo(() => {
+    if (!activeCategory) return ['All'];
+    const activeCatLower = (activeCategory || '').trim().toLowerCase();
+    const catItems = menu.filter(item => {
+      const itemCatLower = (item.category || '').trim().toLowerCase();
+      if (itemCatLower === activeCatLower) return true;
+      const productParts = itemCatLower.split('/').map(s => s.trim());
+      if (productParts.includes(activeCatLower)) return true;
+      const activeParts = activeCatLower.split('/').map(s => s.trim());
+      return activeParts.some(ap => productParts.includes(ap) || itemCatLower === ap);
+    });
+    
+    const subCats = new Set<string>();
+    catItems.forEach(item => {
+      if (item.subCategory && item.subCategory.trim()) {
+        subCats.add(item.subCategory.trim());
+      }
+    });
+    return ['All', ...Array.from(subCats).sort()];
+  }, [menu, activeCategory]);
+
   const filteredMenu = useMemo(() => {
     if (searchQuery) {
       return menu.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
     }
     const activeCatLower = (activeCategory || '').trim().toLowerCase();
-    return menu.filter(item => {
+    const catFiltered = menu.filter(item => {
       const itemCatLower = (item.category || '').trim().toLowerCase();
       if (itemCatLower === activeCatLower) return true;
       
@@ -184,7 +207,15 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
       const activeParts = activeCatLower.split('/').map(s => s.trim());
       return activeParts.some(ap => productParts.includes(ap) || itemCatLower === ap);
     });
-  }, [menu, searchQuery, activeCategory]);
+    
+    if (activeSubCategory === 'All') {
+      return catFiltered;
+    }
+    
+    return catFiltered.filter(item => 
+      (item.subCategory || '').trim().toLowerCase() === activeSubCategory.toLowerCase()
+    );
+  }, [menu, searchQuery, activeCategory, activeSubCategory]);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -389,6 +420,24 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                 )}
               </div>
             </header>
+
+            {availableSubCategories.length > 1 && !searchQuery && (
+              <div className="flex flex-wrap gap-2 mb-8 animate-in fade-in slide-in-from-top-4">
+                {availableSubCategories.map(subCat => (
+                  <button
+                    key={subCat}
+                    onClick={() => setActiveSubCategory(subCat)}
+                    className={`px-6 py-2.5 rounded-full font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 ${
+                      activeSubCategory === subCat
+                        ? 'bg-amber-500 text-slate-900 shadow-md'
+                        : 'bg-white dark:bg-[#111115] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/5 hover:border-amber-500/50'
+                    }`}
+                  >
+                    {subCat}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {filteredMenu.length === 0 ? (
               <div className="py-24 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">

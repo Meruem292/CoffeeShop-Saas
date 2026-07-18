@@ -112,6 +112,7 @@ export function AdminProducts({
   const initialFormState = {
     name: '',
     category: availableCategories[0] || 'Hot Coffee',
+    subCategory: '',
     price: 0,
     image: '',
     description: '',
@@ -374,17 +375,31 @@ export function AdminProducts({
                     <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Name</label>
                     <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" />
                   </div>
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Category</label>
-                    <select 
-                      value={formData.category} 
-                      onChange={e => setFormData({ ...formData, category: e.target.value })} 
-                      className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white appearance-none"
-                    >
-                      {availableCategories.map(cat => (
-                        <option key={cat} value={cat} className="bg-white dark:bg-[#111115]">{cat}</option>
-                      ))}
-                    </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Category</label>
+                      <select 
+                        value={formData.category} 
+                        onChange={e => setFormData({ ...formData, category: e.target.value })} 
+                        className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white appearance-none"
+                      >
+                        {availableCategories.map(cat => (
+                          <option key={cat} value={cat} className="bg-white dark:bg-[#111115]">{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Sub-Category</label>
+                      <select 
+                        value={formData.subCategory || ''} 
+                        onChange={e => setFormData({ ...formData, subCategory: e.target.value })} 
+                        className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white appearance-none"
+                      >
+                        <option value="" className="bg-white dark:bg-[#111115]">None (All)</option>
+                        <option value="Classic" className="bg-white dark:bg-[#111115]">Classic</option>
+                        <option value="Premium" className="bg-white dark:bg-[#111115]">Premium</option>
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Base Price (₱)</label>
