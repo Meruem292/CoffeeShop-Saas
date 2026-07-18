@@ -25,7 +25,7 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const { user, isAdmin, loading: authLoading, logOut } = useAuth();
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
   
   const {
     products,
@@ -59,8 +59,12 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    document.documentElement.classList.add('dark');
-  }, []);
+    if (shopSettings?.themeMode) {
+      setTheme(shopSettings.themeMode);
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  }, [shopSettings?.themeMode, setTheme]);
 
   const navigationItems: { id: ViewMode; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
     { id: 'mobile', label: 'App', icon: <Smartphone className="w-4 h-4" /> },

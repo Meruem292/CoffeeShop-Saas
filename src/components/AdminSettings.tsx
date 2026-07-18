@@ -63,6 +63,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         receiptName: shopSettings.receiptName || '',
         receiptLogoUrl: shopSettings.receiptLogoUrl || '',
         themeColor: shopSettings.themeColor,
+        themeMode: shopSettings.themeMode || 'dark',
         gridColumns: shopSettings.gridColumns || 4,
         mobileGridColumns: shopSettings.mobileGridColumns || 2,
         address: shopSettings.address || '',
@@ -206,11 +207,15 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                     />
                     <button
                       type="button"
-                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      onClick={() => {
+                        const newMode = (shopData.themeMode || theme) === 'dark' ? 'light' : 'dark';
+                        setShopData({ ...shopData, themeMode: newMode });
+                        setTheme(newMode);
+                      }}
                       className="flex-1 min-w-0 flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-2xl transition-all h-14"
                       title="Toggle System Theme"
                     >
-                      {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-slate-700" />}
+                      {(shopData.themeMode || theme) === 'dark' ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-slate-700" />}
                     </button>
                   </div>
                 </div>

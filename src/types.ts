@@ -56,6 +56,7 @@ export interface ShopSettings {
   receiptName?: string;
   receiptLogoUrl?: string;
   themeColor?: string;
+  themeMode?: 'light' | 'dark';
   gridColumns?: number;
   mobileGridColumns?: number;
   address?: string;
