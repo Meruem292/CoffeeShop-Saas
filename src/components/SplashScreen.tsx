@@ -31,7 +31,7 @@ export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps)
   const themeColor = shopSettings?.themeColor || '#4b2c20';
 
   return (
-    <div className="fixed inset-0 z-[200] bg-[#020617] flex flex-col overflow-hidden font-sans text-white pointer-events-none">
+    <div className="fixed inset-0 z-[200] bg-slate-50 dark:bg-[#020617] flex flex-col overflow-hidden font-sans text-slate-900 dark:text-white pointer-events-none">
       {/* 3D Model Background Container - Positioned on the right for desktop */}
       <div className="absolute inset-y-0 right-0 w-full lg:w-[55%] h-full z-0 pointer-events-auto flex items-center justify-center overflow-hidden">
         {data.useGlb ? (
@@ -86,12 +86,12 @@ export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps)
             )}
           </div>
           <div className="flex flex-col">
-            <span className="text-2xl md:text-3xl font-black text-white font-display uppercase tracking-tighter leading-none mb-1">{shopSettings?.name || 'Astro Coffee'}</span>
+            <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white font-display uppercase tracking-tighter leading-none mb-1">{shopSettings?.name || 'Astro Coffee'}</span>
             <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em] leading-none opacity-60">Sequence Initiated</span>
           </div>
         </div>
         
-        <div className="flex items-center gap-6 md:gap-8 text-slate-400">
+        <div className="flex items-center gap-6 md:gap-8 text-slate-600 dark:text-slate-400">
           <Instagram className="w-5 h-5 cursor-pointer hover:text-amber-500 hover:scale-110 transition-all" />
           <Facebook className="w-5 h-5 cursor-pointer hover:text-amber-500 hover:scale-110 transition-all" />
           <Twitter className="w-5 h-5 cursor-pointer hover:text-amber-500 hover:scale-110 transition-all" />
@@ -101,7 +101,7 @@ export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps)
       {/* Hero Content */}
       <main className="flex-1 relative z-10 flex items-center justify-start px-8 md:px-12 max-w-7xl mx-auto w-full py-12 lg:py-20 shrink-0">
         {/* Glassmorphic Panel: Floating Typography & CTA */}
-        <div className="w-full max-w-xl p-8 md:p-14 rounded-[3.5rem] bg-white/5 dark:bg-slate-900/20 backdrop-blur-2xl border border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col text-left animate-in fade-in slide-in-from-left-10 duration-1000 pointer-events-auto">
+        <div className="w-full max-w-xl p-8 md:p-14 rounded-[3.5rem] bg-black/5 dark:bg-white/5 dark:bg-slate-900/20 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col text-left animate-in fade-in slide-in-from-left-10 duration-1000 pointer-events-auto">
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-px w-8 bg-amber-500/60" />
@@ -109,14 +109,14 @@ export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps)
                 {data.title || "The Orbit Experience"}
               </span>
             </div>
-            <h1 className="text-6xl md:text-7xl lg:text-[7.5rem] font-black text-white font-display leading-[0.8] mb-6 lg:mb-8 uppercase italic tracking-tighter">
+            <h1 className="text-6xl md:text-7xl lg:text-[7.5rem] font-black text-slate-900 dark:text-white font-display leading-[0.8] mb-6 lg:mb-8 uppercase italic tracking-tighter">
               WE ARE <br /> 
-              <span className="text-slate-400 dark:text-slate-600 not-italic">OPEN!</span>
+              <span className="text-slate-600 dark:text-slate-400 dark:text-slate-600 not-italic">OPEN!</span>
             </h1>
           </div>
 
           <p
-            className="text-lg lg:text-2xl text-slate-300 mb-10 lg:mb-14 leading-tight font-black uppercase tracking-tighter opacity-90"
+            className="text-lg lg:text-2xl text-slate-700 dark:text-slate-300 mb-10 lg:mb-14 leading-tight font-black uppercase tracking-tighter opacity-90"
           >
             {data.subtitle || "Elevate your daily ritual in our galactic sanctuary."}
           </p>
@@ -127,8 +127,8 @@ export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps)
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#020617]/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
             <span className="relative uppercase tracking-[0.2em]">{data.buttonText || "Begin Mission"}</span>
-            <div className="relative w-10 h-10 bg-[#020617] rounded-xl flex items-center justify-center group-hover:translate-x-3 transition-transform shrink-0 shadow-inner">
-              <ArrowRight className="w-5 h-5 text-white" />
+            <div className="relative w-10 h-10 bg-slate-50 dark:bg-[#020617] rounded-xl flex items-center justify-center group-hover:translate-x-3 transition-transform shrink-0 shadow-inner">
+              <ArrowRight className="w-5 h-5 text-slate-900 dark:text-white" />
             </div>
           </button>
         </div>

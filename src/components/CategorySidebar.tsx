@@ -56,10 +56,10 @@ const getCategoryIcon = (category: string, categoriesData?: DynamicCategory[]) =
 
 export const CategorySidebar = React.memo(({ categories, activeCategory, setActiveCategory, mode, categoriesData }: CategorySidebarProps) => {
   return (
-    <div className={`flex flex-col py-6 md:py-8 overflow-y-auto scrollbar-hide shrink-0 z-20 transition-all ${mode === 'mobile' ? 'w-[76px] md:w-24 bg-slate-950/20 backdrop-blur-3xl border-r border-white/5 gap-4' : 'w-24 md:w-28 lg:w-32 bg-slate-950/40 backdrop-blur-3xl border-r border-white/5 gap-6 md:gap-7'}`}>
+    <div className={`flex flex-col py-6 md:py-8 overflow-y-auto scrollbar-hide shrink-0 z-20 transition-all ${mode === 'mobile' ? 'w-[76px] md:w-24 bg-white dark:bg-slate-950/20 backdrop-blur-3xl border-r border-black/10 dark:border-white/5 gap-4' : 'w-24 md:w-28 lg:w-32 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-r border-black/10 dark:border-white/5 gap-6 md:gap-7'}`}>
       {mode !== 'mobile' && (
         <div className="flex flex-col items-center gap-1.5 mb-6 opacity-90 animate-in fade-in slide-in-from-top-4 duration-700">
-          <div className="w-12 h-12 rounded-[1.25rem] border border-white/10 flex items-center justify-center bg-white/5 shadow-inner">
+          <div className="w-12 h-12 rounded-[1.25rem] border border-black/10 dark:border-white/10 flex items-center justify-center bg-black/5 dark:bg-white/5 shadow-inner">
             <Sparkles className="w-5 h-5 text-amber-500" />
           </div>
           <span className="text-[9px] text-amber-500 font-bold tracking-[0.3em] mt-2.5 uppercase">Astro</span>
@@ -81,13 +81,13 @@ export const CategorySidebar = React.memo(({ categories, activeCategory, setActi
               )}
               <div className={`p-3 rounded-2xl transition-all relative z-10 ${
                 isActive 
-                  ? 'bg-amber-500 text-white shadow-[0_8px_20px_rgba(245,158,11,0.35)] scale-105' 
-                  : 'bg-transparent text-slate-400 hover:text-white hover:bg-white/5'
+                  ? 'bg-amber-500 text-slate-900 dark:text-white shadow-[0_8px_20px_rgba(245,158,11,0.35)] scale-105' 
+                  : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
               }`}>
                 {getCategoryIcon(cat, categoriesData)}
               </div>
               <span className={`text-[9px] mt-2.5 font-bold leading-none relative z-10 uppercase tracking-wider text-center ${
-                isActive ? 'text-amber-400' : 'text-slate-400 group-hover:text-slate-200'
+                isActive ? 'text-amber-400' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-200'
               }`}>
                 {cat.split(' ')[0]}
               </span>

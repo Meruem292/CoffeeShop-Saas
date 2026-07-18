@@ -685,7 +685,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                 <p className="text-[8px] text-gray-500 mt-0.5">{shopSettings?.address || '123 Nebula Boulevard, Spaceport'}</p>
                 <p className="text-[8px] text-gray-500">{shopSettings?.phone ? `Tel: ${shopSettings.phone}` : 'Tel: +63 900 123 4567'}</p>
                 <div className="border-b border-black border-double my-2" />
-                <div className="bg-black text-white py-1 px-3 text-[10px] font-black uppercase tracking-widest inline-block rounded">
+                <div className="bg-black text-slate-900 dark:text-white py-1 px-3 text-[10px] font-black uppercase tracking-widest inline-block rounded">
                   {copy.label}
                 </div>
               </div>
@@ -797,7 +797,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                 </div>
                 <div className="flex justify-between text-[8px]">
                   <span>PAYMENT STATUS:</span>
-                  <span className="font-bold uppercase px-1 border border-black leading-none py-0.5 bg-black text-white">
+                  <span className="font-bold uppercase px-1 border border-black leading-none py-0.5 bg-black text-slate-900 dark:text-white">
                     PAID
                   </span>
                 </div>
@@ -833,12 +833,12 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
           <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
             <div>
               <div className="flex items-center gap-4 mb-4">
-                <div className="px-3 py-1 bg-white/5 text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-white/10">
+                <div className="px-3 py-1 bg-black/5 dark:bg-white/5 text-amber-500 text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-black/10 dark:border-white/10">
                   Payments
                 </div>
-                <div className="h-[1px] flex-1 lg:w-48 bg-white/5" />
+                <div className="h-[1px] flex-1 lg:w-48 bg-black/5 dark:bg-white/5" />
               </div>
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white font-display uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-4">
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-slate-900 dark:text-white font-display uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-4">
                 Cashier <span className="text-white/20 not-italic font-medium text-4xl md:text-5xl lg:text-6xl">Console</span>
               </h1>
               <div className="flex items-center gap-3 mt-6">
@@ -849,19 +849,19 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
               </div>
             </div>
             
-            <div className="flex bg-white/5 backdrop-blur-md rounded-2xl p-1.5 shadow-sm border border-white/10 overflow-x-auto scrollbar-hide max-w-full shrink-0 w-fit">
+            <div className="flex bg-black/5 dark:bg-white/5 backdrop-blur-md rounded-2xl p-1.5 shadow-sm border border-black/10 dark:border-white/10 overflow-x-auto scrollbar-hide max-w-full shrink-0 w-fit">
               <button 
                 onClick={() => setActiveTab('unpaid')}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'unpaid' ? 'bg-amber-600 text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-white'}`}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'unpaid' ? 'bg-amber-600 text-slate-900 dark:text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-slate-900 dark:hover:text-white'}`}
               >
                 Awaiting Payment
                 {unpaidOrders.length > 0 && (
-                  <span className="ml-2 bg-black/20 px-2 py-0.5 rounded-full text-[10px]">{unpaidOrders.length}</span>
+                  <span className="ml-2 bg-slate-100 dark:bg-black/20 px-2 py-0.5 rounded-full text-[10px]">{unpaidOrders.length}</span>
                 )}
               </button>
               <button 
                 onClick={() => setActiveTab('history')}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'history' ? 'bg-amber-600 text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-white'}`}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'history' ? 'bg-amber-600 text-slate-900 dark:text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-slate-900 dark:hover:text-white'}`}
               >
                 Active / Paid
               </button>
@@ -872,7 +872,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
           <div className="mb-8">
             <button 
               onClick={() => setShowPrinterSettings(!showPrinterSettings)}
-              className="flex items-center gap-2.5 px-5 py-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10 text-[10px] font-black uppercase tracking-widest transition-all hover:border-white/20 active:scale-95"
+              className="flex items-center gap-2.5 px-5 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-900 dark:text-white rounded-2xl border border-black/10 dark:border-white/10 text-[10px] font-black uppercase tracking-widest transition-all hover:border-black/20 dark:hover:border-white/20 active:scale-95"
             >
               <Settings className="w-4 h-4 text-amber-500" />
               Receipt Printer Setup
@@ -882,10 +882,10 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
             </button>
 
             {showPrinterSettings && (
-              <div className="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-8 mt-4 backdrop-blur-xl animate-in fade-in slide-in-from-top-4 duration-200">
+              <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-3xl p-6 md:p-8 mt-4 backdrop-blur-xl animate-in fade-in slide-in-from-top-4 duration-200">
                 <div className="flex items-center gap-3 mb-2">
                   <Printer className="w-5 h-5 text-amber-500" />
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
                     Hardware Receipt Printer Configuration
                   </h3>
                 </div>
@@ -902,13 +902,13 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => savePrintMode('browser')}
-                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${printMode === 'browser' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${printMode === 'browser' ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         System PDF
                       </button>
                       <button
                         onClick={() => savePrintMode('serial')}
-                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${printMode === 'serial' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${printMode === 'serial' ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         Direct Thermal
                       </button>
@@ -924,21 +924,21 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                       <button
                         onClick={() => saveSerialSearchType('usb')}
                         disabled={printMode !== 'serial'}
-                        className={`py-2.5 px-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'usb' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 px-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'usb' ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         USB / COM
                       </button>
                       <button
                         onClick={() => saveSerialSearchType('bluetooth')}
                         disabled={printMode !== 'serial'}
-                        className={`py-2.5 px-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'bluetooth' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 px-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'bluetooth' ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         OS Paired COM
                       </button>
                       <button
                         onClick={() => saveSerialSearchType('ble')}
                         disabled={printMode !== 'serial'}
-                        className={`py-2.5 px-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'ble' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 px-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${serialSearchType === 'ble' ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         Direct BT Scan
                       </button>
@@ -954,14 +954,14 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                       <button
                         onClick={() => savePaperSize('58mm')}
                         disabled={printMode !== 'serial'}
-                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all disabled:opacity-40 ${paperSize === '58mm' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all disabled:opacity-40 ${paperSize === '58mm' ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         58mm (32 ch)
                       </button>
                       <button
                         onClick={() => savePaperSize('80mm')}
                         disabled={printMode !== 'serial'}
-                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all disabled:opacity-40 ${paperSize === '80mm' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all disabled:opacity-40 ${paperSize === '80mm' ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         80mm (42 ch)
                       </button>
@@ -977,12 +977,12 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                       value={baudRate}
                       onChange={(e) => saveBaudRate(e.target.value)}
                       disabled={printMode !== 'serial'}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-[10px] text-white font-black uppercase tracking-widest outline-none disabled:opacity-40 h-[42px]"
+                      className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl py-2.5 px-4 text-[10px] text-slate-900 dark:text-white font-black uppercase tracking-widest outline-none disabled:opacity-40 h-[42px]"
                     >
-                      <option value="9600" className="bg-neutral-900 text-white">9600 bps</option>
-                      <option value="19200" className="bg-neutral-900 text-white">19200 bps</option>
-                      <option value="38400" className="bg-neutral-900 text-white">38400 bps</option>
-                      <option value="115200" className="bg-neutral-900 text-white">115200 bps</option>
+                      <option value="9600" className="bg-neutral-900 text-slate-900 dark:text-white">9600 bps</option>
+                      <option value="19200" className="bg-neutral-900 text-slate-900 dark:text-white">19200 bps</option>
+                      <option value="38400" className="bg-neutral-900 text-slate-900 dark:text-white">38400 bps</option>
+                      <option value="115200" className="bg-neutral-900 text-slate-900 dark:text-white">115200 bps</option>
                     </select>
                   </div>
 
@@ -995,21 +995,21 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                       <button
                         onClick={() => saveCopies('customer')}
                         disabled={printMode !== 'serial'}
-                        className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${copies === 'customer' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${copies === 'customer' ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         Cust
                       </button>
                       <button
                         onClick={() => saveCopies('merchant')}
                         disabled={printMode !== 'serial'}
-                        className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${copies === 'merchant' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${copies === 'merchant' ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         Merch
                       </button>
                       <button
                         onClick={() => saveCopies('both')}
                         disabled={printMode !== 'serial'}
-                        className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${copies === 'both' ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all disabled:opacity-40 ${copies === 'both' ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         Both
                       </button>
@@ -1018,7 +1018,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                 </div>
 
                 {/* Cash Drawer & Connection Controls */}
-                <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                <div className="mt-6 pt-6 border-t border-black/10 dark:border-white/10 grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
                   {/* Drawer Kick Toggle */}
                   <div>
                     <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-2.5">
@@ -1027,13 +1027,13 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         onClick={() => saveKickDrawer(true)}
-                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${kickDrawer ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${kickDrawer ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         Enabled
                       </button>
                       <button
                         onClick={() => saveKickDrawer(false)}
-                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${!kickDrawer ? 'bg-amber-600 text-white border-transparent shadow-lg' : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'}`}
+                        className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all ${!kickDrawer ? 'bg-amber-600 text-slate-900 dark:text-white border-transparent shadow-lg' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                       >
                         Disabled
                       </button>
@@ -1049,11 +1049,11 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                       value={drawerCommand}
                       onChange={(e) => saveDrawerCommand(e.target.value as any)}
                       disabled={!kickDrawer}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-4 text-[10px] text-white font-black uppercase tracking-widest outline-none disabled:opacity-40 h-[42px]"
+                      className="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl py-2.5 px-4 text-[10px] text-slate-900 dark:text-white font-black uppercase tracking-widest outline-none disabled:opacity-40 h-[42px]"
                     >
-                      <option value="primary" className="bg-neutral-900 text-white">Primary Pin 2 (1B 70 00 19 FA)</option>
-                      <option value="alternative2" className="bg-neutral-900 text-white">Alt Pin 5 (1B 70 01 19 FA)</option>
-                      <option value="alternative3" className="bg-neutral-900 text-white">Status Pulse (10 14 01 00 05)</option>
+                      <option value="primary" className="bg-neutral-900 text-slate-900 dark:text-white">Primary Pin 2 (1B 70 00 19 FA)</option>
+                      <option value="alternative2" className="bg-neutral-900 text-slate-900 dark:text-white">Alt Pin 5 (1B 70 01 19 FA)</option>
+                      <option value="alternative3" className="bg-neutral-900 text-slate-900 dark:text-white">Status Pulse (10 14 01 00 05)</option>
                     </select>
                   </div>
 
@@ -1077,7 +1077,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                       <button
                         type="button"
                         onClick={testCashDrawer}
-                        className="flex-1 py-2.5 px-4 rounded-xl text-[9px] font-black uppercase tracking-wider bg-white/5 text-white border border-white/10 hover:bg-white/10 transition-all active:scale-95 h-[42px]"
+                        className="flex-1 py-2.5 px-4 rounded-xl text-[9px] font-black uppercase tracking-wider bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white border border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-all active:scale-95 h-[42px]"
                       >
                         Test Drawer
                       </button>
@@ -1086,28 +1086,28 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                 </div>
 
                 {printMode === 'serial' && (
-                  <div className="mt-6 p-5 bg-[#111115] border border-amber-500/20 rounded-2xl flex flex-col md:flex-row gap-5">
+                  <div className="mt-6 p-5 bg-white dark:bg-[#111115] border border-amber-500/20 rounded-2xl flex flex-col md:flex-row gap-5">
                     <div className="flex items-start gap-3 flex-1">
                       <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                       <div className="space-y-1">
-                        <h4 className="text-[10px] font-black text-white uppercase tracking-wider">Pairing Your Printer (Desktop or Android Phone):</h4>
+                        <h4 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Pairing Your Printer (Desktop or Android Phone):</h4>
                         <p className="text-[9px] font-bold text-coffee-600 leading-relaxed uppercase tracking-wider normal-case">
                           1. For Bluetooth thermal printers, we highly recommend selecting <span className="text-amber-500 font-black">Direct BT Scan</span> in the grid above. It works perfectly on BOTH Android phones and desktop computers without system pairing hacks!<br />
-                          2. Click <span className="text-white font-black">&quot;Scan & Pair Printer (BLE)&quot;</span> below, select your printer, and start printing instantly.<br />
+                          2. Click <span className="text-slate-900 dark:text-white font-black">&quot;Scan & Pair Printer (BLE)&quot;</span> below, select your printer, and start printing instantly.<br />
                           3. For USB cables or older Bluetooth adapters, use <span className="text-amber-500 font-black">USB / COM</span> or <span className="text-amber-500 font-black">OS Paired COM</span>.
                         </p>
                       </div>
                     </div>
-                    <div className="h-px md:h-auto md:w-px bg-white/10" />
+                    <div className="h-px md:h-auto md:w-px bg-black/10 dark:bg-white/10" />
                     <div className="flex items-start gap-3 flex-1">
                       <AlertCircle className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                       <div className="space-y-1">
                         <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-wider">How to resolve connection issues:</h4>
                         <p className="text-[9px] font-bold text-coffee-600 leading-relaxed uppercase tracking-wider normal-case">
                           If your printer fails to connect or says no compatible devices found:<br />
-                          <span className="text-white font-black">Tip 1:</span> Ensure the printer is fully powered on and not connected to another device/phone.<br />
-                          <span className="text-white font-black">Tip 2:</span> If using Direct BT Scan, make sure Location/Bluetooth is enabled on your device.<br />
-                          <span className="text-white font-black">Tip 3:</span> For Android users on older hardware, use <span className="text-amber-500 font-black">Direct BT Scan</span> first, or switch to <span className="text-white font-black">System PDF</span> mode as a bulletproof fallback.
+                          <span className="text-slate-900 dark:text-white font-black">Tip 1:</span> Ensure the printer is fully powered on and not connected to another device/phone.<br />
+                          <span className="text-slate-900 dark:text-white font-black">Tip 2:</span> If using Direct BT Scan, make sure Location/Bluetooth is enabled on your device.<br />
+                          <span className="text-slate-900 dark:text-white font-black">Tip 3:</span> For Android users on older hardware, use <span className="text-amber-500 font-black">Direct BT Scan</span> first, or switch to <span className="text-slate-900 dark:text-white font-black">System PDF</span> mode as a bulletproof fallback.
                         </p>
                       </div>
                     </div>
@@ -1120,19 +1120,19 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {activeTab === 'unpaid' ? (
               unpaidOrders.length === 0 ? (
-                <div className="col-span-full flex flex-col items-center justify-center py-24 text-coffee-700 bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/5">
+                <div className="col-span-full flex flex-col items-center justify-center py-24 text-coffee-700 bg-black/5 dark:bg-white/5 rounded-[2.5rem] border-2 border-dashed border-black/10 dark:border-white/5">
                   <CheckCircle className="w-16 h-16 mb-4 opacity-20" />
-                  <h3 className="text-xl font-black text-white uppercase tracking-widest mb-2">No Unpaid Orders</h3>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">No Unpaid Orders</h3>
                   <p className="text-xs font-bold uppercase tracking-widest opacity-50">All kiosk and mobile orders have been settled.</p>
                 </div>
               ) : (
                 unpaidOrders.map((order) => (
-                  <div key={order.id} className="bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border-2 border-amber-500/50 flex flex-col h-full relative overflow-hidden group">
+                  <div key={order.id} className="bg-black/5 dark:bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border-2 border-amber-500/50 flex flex-col h-full relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 blur-[50px] -mr-16 -mt-16 group-hover:bg-amber-500/20 transition-all" />
                     
                     <div className="flex justify-between items-start mb-6 relative z-10">
                       <div>
-                        <span className="text-4xl font-black text-white block leading-none mb-2 font-display">
+                        <span className="text-4xl font-black text-slate-900 dark:text-white block leading-none mb-2 font-display">
                           #{order.id?.slice(-4)}
                         </span>
                         <div className="text-[10px] font-black text-coffee-500 uppercase tracking-[0.2em]">{order.customerName}</div>
@@ -1143,38 +1143,38 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                       </div>
                     </div>
 
-                    <div className="flex-1 bg-white/5 border border-white/5 rounded-2xl p-4 mb-6 overflow-y-auto min-h-[120px] relative z-10 scrollbar-hide">
+                    <div className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl p-4 mb-6 overflow-y-auto min-h-[120px] relative z-10 scrollbar-hide">
                       <ul className="space-y-4">
                         {order.items.map((item, idx) => (
                           <li key={idx} className="flex justify-between text-xs items-start">
                             <div className="flex-1 pr-4">
-                              <div className="font-black text-white uppercase tracking-tight">{item.quantity}x {item.name}</div>
+                              <div className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.quantity}x {item.name}</div>
                               {item.selectedSize && <div className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest mt-1">Size: {item.selectedSize.name}</div>}
                               {item.notes && <div className="text-[9px] text-amber-500/70 font-bold italic mt-1 uppercase tracking-widest">"{item.notes}"</div>}
                             </div>
-                            <span className="font-black text-white opacity-40 whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
+                            <span className="font-black text-slate-900 dark:text-white opacity-40 whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
 
                     <div className="mt-auto relative z-10">
-                      <div className="flex justify-between items-end mb-6 border-t border-white/5 pt-4">
+                      <div className="flex justify-between items-end mb-6 border-t border-black/10 dark:border-white/5 pt-4">
                         <span className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Total Due</span>
-                        <span className="text-3xl font-black text-white">₱{order.total.toLocaleString()}</span>
+                        <span className="text-3xl font-black text-slate-900 dark:text-white">₱{order.total.toLocaleString()}</span>
                       </div>
                       
                       <div className="flex gap-2 mb-3">
                         <button 
                           onClick={() => setEditingOrder(order)}
-                          className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                          className="flex-1 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-900 dark:text-white border border-black/10 dark:border-white/10 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-1.5 active:scale-95"
                         >
                           <Edit3 className="w-3.5 h-3.5 text-amber-500" />
                           Edit Order
                         </button>
                         <button 
                           onClick={() => setOrderToCancel({order, action: 'delete'})}
-                          className="py-3 px-4 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                          className="py-3 px-4 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-slate-900 dark:hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1.5 active:scale-95"
                           title="Cancel Order"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1194,17 +1194,17 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
               )
             ) : (
               pendingOrders.length === 0 ? (
-                <div className="col-span-full flex flex-col items-center justify-center py-24 text-coffee-700 bg-white/5 rounded-[2.5rem] border-2 border-dashed border-white/5">
+                <div className="col-span-full flex flex-col items-center justify-center py-24 text-coffee-700 bg-black/5 dark:bg-white/5 rounded-[2.5rem] border-2 border-dashed border-black/10 dark:border-white/5">
                   <Receipt className="w-16 h-16 mb-4 opacity-20" />
-                  <h3 className="text-xl font-black text-white uppercase tracking-widest mb-2">No Active Orders</h3>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">No Active Orders</h3>
                   <p className="text-xs font-bold uppercase tracking-widest opacity-50">Paid orders currently in progress will appear here.</p>
                 </div>
               ) : (
                 pendingOrders.map((order) => (
-                  <div key={order.id} className={`bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-white/10 flex flex-col h-full relative overflow-hidden transition-all ${order.status === 'completed' ? 'opacity-30' : 'hover:border-white/20'}`}>
+                  <div key={order.id} className={`bg-black/5 dark:bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-black/10 dark:border-white/10 flex flex-col h-full relative overflow-hidden transition-all ${order.status === 'completed' ? 'opacity-30' : 'hover:border-black/20 dark:hover:border-white/20'}`}>
                     <div className="flex justify-between items-start mb-6 relative z-10">
                       <div>
-                        <span className="text-3xl font-black text-white block leading-none mb-2 font-display">
+                        <span className="text-3xl font-black text-slate-900 dark:text-white block leading-none mb-2 font-display">
                           #{order.id?.slice(-4)}
                         </span>
                         <div className="text-[10px] font-black text-coffee-500 uppercase tracking-[0.2em]">{order.customerName}</div>
@@ -1215,7 +1215,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                       </div>
                     </div>
                     
-                    <div className="flex justify-between items-end mt-auto pt-4 border-t border-white/5 relative z-10">
+                    <div className="flex justify-between items-end mt-auto pt-4 border-t border-black/10 dark:border-white/5 relative z-10">
                       <span className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Status</span>
                       <span className="text-xs font-black text-amber-500 uppercase tracking-[0.1em]">{order.status}</span>
                     </div>
@@ -1224,7 +1224,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                       {order.status === 'ready' && (
                         <button 
                           onClick={() => onUpdateStatus(order.id!, 'completed')}
-                          className="w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                          className="w-full py-3 bg-green-600 hover:bg-green-500 text-slate-900 dark:text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg flex items-center justify-center gap-2 active:scale-95"
                         >
                           <CheckCircle className="w-4 h-4" />
                           Release / Claim
@@ -1235,14 +1235,14 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                         <div className="grid grid-cols-2 gap-2">
                           <button 
                             onClick={() => setEditingOrder(order)}
-                            className="py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-1 active:scale-95"
+                            className="py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-900 dark:text-white border border-black/10 dark:border-white/10 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-1 active:scale-95"
                           >
                             <Edit3 className="w-3.5 h-3.5 text-amber-500" />
                             Edit
                           </button>
                           <button 
                             onClick={() => setOrderToCancel({order, action: 'status'})}
-                            className="py-2.5 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1 active:scale-95"
+                            className="py-2.5 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-slate-900 dark:hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1 active:scale-95"
                             title="Cancel Order"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1253,7 +1253,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
 
                       <button 
                         onClick={() => handleReprintReceipt(order)}
-                        className="w-full py-3 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 active:scale-95"
+                        className="w-full py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-900 dark:text-white border border-black/10 dark:border-white/10 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 active:scale-95"
                       >
                         <Printer className="w-4 h-4 text-amber-500" />
                         Print Invoice

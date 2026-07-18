@@ -5,6 +5,7 @@ import { AdminLoginModal } from './components/AdminLoginModal';
 import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sparkles, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight } from 'lucide-react';
 import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
+import { useTheme } from './lib/ThemeProvider';
 import ShapeGrid from './components/ShapeGrid';
 
 // Lazy loaded components
@@ -24,6 +25,7 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const { user, isAdmin, loading: authLoading, logOut } = useAuth();
+  const { theme, setTheme } = useTheme();
   
   const {
     products,
@@ -152,7 +154,7 @@ export default function App() {
 
   if (authLoading || (user && dbLoading)) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#020617] text-white font-bold overflow-hidden relative">
+      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-white font-bold overflow-hidden relative">
         <div className="absolute inset-0 pointer-events-none z-0">
           <ShapeGrid 
             speed={0.3} 
@@ -170,7 +172,7 @@ export default function App() {
           </div>
           <div className="flex flex-col items-center gap-2">
             <span className="uppercase tracking-[0.5em] text-[8px] font-black text-amber-500/50">Initialising Orbit</span>
-            <div className="w-24 h-1 bg-slate-800 rounded-full overflow-hidden">
+            <div className="w-24 h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
               <div className="h-full bg-amber-500 animate-[loading_2s_infinite]" />
             </div>
           </div>
@@ -180,7 +182,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex bg-[#020617] text-white font-sans selection:bg-amber-500/30 overflow-hidden relative">
+    <div className="min-h-screen flex bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-white font-sans selection:bg-amber-500/30 overflow-hidden relative">
       <style>
         {`
           .scrollbar-hide::-webkit-scrollbar {
@@ -206,7 +208,7 @@ export default function App() {
       </style>
       
       {/* Background Shapes & Space Glows */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 bg-[#020617]">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 bg-slate-50 dark:bg-[#020617]">
         <ShapeGrid 
           speed={0.2} 
           squareSize={40}
@@ -222,7 +224,7 @@ export default function App() {
 
       <div className="flex-1 flex min-h-screen overflow-hidden relative z-10 w-full">
         {dbError && (
-          <div className="fixed top-0 left-0 right-0 z-[400] bg-amber-600 text-white text-[10px] sm:text-xs py-1.5 px-4 text-center font-bold flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top duration-500">
+          <div className="fixed top-0 left-0 right-0 z-[400] bg-amber-600 text-slate-900 dark:text-white text-[10px] sm:text-xs py-1.5 px-4 text-center font-bold flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top duration-500">
             <ShieldAlert className="w-3.5 h-3.5" />
             {dbError}
           </div>
@@ -230,10 +232,10 @@ export default function App() {
 
         {/* Elegant iOS-Inclined Sidebar - Desktop (lg and up) */}
         {!(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
-          <aside className="hidden lg:flex flex-col w-72 bg-slate-950/40 border-r border-white/5 backdrop-blur-3xl h-screen shrink-0 relative z-10 transition-all duration-300">
+          <aside className="hidden lg:flex flex-col w-72 bg-white/60 dark:bg-slate-950/40 border-r border-black/10 dark:border-white/5 backdrop-blur-3xl h-screen shrink-0 relative z-10 transition-all duration-300">
             {/* Store Brand Header */}
-            <div className="p-6 border-b border-white/5 flex items-center gap-3 shrink-0">
-              <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shadow-inner shrink-0">
+            <div className="p-6 border-b border-black/10 dark:border-white/5 flex items-center gap-3 shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-inner shrink-0">
                 {shopSettings?.logoUrl ? (
                   <img src={shopSettings.logoUrl} className="w-full h-full object-cover" alt="Logo" />
                 ) : (
@@ -259,13 +261,13 @@ export default function App() {
                   placeholder="Quick search menu..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 bg-white/5 border border-white/5 rounded-xl text-xs font-bold text-white focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-all placeholder:text-slate-500"
+                  className="w-full pl-9 pr-8 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-all placeholder:text-slate-500"
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                 {searchQuery && (
                   <button 
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 dark:hover:text-white"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -291,12 +293,12 @@ export default function App() {
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all group ${
                       isActive 
-                        ? 'bg-white/10 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border-r-2 border-amber-500 font-bold' 
-                        : 'text-slate-400 hover:text-white hover:bg-white/5 font-medium'
+                        ? 'bg-black/10 dark:bg-white/10 text-slate-900 dark:text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border-r-2 border-amber-500 font-bold' 
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 font-medium'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`transition-colors ${isActive ? 'text-amber-500' : 'text-slate-400 group-hover:text-white'}`}>
+                      <div className={`transition-colors ${isActive ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:hover:text-white'}`}>
                         {item.icon}
                       </div>
                       <span className="text-xs tracking-tight">{item.label}</span>
@@ -308,30 +310,39 @@ export default function App() {
             </nav>
 
             {/* Bottom Profile / Admin Portal Widget */}
-            <div className="p-4 border-t border-white/5 bg-slate-950/20 shrink-0">
+            <div className="p-4 border-t border-black/10 dark:border-white/5 bg-white dark:bg-slate-950/20 shrink-0">
               {user ? (
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-white/5 border border-white/5">
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-xs shrink-0">
                       {user.email?.slice(0, 2).toUpperCase() || 'AD'}
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[11px] font-bold text-white truncate leading-none mb-1">{user.email}</span>
+                      <span className="text-[11px] font-bold text-slate-900 dark:text-white truncate leading-none mb-1">{user.email}</span>
                       <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest leading-none">Administrator</span>
                     </div>
                   </div>
-                  <button 
-                    onClick={logOut}
-                    className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-red-400 transition-all shrink-0"
-                    title="Logout"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all shrink-0"
+                      title="Toggle Theme"
+                    >
+                      {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                    </button>
+                    <button 
+                      onClick={logOut}
+                      className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-red-400 transition-all shrink-0"
+                      title="Logout"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <button 
                   onClick={() => setShowAdminLogin(true)}
-                  className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
+                  className="w-full py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-slate-900 dark:text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
                 >
                   <Lock className="w-3.5 h-3.5 text-amber-500" />
                   Admin Portal
@@ -346,11 +357,11 @@ export default function App() {
           
           {/* Top Bar - Mobile View Only (lg and below) */}
           {!(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
-            <header className="lg:hidden flex items-center justify-between px-6 py-4 bg-slate-950/40 backdrop-blur-3xl border-b border-white/5 shrink-0 relative z-20">
+            <header className="lg:hidden flex items-center justify-between px-6 py-4 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-b border-black/10 dark:border-white/5 shrink-0 relative z-20">
               <div className="flex items-center gap-3 min-w-0">
                 <button 
                   onClick={() => setIsMobileMenuOpen(true)}
-                  className="w-10 h-10 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-all active:scale-95 shrink-0"
+                  className="w-10 h-10 bg-black/5 dark:bg-white/5 rounded-xl border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95 shrink-0"
                 >
                   <Menu className="w-5 h-5" />
                 </button>
@@ -360,7 +371,7 @@ export default function App() {
                   </span>
                   <div className="flex items-center gap-1 leading-none mt-0.5">
                     <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest leading-none">System Live</span>
+                    <span className="text-[7px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest leading-none">System Live</span>
                   </div>
                 </div>
               </div>
@@ -374,14 +385,14 @@ export default function App() {
                       placeholder="Search menu..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-28 xs:w-40 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs font-bold focus:outline-none"
+                      className="w-28 xs:w-40 px-3 py-1.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg text-xs font-bold focus:outline-none"
                     />
                     <button 
                       onClick={() => {
                         setIsSearchOpen(false);
                         setSearchQuery('');
                       }}
-                      className="p-1 text-slate-400 hover:text-amber-500"
+                      className="p-1 text-slate-600 dark:text-slate-400 hover:text-amber-500"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -389,7 +400,7 @@ export default function App() {
                 ) : (
                   <button 
                     onClick={() => setIsSearchOpen(true)}
-                    className="w-10 h-10 bg-white/5 rounded-xl border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition-all active:scale-95 shrink-0"
+                    className="w-10 h-10 bg-black/5 dark:bg-white/5 rounded-xl border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95 shrink-0"
                   >
                     <Search className="w-4 h-4" />
                   </button>
@@ -402,14 +413,14 @@ export default function App() {
           {isMobileMenuOpen && (
             <div className="fixed inset-0 z-50 flex lg:hidden">
               <div 
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+                className="fixed inset-0 bg-slate-300 dark:bg-black/60 backdrop-blur-sm transition-opacity duration-300"
                 onClick={() => setIsMobileMenuOpen(false)}
               />
               
-              <div className="relative flex flex-col w-72 max-w-[80vw] h-full bg-[#020617]/95 backdrop-blur-2xl border-r border-white/10 p-6 animate-in slide-in-from-left duration-300 text-white z-50">
-                <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5 shrink-0">
+              <div className="relative flex flex-col w-72 max-w-[80vw] h-full bg-slate-50 dark:bg-[#020617]/95 backdrop-blur-2xl border-r border-black/10 dark:border-white/10 p-6 animate-in slide-in-from-left duration-300 text-slate-900 dark:text-white z-50">
+                <div className="flex items-center justify-between mb-8 pb-4 border-b border-black/10 dark:border-white/5 shrink-0">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden">
+                    <div className="w-8 h-8 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center overflow-hidden">
                       {shopSettings?.logoUrl ? (
                         <img src={shopSettings.logoUrl} className="w-full h-full object-cover" alt="Logo" />
                       ) : (
@@ -422,7 +433,7 @@ export default function App() {
                   </div>
                   <button 
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-white"
+                    className="p-1.5 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -435,7 +446,7 @@ export default function App() {
                       placeholder="Search..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-4 py-1.5 bg-white/5 border border-white/5 rounded-lg text-xs"
+                      className="w-full pl-8 pr-4 py-1.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-lg text-xs"
                     />
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                   </div>
@@ -459,12 +470,12 @@ export default function App() {
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all ${
                           isActive 
-                            ? 'bg-white/10 text-white border-l-2 border-amber-500 font-bold' 
-                            : 'text-slate-400 hover:text-white'
+                            ? 'bg-black/10 dark:bg-white/10 text-slate-900 dark:text-white border-l-2 border-amber-500 font-bold' 
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <span className={isActive ? 'text-amber-500' : 'text-slate-400'}>{item.icon}</span>
+                          <span className={isActive ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400'}>{item.icon}</span>
                           <span className="text-xs tracking-tight">{item.label}</span>
                         </div>
                         <ChevronRight className="w-3 h-3 text-slate-500" />
@@ -473,14 +484,23 @@ export default function App() {
                   })}
                 </nav>
 
-                <div className="pt-4 border-t border-white/5 shrink-0">
+                <div className="pt-4 border-t border-black/10 dark:border-white/5 shrink-0">
                   {user ? (
                     <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-3 p-2 rounded-lg bg-white/5">
+                      <div className="flex items-center gap-3 p-2 rounded-lg bg-black/5 dark:bg-white/5">
                         <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-[10px]">
                           AD
                         </div>
-                        <span className="text-[10px] font-bold text-slate-300 truncate flex-1">{user.email}</span>
+                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate flex-1">{user.email}</span>
+                        <button
+                          onClick={() => {
+                            setTheme(theme === 'dark' ? 'light' : 'dark');
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className="p-1.5 rounded-md hover:bg-black/10 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all"
+                        >
+                          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                        </button>
                       </div>
                       <button 
                         onClick={() => {
@@ -493,16 +513,28 @@ export default function App() {
                       </button>
                     </div>
                   ) : (
-                    <button 
-                      onClick={() => {
-                        setShowAdminLogin(true);
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
-                    >
-                      <Lock className="w-3 h-3 text-amber-500" />
-                      Admin Login
-                    </button>
+                    <div className="flex flex-col gap-2">
+                      <button 
+                        onClick={() => {
+                          setShowAdminLogin(true);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-slate-900 dark:text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+                      >
+                        <Lock className="w-3 h-3 text-amber-500" />
+                        Admin Login
+                      </button>
+                      <button
+                        onClick={() => {
+                          setTheme(theme === 'dark' ? 'light' : 'dark');
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-slate-900 dark:text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+                      >
+                        {theme === 'dark' ? <Sun className="w-3 h-3 text-amber-500" /> : <Moon className="w-3 h-3 text-slate-900" />}
+                        {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -532,7 +564,7 @@ export default function App() {
                 <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl">
                   <ShieldAlert className="w-10 h-10 text-amber-500" />
                 </div>
-                <h2 className="text-3xl font-black text-white uppercase italic tracking-tighter mb-4">Access Denied</h2>
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter mb-4">Access Denied</h2>
                 <p className="text-coffee-600 font-bold uppercase tracking-widest text-[10px] mb-8 leading-relaxed">This terminal is restricted to authorized personnel. Please authenticate to proceed.</p>
                 <button 
                   onClick={() => setShowAdminLogin(true)}
@@ -642,10 +674,10 @@ export default function App() {
 
         {successOrder && (
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-in fade-in duration-500"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-300 dark:bg-black/60 backdrop-blur-xl animate-in fade-in duration-500"
           >
             <div
-              className="bg-[#0a0a0c] rounded-[3rem] p-10 max-w-sm w-full shadow-[0_50px_100px_-20px_rgba(0,0,0,1)] flex flex-col items-center text-center border-2 border-white/5 relative overflow-hidden animate-in zoom-in-95 duration-500"
+              className="bg-white dark:bg-[#0a0a0c] rounded-[3rem] p-10 max-w-sm w-full shadow-[0_50px_100px_-20px_rgba(0,0,0,1)] flex flex-col items-center text-center border-2 border-black/10 dark:border-white/5 relative overflow-hidden animate-in zoom-in-95 duration-500"
             >
               {/* Background Glows */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-amber-500/10 rounded-full blur-[80px] pointer-events-none" />
@@ -657,9 +689,9 @@ export default function App() {
                 </div>
               </div>
 
-              <h2 className="text-3xl font-black text-white mb-3 uppercase italic tracking-tighter">Order Launched!</h2>
+              <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-3 uppercase italic tracking-tighter">Order Launched!</h2>
               <p className="text-coffee-600 text-xs font-bold uppercase tracking-widest mb-8 leading-relaxed">
-                Your sequence <span className="text-white">#{successOrder.id?.slice(-4)}</span> {successOrder.status === 'unpaid' ? 'is awaiting fuel credits. Please visit the station.' : 'is now being prepared in orbit.'}
+                Your sequence <span className="text-slate-900 dark:text-white">#{successOrder.id?.slice(-4)}</span> {successOrder.status === 'unpaid' ? 'is awaiting fuel credits. Please visit the station.' : 'is now being prepared in orbit.'}
               </p>
               
               <div className="w-full space-y-3 relative z-10">
