@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SplashScreen, ShopSettings } from '../types';
-import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload } from 'lucide-react';
+import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt } from 'lucide-react';
+import { useTheme } from '../lib/ThemeProvider';
 
 interface AdminSettingsProps {
   splashScreen: SplashScreen | null;
@@ -11,6 +12,7 @@ interface AdminSettingsProps {
 
 export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUpdateShop }: AdminSettingsProps) {
   const [activeTab, setActiveTab] = useState<'shop' | 'splash'>('shop');
+  const { theme, setTheme } = useTheme();
   
   const [splashData, setSplashData] = useState<Partial<SplashScreen>>({
     title: '',
@@ -26,6 +28,8 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     name: '',
     initials: '',
     logoUrl: '',
+    receiptName: '',
+    receiptLogoUrl: '',
     themeColor: '#4b2c20',
     gridColumns: 4,
     mobileGridColumns: 2,
@@ -56,6 +60,8 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         name: shopSettings.name,
         initials: shopSettings.initials,
         logoUrl: shopSettings.logoUrl,
+        receiptName: shopSettings.receiptName || '',
+        receiptLogoUrl: shopSettings.receiptLogoUrl || '',
         themeColor: shopSettings.themeColor,
         gridColumns: shopSettings.gridColumns || 4,
         mobileGridColumns: shopSettings.mobileGridColumns || 2,
@@ -66,7 +72,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     }
   }, [shopSettings]);
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'receiptLogoUrl' = 'logoUrl') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -79,7 +85,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     reader.onload = (event) => {
       const base64String = event.target?.result as string;
       if (base64String) {
-        setShopData(prev => ({ ...prev, logoUrl: base64String }));
+        setShopData(prev => ({ ...prev, [field]: base64String }));
       }
     };
     reader.readAsDataURL(file);
@@ -190,7 +196,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Theme Color</label>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Theme Config</label>
                   <div className="flex gap-3">
                     <input 
                       type="color" 
@@ -198,12 +204,14 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                       onChange={e => setShopData({ ...shopData, themeColor: e.target.value })}
                       className="w-14 h-14 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl cursor-pointer overflow-hidden p-0 shrink-0"
                     />
-                    <input 
-                      type="text" 
-                      value={shopData.themeColor}
-                      onChange={e => setShopData({ ...shopData, themeColor: e.target.value })}
-                      className="flex-1 min-w-0 px-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-mono font-black text-slate-900 dark:text-white text-xs"
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      className="flex-1 min-w-0 flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-2xl transition-all h-14"
+                      title="Toggle System Theme"
+                    >
+                      {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-slate-700" />}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -257,7 +265,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                   <div className="flex-[2] relative flex flex-col justify-center">
                     <span className="text-[8px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-1.5 ml-1">Paste Image URL</span>
                     <div className="relative">
-                      <Image className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
+                      <Image className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20 dark:text-white/20" />
                       <input 
                         type="text" 
                         value={shopData.logoUrl || ''}
@@ -272,9 +280,52 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Name</label>
+                  <div className="relative">
+                    <ScrollText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/20 dark:text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.receiptName || ''}
+                      onChange={e => setShopData({ ...shopData, receiptName: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. Astro Coffee Ltd."
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Logo</label>
+                  <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center bg-black/5 dark:bg-white/5 p-2 rounded-2xl border border-black/10 dark:border-white/10">
+                    <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-xl p-3 cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5 text-center group">
+                      <Upload className="w-5 h-5 text-slate-500 dark:text-white/40 group-hover:text-amber-500 mb-1 transition-all" />
+                      <span className="text-[9px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Upload PNG</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => handleLogoUpload(e, 'receiptLogoUrl')}
+                        className="hidden" 
+                      />
+                    </label>
+                    <div className="flex-[2] relative flex flex-col justify-center">
+                      <div className="relative">
+                        <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20 dark:text-white/20" />
+                        <input 
+                          type="text" 
+                          value={shopData.receiptLogoUrl || ''}
+                          onChange={e => setShopData({ ...shopData, receiptLogoUrl: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#111115] border border-black/10 dark:border-white/10 rounded-xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-xs"
+                          placeholder="Or paste image URL"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
                   <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Address</label>
                   <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/20 dark:text-white/20" />
                     <input 
                       type="text" 
                       value={shopData.address || ''}
@@ -287,7 +338,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                 <div>
                   <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Phone</label>
                   <div className="relative">
-                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/20 dark:text-white/20" />
                     <input 
                       type="text" 
                       value={shopData.phone || ''}

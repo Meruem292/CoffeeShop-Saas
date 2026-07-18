@@ -25,7 +25,7 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const { user, isAdmin, loading: authLoading, logOut } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
   
   const {
     products,
@@ -323,13 +323,6 @@ export default function App() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                      className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all shrink-0"
-                      title="Toggle Theme"
-                    >
-                      {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                    </button>
                     <button 
                       onClick={logOut}
                       className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-red-400 transition-all shrink-0"
@@ -492,15 +485,6 @@ export default function App() {
                           AD
                         </div>
                         <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate flex-1">{user.email}</span>
-                        <button
-                          onClick={() => {
-                            setTheme(theme === 'dark' ? 'light' : 'dark');
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="p-1.5 rounded-md hover:bg-black/10 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all"
-                        >
-                          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                        </button>
                       </div>
                       <button 
                         onClick={() => {
@@ -513,28 +497,16 @@ export default function App() {
                       </button>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-2">
-                      <button 
-                        onClick={() => {
-                          setShowAdminLogin(true);
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-slate-900 dark:text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
-                      >
-                        <Lock className="w-3 h-3 text-amber-500" />
-                        Admin Login
-                      </button>
-                      <button
-                        onClick={() => {
-                          setTheme(theme === 'dark' ? 'light' : 'dark');
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-slate-900 dark:text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
-                      >
-                        {theme === 'dark' ? <Sun className="w-3 h-3 text-amber-500" /> : <Moon className="w-3 h-3 text-slate-900" />}
-                        {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => {
+                        setShowAdminLogin(true);
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-slate-900 dark:text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+                    >
+                      <Lock className="w-3 h-3 text-amber-500" />
+                      Admin Login
+                    </button>
                   )}
                 </div>
               </div>

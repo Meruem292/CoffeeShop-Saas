@@ -53,6 +53,8 @@ export interface ShopSettings {
   name: string;
   initials: string;
   logoUrl?: string;
+  receiptName?: string;
+  receiptLogoUrl?: string;
   themeColor?: string;
   gridColumns?: number;
   mobileGridColumns?: number;

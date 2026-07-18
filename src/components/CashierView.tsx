@@ -345,7 +345,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
       let data = INIT;
       
       // Header
-      const nameToPrint = shopSettings?.name || 'Astro Coffee';
+      const nameToPrint = shopSettings?.receiptName || shopSettings?.name || 'Astro Coffee';
       data += centerText(nameToPrint.toUpperCase());
       data += centerText((shopSettings?.tagline || "Refuel Station").toUpperCase());
       data += centerText((shopSettings?.address || "123 NEBULA BLVD, SPACEPORT").toUpperCase());
@@ -679,8 +679,12 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
             <div key={copyIdx} className={copyIdx > 0 ? 'mt-8 border-t border-dashed border-black pt-8' : ''}>
               
               {/* Header */}
-              <div className="text-center mb-4">
-                <h2 className="text-xl font-black uppercase tracking-tight mb-0.5">{(shopSettings?.name || 'Astro Coffee').toUpperCase()}</h2>
+              <div className="text-center mb-4 flex flex-col items-center">
+                {shopSettings?.receiptLogoUrl ? (
+                  <img src={shopSettings.receiptLogoUrl} alt="Receipt Logo" className="h-12 object-contain mb-2 filter grayscale" />
+                ) : (
+                  <h2 className="text-xl font-black uppercase tracking-tight mb-0.5">{(shopSettings?.receiptName || shopSettings?.name || 'Astro Coffee').toUpperCase()}</h2>
+                )}
                 <p className="text-[9px] uppercase tracking-widest font-black text-gray-800">{shopSettings?.tagline || 'Refuel Station'}</p>
                 <p className="text-[8px] text-gray-500 mt-0.5">{shopSettings?.address || '123 Nebula Boulevard, Spaceport'}</p>
                 <p className="text-[8px] text-gray-500">{shopSettings?.phone ? `Tel: ${shopSettings.phone}` : 'Tel: +63 900 123 4567'}</p>
