@@ -17,9 +17,30 @@ interface OrderingScreenProps {
 
 export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQuery = '', shopSettings, categoriesData }: OrderingScreenProps) {
   const categories = useMemo(() => {
-    let list: string[];
+    let list: string[] = [];
     if (categoriesData && categoriesData.length > 0) {
       list = categoriesData.map(c => c.name);
+      
+      // Also include categories from products that might not be in categoriesData
+      const productCats = Array.from(new Set(menu.map(p => p.category)));
+      productCats.forEach(pCat => {
+        const pCatLower = (pCat || '').trim().toLowerCase();
+        
+        const isCovered = list.some(cName => {
+          const cNameLower = cName.trim().toLowerCase();
+          if (cNameLower === pCatLower) return true;
+          
+          const pParts = pCatLower.split('/').map(s => s.trim());
+          if (pParts.includes(cNameLower)) return true;
+          
+          const cParts = cNameLower.split('/').map(s => s.trim());
+          return cParts.some(cp => pParts.includes(cp) || pCatLower === cp);
+        });
+        
+        if (!isCovered && pCat && pCat.trim()) {
+          list.push(pCat.trim());
+        }
+      });
     } else {
       list = Array.from(new Set(menu.map(p => p.category)));
       if (list.length === 0) {
@@ -27,9 +48,19 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
       }
     }
     // Only keep categories that have at least one registered active product
-    return list.filter(catName => 
-      menu.some(p => p.category.trim().toLowerCase() === catName.trim().toLowerCase())
-    );
+    return list.filter(catName => {
+      const catNameLower = catName.trim().toLowerCase();
+      return menu.some(p => {
+        const productCatLower = (p.category || '').trim().toLowerCase();
+        if (productCatLower === catNameLower) return true;
+        // Support slash-separated combined categories (e.g., "Matcha/Non-Coffee" matches "Non-Coffee" or "Matcha")
+        const productParts = productCatLower.split('/').map(s => s.trim());
+        if (productParts.includes(catNameLower)) return true;
+        
+        const catParts = catNameLower.split('/').map(s => s.trim());
+        return catParts.some(cp => productParts.includes(cp) || productCatLower === cp);
+      });
+    });
   }, [categoriesData, menu]);
 
   const [activeCategory, setActiveCategory] = useState<string>(categories[0] || '');
@@ -152,7 +183,18 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
     if (searchQuery) {
       return menu.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
     }
-    return menu.filter(item => (item.category || '').trim().toLowerCase() === (activeCategory || '').trim().toLowerCase());
+    const activeCatLower = (activeCategory || '').trim().toLowerCase();
+    return menu.filter(item => {
+      const itemCatLower = (item.category || '').trim().toLowerCase();
+      if (itemCatLower === activeCatLower) return true;
+      
+      // Support slash-separated combined categories (e.g., "Matcha/Non-Coffee" matches "Non-Coffee")
+      const productParts = itemCatLower.split('/').map(s => s.trim());
+      if (productParts.includes(activeCatLower)) return true;
+      
+      const activeParts = activeCatLower.split('/').map(s => s.trim());
+      return activeParts.some(ap => productParts.includes(ap) || itemCatLower === ap);
+    });
   }, [menu, searchQuery, activeCategory]);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
