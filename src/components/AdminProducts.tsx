@@ -4,7 +4,7 @@ import {
   Plus, Edit2, Trash2, Package, Database, ShieldAlert, X, Coffee,
   IceCream, CupSoda, Croissant, Utensils, Sparkles, Leaf,
   GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Layout, AlertTriangle,
-  Upload, Info, Check
+  Upload, Info, Check, ChevronUp, ChevronDown
 } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { uploadProductImage, isSupabaseConfigured } from '../lib/supabase';
@@ -209,7 +209,7 @@ export function AdminProducts({
       onUpdateCategory(isEditingCategory.id, categoryFormData);
       setIsEditingCategory(null);
     } else {
-      onAddCategory(categoryFormData);
+      onAddCategory({ ...categoryFormData, order: categories.length });
       setIsAddingCategory(false);
     }
     setCategoryFormData(initialCategoryState);
@@ -250,6 +250,21 @@ export function AdminProducts({
     setIsEditingCategory(category);
     setCategoryFormData(category);
     setIsAddingCategory(false);
+  };
+
+  const handleMoveCategory = (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= categories.length) return;
+
+    const newCategories = [...categories];
+    const item = newCategories.splice(index, 1)[0];
+    newCategories.splice(newIndex, 0, item);
+
+    newCategories.forEach((cat, i) => {
+      if (cat.order !== i) {
+        onUpdateCategory(cat.id, { order: i });
+      }
+    });
   };
 
   const cancelEdit = () => {
@@ -849,7 +864,7 @@ export function AdminProducts({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/10 dark:divide-white/5">
-                    {categories.map((category) => {
+                    {categories.map((category, index) => {
                       const IconComponent = iconLookup[category.iconName] || Coffee;
                       return (
                         <tr key={category.id} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors group">
@@ -866,6 +881,14 @@ export function AdminProducts({
                               </div>
                               
                               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                <div className="flex flex-col gap-0.5 mr-2">
+                                  <button onClick={() => handleMoveCategory(index, 'up')} disabled={index === 0} className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-md transition-all">
+                                    <ChevronUp className="w-3 h-3" />
+                                  </button>
+                                  <button onClick={() => handleMoveCategory(index, 'down')} disabled={index === categories.length - 1} className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white disabled:opacity-30 disabled:hover:text-slate-400 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-md transition-all">
+                                    <ChevronDown className="w-3 h-3" />
+                                  </button>
+                                </div>
                                 <button onClick={() => handleEditCategory(category)} className="p-2.5 sm:p-3 text-coffee-500 hover:text-slate-900 dark:hover:text-white bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-xl transition-all">
                                   <Edit2 className="w-4 h-4" />
                                 </button>

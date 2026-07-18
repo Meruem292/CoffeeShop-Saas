@@ -105,6 +105,11 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
         });
       } else {
         const c = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DynamicCategory));
+        c.sort((a, b) => {
+          const orderA = a.order !== undefined ? a.order : 999;
+          const orderB = b.order !== undefined ? b.order : 999;
+          return orderA - orderB;
+        });
         setCategories(c);
       }
     }, (err) => handleSnapshotError(err, OperationType.LIST, 'categories'));
