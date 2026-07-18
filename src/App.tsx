@@ -61,8 +61,8 @@ export default function App() {
   useEffect(() => {
     if (shopSettings?.themeMode) {
       setTheme(shopSettings.themeMode);
-    } else {
-      document.documentElement.classList.add('dark');
+    } else if (shopSettings) {
+      setTheme('dark');
     }
   }, [shopSettings?.themeMode, setTheme]);
 

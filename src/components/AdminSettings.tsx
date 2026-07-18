@@ -211,6 +211,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                         const newMode = (shopData.themeMode || theme) === 'dark' ? 'light' : 'dark';
                         setShopData({ ...shopData, themeMode: newMode });
                         setTheme(newMode);
+                        onUpdateShop({ themeMode: newMode }); // Auto-save for immediate global sync
                       }}
                       className="flex-1 min-w-0 flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-2xl transition-all h-14"
                       title="Toggle System Theme"
