@@ -266,7 +266,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
         <div className="grid grid-cols-2 gap-12 w-full max-w-5xl relative z-10">
           <button
             onClick={() => setOrderType('dine-in')}
-            className="flex flex-col items-center gap-10 bg-white shadow-2xl p-16 rounded-[4rem] group transition-all hover:shadow-amber-500/10 border-2 border-slate-100 hover:border-amber-500/50"
+            className="flex flex-col items-center gap-10 bg-white dark:bg-slate-900 shadow-2xl p-16 rounded-[4rem] group transition-all hover:shadow-amber-500/10 border-2 border-slate-100 dark:border-white/5 hover:border-amber-500/50"
           >
             <div className="w-48 h-48 bg-amber-500/5 rounded-full flex items-center justify-center group-hover:bg-amber-500/10 transition-all group-hover:scale-110 shadow-inner">
               <Store className="w-24 h-24 text-amber-500" />
@@ -279,7 +279,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
 
           <button
             onClick={() => setOrderType('take-away')}
-            className="flex flex-col items-center gap-10 bg-white shadow-2xl p-16 rounded-[4rem] group transition-all hover:shadow-amber-500/10 border-2 border-slate-100 hover:border-amber-500/50"
+            className="flex flex-col items-center gap-10 bg-white dark:bg-slate-900 shadow-2xl p-16 rounded-[4rem] group transition-all hover:shadow-amber-500/10 border-2 border-slate-100 dark:border-white/5 hover:border-amber-500/50"
           >
             <div className="w-48 h-48 bg-amber-500/5 rounded-full flex items-center justify-center group-hover:bg-amber-500/10 transition-all group-hover:scale-110 shadow-inner">
               <ShoppingBag className="w-24 h-24 text-amber-500" />
@@ -344,7 +344,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
       <div className="flex-1 flex flex-col overflow-hidden bg-transparent">
         {/* Horizontal Categories for POS only */}
         {mode === 'pos' && (
-          <div className="p-4 bg-white border-b border-slate-100 flex gap-2.5 overflow-x-auto shrink-0 scrollbar-hide">
+          <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-white/5 flex gap-2.5 overflow-x-auto shrink-0 scrollbar-hide">
             {categories.map((cat) => (
               <button
                 key={cat}
@@ -352,7 +352,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                 className={`whitespace-nowrap px-8 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all active:scale-95 ${
                   activeCategory === cat
                     ? 'bg-amber-500 text-slate-900 dark:text-white shadow-lg'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-foreground hover:bg-slate-50 border border-slate-100'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-foreground hover:bg-slate-50 dark:hover:bg-white/5 border border-slate-100 dark:border-white/10'
                 }`}
               >
                 {cat}
@@ -673,7 +673,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
           {cart.length > 0 && !isMobileCartOpen && !isPosCartDrawerOpen && (
             <button
               onClick={() => mode === 'mobile' ? setIsMobileCartOpen(true) : setIsPosCartDrawerOpen(true)}
-              className="fixed bottom-8 right-8 z-[60] bg-white text-black p-5 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] flex items-center gap-4 group transition-all active:scale-95 animate-in fade-in zoom-in-95 duration-500 border border-black/10 dark:border-white/10"
+              className="fixed bottom-8 right-8 z-[60] bg-white dark:bg-slate-900 text-black dark:text-white p-5 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] flex items-center gap-4 group transition-all active:scale-95 animate-in fade-in zoom-in-95 duration-500 border border-black/10 dark:border-white/10"
             >
               <div className="relative">
                 <ShoppingBag className="w-7 h-7" />

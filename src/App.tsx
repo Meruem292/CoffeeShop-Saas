@@ -103,21 +103,27 @@ export default function App() {
     }
   }, [currentView, isAdmin]);
 
-  const handlePlaceOrder = (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>) => {
+  const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>) => {
     const initialStatus: OrderStatus = 'unpaid';
     
-    addOrder({
-      ...orderData,
-      status: initialStatus
-    });
-    
-    const modalOrder: Order = {
-      ...orderData,
-      id: `ord_${Date.now().toString().slice(-6)}`,
-      createdAt: Date.now(),
-      status: initialStatus,
-    };
-    setSuccessOrder(modalOrder);
+    try {
+      await addOrder({
+        ...orderData,
+        status: initialStatus
+      });
+      
+      const modalOrder: Order = {
+        ...orderData,
+        id: `ord_${Date.now().toString().slice(-6)}`,
+        createdAt: Date.now(),
+        status: initialStatus,
+      };
+      setSuccessOrder(modalOrder);
+    } catch (err) {
+      console.error('Failed to place order', err);
+      // Let the user try again instead of falsely showing success
+      alert('Failed to place order. Please try again.');
+    }
   };
 
   const menuItems = React.useMemo(() => {

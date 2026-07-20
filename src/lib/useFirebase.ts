@@ -262,6 +262,20 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   };
 
   // --- Order Operations ---
+  // Clean up undefined values as Firestore doesn't like them
+  const deepCleanUndefined = (obj: any): any => {
+    if (Array.isArray(obj)) {
+      return obj.map(deepCleanUndefined);
+    } else if (obj !== null && typeof obj === 'object') {
+      return Object.fromEntries(
+        Object.entries(obj)
+          .filter(([_, v]) => v !== undefined)
+          .map(([k, v]) => [k, deepCleanUndefined(v)])
+      );
+    }
+    return obj;
+  };
+
   const addOrder = async (order: Omit<Order, 'id' | 'createdAt'>) => {
     const user = auth.currentUser;
     const orderData = {
@@ -271,15 +285,14 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       customerId: user?.uid || null,
     };
 
-    // Clean up undefined values as Firestore doesn't like them
-    const cleanData = Object.fromEntries(
-      Object.entries(orderData).filter(([_, v]) => v !== undefined)
-    );
+    const cleanData = deepCleanUndefined(orderData);
 
     try {
       await addDoc(collection(db, 'orders'), cleanData);
     } catch (err) {
+      console.error('Add Order Error:', err);
       handleFirestoreError(err, OperationType.CREATE, 'orders');
+      throw err; // Re-throw so caller knows it failed
     }
   };
 
@@ -293,9 +306,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
 
   const updateOrder = async (id: string, updates: Partial<Order>) => {
     try {
-      const cleanData = Object.fromEntries(
-        Object.entries(updates).filter(([_, v]) => v !== undefined)
-      );
+      const cleanData = deepCleanUndefined(updates);
       await updateDoc(doc(db, 'orders', id), cleanData);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `orders/${id}`);
