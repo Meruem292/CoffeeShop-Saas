@@ -4,7 +4,7 @@ import {
   Plus, Edit2, Trash2, Package, Database, ShieldAlert, X, Coffee,
   IceCream, CupSoda, Croissant, Utensils, Sparkles, Leaf,
   GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Layout, AlertTriangle,
-  Upload, Info, Check, ChevronUp, ChevronDown
+  Upload, Info, Check, ChevronUp, ChevronDown, Search, Filter
 } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
 import { uploadProductImage, isSupabaseConfigured } from '../lib/supabase';
@@ -67,6 +67,9 @@ export function AdminProducts({
   const { isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<'products' | 'addons' | 'categories'>('products');
 
+  const [productSearch, setProductSearch] = useState('');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('All');
+
   const [isEditing, setIsEditing] = useState<Product | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -109,6 +112,14 @@ export function AdminProducts({
     return list;
   }, [categories, products]);
 
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(productSearch.toLowerCase());
+      const matchesCategory = productCategoryFilter === 'All' || product.category === productCategoryFilter;
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, productSearch, productCategoryFilter]);
+
   const initialFormState = {
     name: '',
     category: availableCategories[0] || 'Hot Coffee',
@@ -122,6 +133,7 @@ export function AdminProducts({
     isActive: true,
     sizes: [] as ProductSize[],
     isCustomizable: false,
+    mixtureGuide: '',
   };
 
   const initialAddonState = {
@@ -396,8 +408,19 @@ export function AdminProducts({
                         className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white appearance-none"
                       >
                         <option value="" className="bg-white dark:bg-[#111115]">None (All)</option>
-                        <option value="Classic" className="bg-white dark:bg-[#111115]">Classic</option>
-                        <option value="Premium" className="bg-white dark:bg-[#111115]">Premium</option>
+                        {formData.category.toLowerCase().includes('food') || formData.category.toLowerCase().includes('pastry') ? (
+                          <>
+                            <option value="Pastry" className="bg-white dark:bg-[#111115]">Pastry</option>
+                            <option value="Dessert" className="bg-white dark:bg-[#111115]">Dessert</option>
+                            <option value="Meal" className="bg-white dark:bg-[#111115]">Meal</option>
+                            <option value="Snack" className="bg-white dark:bg-[#111115]">Snack</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="Classic" className="bg-white dark:bg-[#111115]">Classic</option>
+                            <option value="Premium" className="bg-white dark:bg-[#111115]">Premium</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   </div>
@@ -464,7 +487,7 @@ export function AdminProducts({
                           ) : formData.image ? (
                             <div className="flex flex-col md:flex-row items-center gap-6 w-full p-2">
                               <img 
-                                src={formData.image} 
+                                src={formData.image || undefined} 
                                 alt="Preview" 
                                 className="w-24 h-24 rounded-2xl object-cover border border-black/10 dark:border-white/10 shadow-lg shrink-0" 
                                 referrerPolicy="no-referrer"
@@ -549,7 +572,7 @@ export function AdminProducts({
                         />
                         {formData.image && (
                           <div className="mt-4 flex items-center gap-4 p-3 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/5">
-                            <img src={formData.image} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-black/10 dark:border-white/5" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=300&q=80' }} />
+                            <img src={formData.image || undefined} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-black/10 dark:border-white/5" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=300&q=80' }} />
                             <div className="flex-1 min-w-0">
                               <p className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Image URL Preview</p>
                               <p className="text-xs text-slate-600 dark:text-white/60 truncate font-mono mt-0.5">{formData.image}</p>
@@ -562,6 +585,10 @@ export function AdminProducts({
                   <div className="md:col-span-2">
                     <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Description</label>
                     <textarea required value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white h-24" rows={2} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Barista Mixture Guide (Kitchen Only)</label>
+                    <textarea value={formData.mixtureGuide || ''} onChange={e => setFormData({ ...formData, mixtureGuide: e.target.value })} placeholder="e.g. 2 shots espresso, 1 pump vanilla, steamed milk" className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white h-24" rows={2} />
                   </div>
                   <div>
                     <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Initial Stock</label>
@@ -607,9 +634,9 @@ export function AdminProducts({
                   
                   <div className="md:col-span-2 bg-black/5 dark:bg-white/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-black/10 dark:border-white/5">
                     <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Product Sizes</h3>
+                      <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Sizes / Variants</h3>
                       <button type="button" onClick={handleAddSize} className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 bg-black/10 dark:bg-white/10 border border-black/10 dark:border-white/10 px-4 py-2 rounded-xl hover:bg-black/20 dark:hover:bg-white/20 transition-all text-slate-900 dark:text-white">
-                        <Plus className="w-3.5 h-3.5" /> Add Size
+                        <Plus className="w-3.5 h-3.5" /> Add Size/Variant
                       </button>
                     </div>
                     {formData.sizes && formData.sizes.length > 0 ? (
@@ -661,6 +688,33 @@ export function AdminProducts({
               </div>
             )}
 
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500 outline-none text-slate-900 dark:text-white font-bold transition-all text-sm"
+                />
+              </div>
+              <div className="relative shrink-0 sm:w-48">
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <select
+                  value={productCategoryFilter}
+                  onChange={(e) => setProductCategoryFilter(e.target.value)}
+                  className="w-full pl-11 pr-10 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500 outline-none text-slate-900 dark:text-white font-bold transition-all appearance-none text-sm cursor-pointer"
+                >
+                  <option value="All" className="bg-white dark:bg-slate-900">All Categories</option>
+                  {availableCategories.map(cat => (
+                    <option key={cat} value={cat} className="bg-white dark:bg-slate-900">{cat}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+              </div>
+            </div>
+
             <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-black/10 dark:border-white/10 overflow-hidden mb-12">
               <div className="overflow-x-auto scrollbar-hide">
                 <table className="w-full text-left border-collapse min-w-0">
@@ -673,13 +727,13 @@ export function AdminProducts({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/10 dark:divide-white/5">
-                    {products.map((product) => (
+                    {filteredProducts.map((product) => (
                       <tr key={product.id} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors group">
                         <td className="p-3 sm:p-6">
                           <div className="flex items-center justify-between gap-3 sm:gap-4">
                             <div className="flex items-center gap-2.5 sm:gap-4 min-w-0">
                               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl overflow-hidden border border-black/10 dark:border-white/10 group-hover:border-amber-500/50 transition-colors shrink-0">
-                                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover" />
                               </div>
                               <div className="min-w-0">
                                 <div className="font-black text-slate-900 dark:text-white text-xs sm:text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors whitespace-normal break-words max-w-[130px] xs:max-w-[180px] sm:max-w-[250px]">{product.name}</div>

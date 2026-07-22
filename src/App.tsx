@@ -247,7 +247,7 @@ export default function App() {
             <div className="p-6 border-b border-black/10 dark:border-white/5 flex items-center gap-3 shrink-0">
               <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-inner shrink-0">
                 {shopSettings?.logoUrl ? (
-                  <img src={shopSettings.logoUrl} className="w-full h-full object-cover" alt="Logo" />
+                  <img src={shopSettings.logoUrl || undefined} className="w-full h-full object-cover" alt="Logo" />
                 ) : (
                   <Sparkles className="w-5 h-5 text-amber-500" />
                 )}
@@ -425,7 +425,7 @@ export default function App() {
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center overflow-hidden">
                       {shopSettings?.logoUrl ? (
-                        <img src={shopSettings.logoUrl} className="w-full h-full object-cover" alt="Logo" />
+                        <img src={shopSettings.logoUrl || undefined} className="w-full h-full object-cover" alt="Logo" />
                       ) : (
                         <Sparkles className="w-4 h-4 text-amber-500" />
                       )}

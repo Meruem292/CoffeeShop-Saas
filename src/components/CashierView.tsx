@@ -681,7 +681,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
               {/* Header */}
               <div className="text-center mb-4 flex flex-col items-center">
                 {shopSettings?.receiptLogoUrl ? (
-                  <img src={shopSettings.receiptLogoUrl} alt="Receipt Logo" className="h-12 object-contain mb-2 filter grayscale" />
+                  <img src={shopSettings.receiptLogoUrl || undefined} alt="Receipt Logo" className="h-12 object-contain mb-2 filter grayscale" />
                 ) : (
                   <h2 className="text-xl font-black uppercase tracking-tight mb-0.5">{(shopSettings?.receiptName || shopSettings?.name || 'Astro Coffee').toUpperCase()}</h2>
                 )}

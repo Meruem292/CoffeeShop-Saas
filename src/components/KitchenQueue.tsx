@@ -135,11 +135,33 @@ export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder }: KitchenQ
                           <div className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight italic truncate">
                             {item.name}
                           </div>
-                          {item.selectedSize && (
-                            <div className="mt-1">
-                              <span className="text-[9px] text-slate-500 dark:text-white/40 font-black px-2 py-0.5 rounded bg-black/5 dark:bg-white/5 uppercase border border-black/10 dark:border-white/5 tracking-widest">
-                                {item.selectedSize.name}
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {item.selectedSize && (
+                              <span className="text-[9px] text-amber-500 font-black px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 uppercase tracking-widest shrink-0">
+                                Size: {item.selectedSize.name}
                               </span>
+                            )}
+                            {item.sugarLevel && (
+                              <span className="text-[9px] text-blue-400 font-black px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 uppercase tracking-widest shrink-0">
+                                Sugar: {item.sugarLevel}
+                              </span>
+                            )}
+                            {item.selectedAddons && item.selectedAddons.length > 0 && item.selectedAddons.map((addon, aIdx) => (
+                              <span key={aIdx} className="text-[9px] text-green-400 font-black px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20 uppercase tracking-widest shrink-0">
+                                + {addon.name}
+                              </span>
+                            ))}
+                          </div>
+                          {item.mixtureGuide && (
+                            <div className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/10 dark:border-white/5 italic">
+                              <span className="block text-[9px] font-black uppercase tracking-widest text-coffee-500 not-italic mb-1">Mixture Guide</span>
+                              {item.mixtureGuide}
+                            </div>
+                          )}
+                          {item.notes && (
+                            <div className="mt-2 text-xs font-bold text-red-500/80 bg-red-500/10 p-2.5 rounded-xl border border-red-500/20 italic">
+                              <span className="block text-[9px] font-black uppercase tracking-widest text-red-500/50 not-italic mb-1">Customer Note</span>
+                              "{item.notes}"
                             </div>
                           )}
                         </div>

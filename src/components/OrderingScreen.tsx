@@ -96,6 +96,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   const isProductBeverage = (product: Product) => {
     const categoryLower = (product.category || '').toLowerCase();
     const nameLower = (product.name || '').toLowerCase();
+    if (categoryLower.includes('food') || categoryLower.includes('pastry') || categoryLower.includes('dessert')) {
+      return !!product.isCustomizable; 
+    }
     return ['coffee', 'tea', 'drink', 'beverage', 'iced', 'hot', 'latte', 'americano', 'matcha', 'macchiato', 'espresso', 'cappuccino'].some(keyword => 
       categoryLower.includes(keyword) || nameLower.includes(keyword)
     ) || !!product.isCustomizable;
@@ -592,7 +595,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
         <button
           onClick={handleCheckout}
           disabled={cart.length === 0}
-          className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-black/5 dark:bg-white/5 disabled:text-white/20 text-black py-5 rounded-[2rem] font-black text-xl uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] mb-2"
+          className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-black/5 dark:disabled:bg-white/10 disabled:text-black/30 dark:disabled:text-white/50 text-black py-5 rounded-[2rem] font-black text-xl uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] mb-2"
         >
           {mode === 'mobile' ? 'Launch Order' : 'Checkout'}
         </button>
@@ -633,7 +636,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                  {cart.slice(0, 4).map((item, i) => (
                    <div key={item.cartId} className="relative transition-transform duration-300 group-hover:translate-x-2" style={{ zIndex: 10 - i }}>
                      <img 
-                      src={item.image} 
+                      src={item.image || undefined} 
                       className="w-14 h-14 rounded-full border-4 border-slate-900 shadow-xl object-cover" 
                       alt={item.name} 
                      />
@@ -650,7 +653,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
             <button 
               onClick={() => setIsKioskCartOpen(true)}
               disabled={cart.length === 0}
-              className="px-16 bg-amber-500 hover:bg-amber-400 text-black rounded-[2.5rem] font-black text-2xl uppercase tracking-tighter italic hover:scale-[1.02] transition-all shadow-xl active:scale-95 disabled:opacity-30 disabled:grayscale flex items-center gap-4"
+              className="px-16 bg-amber-500 hover:bg-amber-400 text-black rounded-[2.5rem] font-black text-2xl uppercase tracking-tighter italic hover:scale-[1.02] transition-all shadow-xl active:scale-95 disabled:opacity-50 disabled:grayscale flex items-center gap-4"
             >
               Ignition
               <ArrowRight className="w-8 h-8" />
@@ -717,7 +720,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
               className="bg-white dark:bg-[#0b1329] w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] border border-black/10 dark:border-white/10 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-300"
             >
               <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden">
-                <img src={selectedProductForConfig.image} alt={selectedProductForConfig.name} className="w-full h-full object-cover" />
+                <img src={selectedProductForConfig.image || undefined} alt={selectedProductForConfig.name} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0b1329] via-[#0b1329]/30 to-transparent" />
                 <button 
                   onClick={() => setSelectedProductForConfig(null)}
@@ -735,7 +738,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                 
                 {selectedProductForConfig.sizes && selectedProductForConfig.sizes.length > 0 && (
                   <div className="space-y-3">
-                    <label className="block text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Select Size</label>
+                    <label className="block text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Size / Variant</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {selectedProductForConfig.sizes.map((size) => {
                         const isSelected = selectedSizeConfig?.name === size.name;

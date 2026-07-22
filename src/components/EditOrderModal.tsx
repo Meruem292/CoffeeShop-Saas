@@ -19,6 +19,17 @@ export function EditOrderModal({ isOpen, onClose, order, onSave, onCancelOrder, 
   const [orderToConfirmCancel, setOrderToConfirmCancel] = useState(false);
   const [editingItemIdx, setEditingItemIdx] = useState<number | null>(null);
 
+  const isProductBeverage = (product: Product) => {
+    const categoryLower = (product.category || '').toLowerCase();
+    const nameLower = (product.name || '').toLowerCase();
+    if (categoryLower.includes('food') || categoryLower.includes('pastry') || categoryLower.includes('dessert')) {
+      return !!product.isCustomizable; 
+    }
+    return ['coffee', 'tea', 'drink', 'beverage', 'iced', 'hot', 'latte', 'americano', 'matcha', 'macchiato', 'espresso', 'cappuccino'].some(keyword => 
+      categoryLower.includes(keyword) || nameLower.includes(keyword)
+    ) || !!product.isCustomizable;
+  };
+
   useEffect(() => {
     if (order) {
       // Deep clone items to avoid mutating state directly
@@ -174,7 +185,7 @@ export function EditOrderModal({ isOpen, onClose, order, onSave, onCancelOrder, 
                         <div className="flex items-center gap-4 flex-1">
                           {item.image ? (
                             <img 
-                              src={item.image} 
+                              src={item.image || undefined} 
                               alt={item.name} 
                               className="w-12 h-12 rounded-xl object-cover border border-black/10 dark:border-white/10 shrink-0"
                               referrerPolicy="no-referrer"
@@ -263,39 +274,42 @@ export function EditOrderModal({ isOpen, onClose, order, onSave, onCancelOrder, 
                       {/* Expanded Options */}
                       {isEditing && (
                         <div className="mt-4 p-4 bg-slate-100 dark:bg-black/20 rounded-xl space-y-4 border border-black/10 dark:border-white/5 animate-in slide-in-from-top-2">
-                          <div>
-                            <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Sugar Level</label>
-                            <div className="flex gap-2">
-                              {(['0%', '25%', '50%', '75%', '100%'] as SugarLevel[]).map(level => (
-                                <button
-                                  key={level}
-                                  onClick={() => handleSugarChange(idx, level)}
-                                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${item.sugarLevel === level ? 'bg-amber-500 text-black' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'}`}
-                                >
-                                  {level}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Add-ons</label>
-                            <div className="flex flex-wrap gap-2">
-                              {availableAddons.map(addon => (
-                                <button
-                                  key={addon.id}
-                                  onClick={() => toggleAddon(idx, addon)}
-                                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
-                                    item.selectedAddons?.find(a => a.id === addon.id) 
-                                      ? 'bg-blue-500 text-slate-900 dark:text-white' 
-                                      : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
-                                  }`}
-                                >
-                                  {addon.name} (+₱{addon.price})
-                                </button>
-                              ))}
-                            </div>
-                          </div>
+                          {(isProductBeverage(item)) && (
+                            <>
+                              <div>
+                                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Sugar Level</label>
+                                <div className="flex gap-2">
+                                  {(['0%', '25%', '50%', '75%', '100%'] as SugarLevel[]).map(level => (
+                                    <button
+                                      key={level}
+                                      onClick={() => handleSugarChange(idx, level)}
+                                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${item.sugarLevel === level ? 'bg-amber-500 text-black' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'}`}
+                                    >
+                                      {level}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Add-ons</label>
+                                <div className="flex flex-wrap gap-2">
+                                  {availableAddons.map(addon => (
+                                    <button
+                                      key={addon.id}
+                                      onClick={() => toggleAddon(idx, addon)}
+                                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
+                                        item.selectedAddons?.find(a => a.id === addon.id) 
+                                          ? 'bg-blue-500 text-slate-900 dark:text-white' 
+                                          : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
+                                      }`}
+                                    >
+                                      {addon.name} (+₱{addon.price})
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </>
+                          )}
                           
                           <div>
                              <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Notes</label>

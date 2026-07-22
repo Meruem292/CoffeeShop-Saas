@@ -42,7 +42,7 @@ export const ProductCard = React.memo(({ item, mode, cartCount, onClick }: Produ
       >
         <div className={`w-full overflow-hidden bg-white/60 dark:bg-slate-950/40 relative transition-all duration-500 ${mode === 'mobile' ? 'aspect-[4/3] mb-1' : 'aspect-square mb-2'}`}>
           <img 
-            src={item.image} 
+            src={item.image || undefined} 
             alt={item.name} 
             className={`w-full h-full object-cover transition-transform duration-700 ${isAvailable ? 'group-hover/card:scale-105' : 'grayscale opacity-30'}`}
             referrerPolicy="no-referrer"

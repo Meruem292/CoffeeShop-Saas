@@ -80,7 +80,7 @@ export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps)
             className="w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl border border-slate-200/20 bg-white p-0.5 transition-transform group-hover:scale-110 duration-500"
           >
             {shopSettings?.logoUrl ? (
-              <img src={shopSettings.logoUrl} className="w-full h-full object-cover rounded-xl" alt="Logo" />
+              <img src={shopSettings.logoUrl || undefined} className="w-full h-full object-cover rounded-xl" alt="Logo" />
             ) : (
               <span className="text-xl md:text-2xl font-black text-[#020617] italic tracking-tighter">{shopSettings?.initials || 'CH'}</span>
             )}

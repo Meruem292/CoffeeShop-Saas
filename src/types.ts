@@ -35,6 +35,7 @@ export interface Product {
   isActive: boolean;
   sizes?: ProductSize[];
   isCustomizable?: boolean;
+  mixtureGuide?: string;
 }
 
 // Map Product to MenuItem and InventoryItem for backward compatibility with components,

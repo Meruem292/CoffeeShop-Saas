@@ -472,7 +472,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                 style={{ backgroundColor: shopData.themeColor || '#4b2c20' }}
                >
                  {shopData.logoUrl ? (
-                   <img src={shopData.logoUrl} className="w-full h-full object-cover" alt="Logo" referrerPolicy="no-referrer" />
+                   <img src={shopData.logoUrl || undefined} className="w-full h-full object-cover" alt="Logo" referrerPolicy="no-referrer" />
                  ) : (
                    <span className="text-5xl sm:text-7xl font-black text-slate-900 dark:text-white italic tracking-tighter">{shopData.initials || 'CH'}</span>
                  )}
