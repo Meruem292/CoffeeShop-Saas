@@ -22,8 +22,8 @@ export function EditOrderModal({ isOpen, onClose, order, onSave, onCancelOrder, 
   const isProductBeverage = (product: Product) => {
     const categoryLower = (product.category || '').toLowerCase();
     const nameLower = (product.name || '').toLowerCase();
-    if (categoryLower.includes('food') || categoryLower.includes('pastry') || categoryLower.includes('dessert')) {
-      return !!product.isCustomizable; 
+    if (categoryLower.includes('food') || categoryLower.includes('pastry') || categoryLower.includes('dessert') || categoryLower.includes('meal') || categoryLower.includes('snack')) {
+      return false; 
     }
     return ['coffee', 'tea', 'drink', 'beverage', 'iced', 'hot', 'latte', 'americano', 'matcha', 'macchiato', 'espresso', 'cappuccino'].some(keyword => 
       categoryLower.includes(keyword) || nameLower.includes(keyword)

@@ -96,8 +96,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   const isProductBeverage = (product: Product) => {
     const categoryLower = (product.category || '').toLowerCase();
     const nameLower = (product.name || '').toLowerCase();
-    if (categoryLower.includes('food') || categoryLower.includes('pastry') || categoryLower.includes('dessert')) {
-      return !!product.isCustomizable; 
+    if (categoryLower.includes('food') || categoryLower.includes('pastry') || categoryLower.includes('dessert') || categoryLower.includes('meal') || categoryLower.includes('snack')) {
+      return false; 
     }
     return ['coffee', 'tea', 'drink', 'beverage', 'iced', 'hot', 'latte', 'americano', 'matcha', 'macchiato', 'espresso', 'cappuccino'].some(keyword => 
       categoryLower.includes(keyword) || nameLower.includes(keyword)
@@ -140,11 +140,12 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
 
   const handleConfigSubmit = () => {
     if (selectedProductForConfig) {
+      const isBev = isProductBeverage(selectedProductForConfig);
       addToCart(
         selectedProductForConfig, 
         selectedSizeConfig || undefined, 
-        selectedProductForConfig.isCustomizable ? selectedSugarConfig : undefined, 
-        selectedProductForConfig.isCustomizable ? selectedAddonsConfig : undefined
+        isBev ? selectedSugarConfig : undefined, 
+        isBev ? selectedAddonsConfig : undefined
       );
       setSelectedProductForConfig(null);
     }
@@ -757,7 +758,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                   </div>
                 )}
                 
-                {(selectedProductForConfig.isCustomizable || isProductBeverage(selectedProductForConfig)) && (
+                {isProductBeverage(selectedProductForConfig) && (
                   <div className="space-y-6">
                     <div className="space-y-3">
                       <label className="block text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Sugar Level</label>
