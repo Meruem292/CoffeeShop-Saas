@@ -29,8 +29,8 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
     return null;
   }
 
-  const preparingCount = orders.filter(o => o.status === 'preparing').length;
-  const readyCount = orders.filter(o => o.status === 'ready').length;
+  const preparingOrders = orders.filter(o => o.status === 'preparing').sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+  const readyOrders = orders.filter(o => o.status === 'ready').sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
 
   const themeColor = shopSettings?.themeColor || '#4b2c20';
 
@@ -139,20 +139,53 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
           </div>
         </div>
 
-        {/* Queuing Status */}
-        <div className="mt-8 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-5 duration-1000 delay-500 pointer-events-auto">
-          <div className="flex items-center gap-3 bg-black/10 dark:bg-white/10 backdrop-blur-xl px-6 py-3 rounded-2xl border border-black/10 dark:border-white/10">
-            <ChefHat className="w-5 h-5 text-amber-500" />
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Preparing</span>
-              <span className="text-lg font-black text-slate-900 dark:text-white leading-none">{preparingCount}</span>
+        {/* Queuing Status Display */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl animate-in fade-in slide-in-from-bottom-5 duration-1000 delay-500 pointer-events-auto">
+          {/* Preparing Column */}
+          <div className="flex flex-col bg-black/10 dark:bg-white/10 backdrop-blur-xl rounded-[2rem] border border-black/10 dark:border-white/10 overflow-hidden">
+            <div className="px-6 py-4 border-b border-black/10 dark:border-white/10 flex items-center gap-3 bg-black/5 dark:bg-white/5">
+              <ChefHat className="w-6 h-6 text-amber-500" />
+              <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Preparing</span>
+            </div>
+            <div className="p-6 flex flex-col gap-3 min-h-[120px]">
+              {preparingOrders.length > 0 ? (
+                preparingOrders.map(order => (
+                  <div key={order.id} className="flex items-center justify-between bg-white/40 dark:bg-black/20 px-4 py-3 rounded-xl border border-black/5 dark:border-white/5">
+                    <span className="font-black text-xl text-slate-900 dark:text-white tracking-tighter truncate max-w-[150px]">{order.customerName}</span>
+                    <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full">
+                      {order.id?.substring(0, 5)}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="flex-1 flex items-center justify-center">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest opacity-50">No orders preparing</span>
+                </div>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-3 bg-black/10 dark:bg-white/10 backdrop-blur-xl px-6 py-3 rounded-2xl border border-black/10 dark:border-white/10">
-            <CheckCircle2 className="w-5 h-5 text-green-500" />
-            <div className="flex flex-col">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Serving</span>
-              <span className="text-lg font-black text-slate-900 dark:text-white leading-none">{readyCount}</span>
+
+          {/* Serving Column */}
+          <div className="flex flex-col bg-black/10 dark:bg-white/10 backdrop-blur-xl rounded-[2rem] border border-black/10 dark:border-white/10 overflow-hidden">
+            <div className="px-6 py-4 border-b border-black/10 dark:border-white/10 flex items-center gap-3 bg-black/5 dark:bg-white/5">
+              <CheckCircle2 className="w-6 h-6 text-green-500" />
+              <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Now Serving</span>
+            </div>
+            <div className="p-6 flex flex-col gap-3 min-h-[120px]">
+              {readyOrders.length > 0 ? (
+                readyOrders.map(order => (
+                  <div key={order.id} className="flex items-center justify-between bg-white/40 dark:bg-black/20 px-4 py-3 rounded-xl border border-black/5 dark:border-white/5 animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+                    <span className="font-black text-xl text-slate-900 dark:text-white tracking-tighter truncate max-w-[150px]">{order.customerName}</span>
+                    <span className="text-xs font-black text-green-600 dark:text-green-400 uppercase tracking-widest bg-green-500/10 px-3 py-1 rounded-full">
+                      {order.id?.substring(0, 5)}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="flex-1 flex items-center justify-center">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest opacity-50">No orders serving</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
