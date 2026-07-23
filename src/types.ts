@@ -5,6 +5,7 @@ export interface DynamicCategory {
   id: string;
   name: string;
   iconName: string;
+  order?: number;
 }
 
 export interface ProductSize {

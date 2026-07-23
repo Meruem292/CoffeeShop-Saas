@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Order, CartItem } from '../types';
+import { Order, CartItem, Addon, Product, SugarLevel } from '../types';
 import { X, Trash2, Plus, Minus, AlertTriangle, Save, RefreshCw } from 'lucide-react';
 import { ConfirmationModal } from './ConfirmationModal';
 

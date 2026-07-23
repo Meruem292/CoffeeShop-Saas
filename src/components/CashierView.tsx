@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Order, OrderStatus, ShopSettings, CartItem } from '../types';
+import { Order, OrderStatus, ShopSettings, CartItem, Addon } from '../types';
 import { CheckCircle, Clock, Banknote, Coffee, Receipt, Printer, Settings, AlertCircle, Edit3, Trash2 } from 'lucide-react';
 import { EditOrderModal } from './EditOrderModal';
 import { ConfirmationModal } from './ConfirmationModal';
