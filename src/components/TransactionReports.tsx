@@ -54,7 +54,10 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
   }, [orders, startDate, endDate, searchTerm]);
 
   const totalRevenue = useMemo(() => {
-    return filteredOrders.reduce((sum, order) => sum + order.total, 0);
+    return filteredOrders.reduce((sum, order) => {
+      if (order.status === 'cancelled') return sum;
+      return sum + order.total;
+    }, 0);
   }, [filteredOrders]);
 
   const handleDeleteConfirm = async () => {
@@ -333,7 +336,8 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                     <td className="p-3 sm:p-6 text-center">
                       <span className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${
                         order.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 
-                        order.status === 'unpaid' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                        order.status === 'unpaid' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
+                        order.status === 'cancelled' ? 'bg-slate-500/10 text-slate-400 border border-slate-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                       }`}>
                         {order.status}
                       </span>

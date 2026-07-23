@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { ViewMode, Order, Product, OrderStatus } from './types';
 import { SplashScreen } from './components/SplashScreen';
 import { AdminLoginModal } from './components/AdminLoginModal';
@@ -6,6 +6,7 @@ import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCi
 import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
 import { useTheme } from './lib/ThemeProvider';
+import { playNotificationSound } from './lib/audio';
 import ShapeGrid from './components/ShapeGrid';
 
 // Lazy loaded components
@@ -102,6 +103,31 @@ export default function App() {
       setIsStarted(true);
     }
   }, [currentView, isAdmin]);
+
+  // Notification for new orders on admin side
+  const prevOrderIds = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (isAdmin) {
+      const currentIds = new Set(orders.map(o => o.id || ''));
+      if (prevOrderIds.current.size > 0) {
+        let hasNew = false;
+        for (const id of currentIds) {
+          if (!prevOrderIds.current.has(id)) {
+            const order = orders.find(o => o.id === id);
+            if (order && (order.status === 'unpaid' || order.status === 'pending')) {
+               hasNew = true;
+               break;
+            }
+          }
+        }
+        if (hasNew) {
+           playNotificationSound();
+        }
+      }
+      prevOrderIds.current = currentIds;
+    }
+  }, [orders, isAdmin]);
 
   const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>) => {
     const initialStatus: OrderStatus = 'unpaid';
@@ -536,6 +562,7 @@ export default function App() {
             <SplashScreen 
               data={splashScreen} 
               shopSettings={shopSettings}
+              orders={orders}
               onStart={() => setIsStarted(true)} 
             />
           )}

@@ -13,7 +13,7 @@ export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder }: KitchenQ
   const [orderToCancel, setOrderToCancel] = React.useState<Order | null>(null);
   // Sort by created time (FIFO) - oldest first
   const activeOrders = orders
-    .filter((o) => o.status !== 'completed' && o.status !== 'unpaid')
+    .filter((o) => o.status !== 'completed' && o.status !== 'unpaid' && o.status !== 'cancelled')
     .sort((a, b) => a.createdAt - b.createdAt);
 
   const getStatusColor = (status: OrderStatus) => {

@@ -1,6 +1,6 @@
 import React from 'react';
-import { Coffee, ArrowRight, Instagram, Facebook, Twitter } from 'lucide-react';
-import { SplashScreen as SplashScreenType, ShopSettings } from '../types';
+import { Coffee, ArrowRight, Instagram, Facebook, Twitter, ChefHat, CheckCircle2 } from 'lucide-react';
+import { SplashScreen as SplashScreenType, ShopSettings, Order } from '../types';
 import ShapeGrid from './ShapeGrid';
 
 declare module 'react' {
@@ -14,10 +14,11 @@ declare module 'react' {
 interface SplashScreenProps {
   data: SplashScreenType | null;
   shopSettings: ShopSettings | null;
+  orders: Order[];
   onStart: () => void;
 }
 
-export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps) {
+export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScreenProps) {
   React.useEffect(() => {
     if (!data || !data.isActive) {
       onStart();
@@ -27,6 +28,9 @@ export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps)
   if (!data || !data.isActive) {
     return null;
   }
+
+  const preparingCount = orders.filter(o => o.status === 'preparing').length;
+  const readyCount = orders.filter(o => o.status === 'ready').length;
 
   const themeColor = shopSettings?.themeColor || '#4b2c20';
 
@@ -99,38 +103,58 @@ export function SplashScreen({ data, shopSettings, onStart }: SplashScreenProps)
       </header>
 
       {/* Hero Content */}
-      <main className="flex-1 relative z-10 flex items-center justify-start px-8 md:px-12 max-w-7xl mx-auto w-full py-12 lg:py-20 shrink-0">
-        {/* Glassmorphic Panel: Floating Typography & CTA */}
-        <div className="w-full max-w-xl p-8 md:p-14 rounded-[3.5rem] bg-black/5 dark:bg-white/5 dark:bg-slate-900/20 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col text-left animate-in fade-in slide-in-from-left-10 duration-1000 pointer-events-auto">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="h-px w-8 bg-amber-500/60" />
-              <span className="text-amber-500 font-black uppercase tracking-[0.5em] text-[10px] md:text-xs">
-                {data.title || "The Orbit Experience"}
-              </span>
+      <main className="flex-1 relative z-10 flex flex-col justify-center px-8 md:px-12 max-w-7xl mx-auto w-full py-12 lg:py-20 shrink-0">
+        <div className="flex-1 flex items-center">
+          {/* Glassmorphic Panel: Floating Typography & CTA */}
+          <div className="w-full max-w-xl p-8 md:p-14 rounded-[3.5rem] bg-black/5 dark:bg-white/5 dark:bg-slate-900/20 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col text-left animate-in fade-in slide-in-from-left-10 duration-1000 pointer-events-auto">
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="h-px w-8 bg-amber-500/60" />
+                <span className="text-amber-500 font-black uppercase tracking-[0.5em] text-[10px] md:text-xs">
+                  {data.title || "The Orbit Experience"}
+                </span>
+              </div>
+              <h1 className="text-6xl md:text-7xl lg:text-[7.5rem] font-black text-slate-900 dark:text-white font-display leading-[0.8] mb-6 lg:mb-8 uppercase italic tracking-tighter">
+                WE ARE <br /> 
+                <span className="text-slate-600 dark:text-slate-400 dark:text-slate-600 not-italic">OPEN!</span>
+              </h1>
             </div>
-            <h1 className="text-6xl md:text-7xl lg:text-[7.5rem] font-black text-slate-900 dark:text-white font-display leading-[0.8] mb-6 lg:mb-8 uppercase italic tracking-tighter">
-              WE ARE <br /> 
-              <span className="text-slate-600 dark:text-slate-400 dark:text-slate-600 not-italic">OPEN!</span>
-            </h1>
+
+            <p
+              className="text-lg lg:text-2xl text-slate-700 dark:text-slate-300 mb-10 lg:mb-14 leading-tight font-black uppercase tracking-tighter opacity-90"
+            >
+              {data.subtitle || "Elevate your daily ritual in our galactic sanctuary."}
+            </p>
+
+            <button
+              onClick={onStart}
+              className="group relative inline-flex items-center justify-center w-full gap-8 bg-white text-[#020617] px-10 py-5 lg:py-6 rounded-[2rem] font-black text-xl lg:text-2xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] transition-all active:scale-95 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#020617]/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+              <span className="relative uppercase tracking-[0.2em]">{data.buttonText || "Begin Mission"}</span>
+              <div className="relative w-10 h-10 bg-slate-50 dark:bg-[#020617] rounded-xl flex items-center justify-center group-hover:translate-x-3 transition-transform shrink-0 shadow-inner">
+                <ArrowRight className="w-5 h-5 text-slate-900 dark:text-white" />
+              </div>
+            </button>
           </div>
+        </div>
 
-          <p
-            className="text-lg lg:text-2xl text-slate-700 dark:text-slate-300 mb-10 lg:mb-14 leading-tight font-black uppercase tracking-tighter opacity-90"
-          >
-            {data.subtitle || "Elevate your daily ritual in our galactic sanctuary."}
-          </p>
-
-          <button
-            onClick={onStart}
-            className="group relative inline-flex items-center justify-center w-full gap-8 bg-white text-[#020617] px-10 py-5 lg:py-6 rounded-[2rem] font-black text-xl lg:text-2xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] transition-all active:scale-95 overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#020617]/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-            <span className="relative uppercase tracking-[0.2em]">{data.buttonText || "Begin Mission"}</span>
-            <div className="relative w-10 h-10 bg-slate-50 dark:bg-[#020617] rounded-xl flex items-center justify-center group-hover:translate-x-3 transition-transform shrink-0 shadow-inner">
-              <ArrowRight className="w-5 h-5 text-slate-900 dark:text-white" />
+        {/* Queuing Status */}
+        <div className="mt-8 flex items-center gap-4 animate-in fade-in slide-in-from-bottom-5 duration-1000 delay-500 pointer-events-auto">
+          <div className="flex items-center gap-3 bg-black/10 dark:bg-white/10 backdrop-blur-xl px-6 py-3 rounded-2xl border border-black/10 dark:border-white/10">
+            <ChefHat className="w-5 h-5 text-amber-500" />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Preparing</span>
+              <span className="text-lg font-black text-slate-900 dark:text-white leading-none">{preparingCount}</span>
             </div>
-          </button>
+          </div>
+          <div className="flex items-center gap-3 bg-black/10 dark:bg-white/10 backdrop-blur-xl px-6 py-3 rounded-2xl border border-black/10 dark:border-white/10">
+            <CheckCircle2 className="w-5 h-5 text-green-500" />
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1">Serving</span>
+              <span className="text-lg font-black text-slate-900 dark:text-white leading-none">{readyCount}</span>
+            </div>
+          </div>
         </div>
       </main>
 
