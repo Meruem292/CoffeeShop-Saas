@@ -365,7 +365,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 lg:p-12 scrollbar-hide">
+        <div className={`flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 lg:p-12 scrollbar-hide ${mode === 'mobile' ? 'pb-32' : ''}`}>
           <div className="w-full max-w-[1600px] mx-auto">
             <header className={`${mode === 'mobile' ? 'mb-4 flex items-center px-1' : 'mb-12 flex flex-col lg:flex-row lg:items-end justify-between gap-6'}`}>
               <div className={`${mode === 'mobile' ? 'flex items-center gap-2' : 'flex flex-col'}`}>

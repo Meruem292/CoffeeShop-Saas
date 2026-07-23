@@ -56,7 +56,7 @@ const getCategoryIcon = (category: string, categoriesData?: DynamicCategory[]) =
 
 export const CategorySidebar = React.memo(({ categories, activeCategory, setActiveCategory, mode, categoriesData }: CategorySidebarProps) => {
   return (
-    <div className={`flex flex-col py-6 md:py-8 overflow-y-auto scrollbar-hide shrink-0 z-20 transition-all ${mode === 'mobile' ? 'w-[76px] md:w-24 bg-white dark:bg-slate-950/20 backdrop-blur-3xl border-r border-black/10 dark:border-white/5 gap-4' : 'w-24 md:w-28 lg:w-32 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-r border-black/10 dark:border-white/5 gap-6 md:gap-7'}`}>
+    <div className={`flex flex-col py-6 md:py-8 overflow-y-auto scrollbar-hide shrink-0 z-20 transition-all ${mode === 'mobile' ? 'w-[76px] md:w-24 bg-white dark:bg-slate-950/20 backdrop-blur-3xl border-r border-black/10 dark:border-white/5 gap-4 pb-32' : 'w-24 md:w-28 lg:w-32 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-r border-black/10 dark:border-white/5 gap-6 md:gap-7'}`}>
       {mode !== 'mobile' && (
         <div className="flex flex-col items-center gap-1.5 mb-6 opacity-90 animate-in fade-in slide-in-from-top-4 duration-700">
           <div className="w-12 h-12 rounded-[1.25rem] border border-black/10 dark:border-white/10 flex items-center justify-center bg-black/5 dark:bg-white/5 shadow-inner">
