@@ -31,6 +31,8 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     receiptName: '',
     receiptLogoUrl: '',
     themeColor: '#4b2c20',
+    notificationSoundUrl: '',
+    notificationVolume: 1.0,
     gridColumns: 4,
     mobileGridColumns: 2,
     address: '',
@@ -68,10 +70,31 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         mobileGridColumns: shopSettings.mobileGridColumns || 2,
         address: shopSettings.address || '',
         phone: shopSettings.phone || '',
-        tagline: shopSettings.tagline || ''
+        tagline: shopSettings.tagline || '',
+        notificationSoundUrl: shopSettings.notificationSoundUrl || '',
+        notificationVolume: shopSettings.notificationVolume !== undefined ? shopSettings.notificationVolume : 1.0
       });
     }
   }, [shopSettings]);
+
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Audio file is too large. Please select a file under 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target?.result as string;
+      if (base64String) {
+        setShopData(prev => ({ ...prev, notificationSoundUrl: base64String }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'receiptLogoUrl' = 'logoUrl') => {
     const file = e.target.files?.[0];
@@ -352,6 +375,26 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                       className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
                       placeholder="e.g. +63 900 123 4567"
                     />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Notification Audio File</label>
+                  <div className="flex flex-col gap-4 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10">
+                    <label className="flex items-center justify-center border-2 border-dashed border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-xl p-4 cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5 text-center group">
+                      <Upload className="w-5 h-5 text-slate-500 dark:text-white/40 group-hover:text-amber-500 mr-2 transition-all" />
+                      <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Upload Sound</span>
+                      <input type="file" accept="audio/*" onChange={handleAudioUpload} className="hidden" />
+                    </label>
+                    {shopData.notificationSoundUrl && <span className="text-[8px] text-green-500 font-bold uppercase text-center">Audio Loaded</span>}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Notification Volume ({Math.round((shopData.notificationVolume || 1) * 100)}%)</label>
+                  <div className="bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10 flex items-center h-[90px]">
+                    <input type="range" min="0" max="1" step="0.1" value={shopData.notificationVolume || 1} onChange={(e) => setShopData({...shopData, notificationVolume: parseFloat(e.target.value)})} className="w-full accent-amber-500" />
                   </div>
                 </div>
               </div>
