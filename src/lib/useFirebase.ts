@@ -114,17 +114,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       }
     }, (err) => handleSnapshotError(err, OperationType.LIST, 'categories'));
 
-    if (!userUid) {
-       setOrders([]);
-       setLoading(false);
-       return () => {
-         unsubSettings();
-         unsubSplash();
-         unsubProducts();
-         unsubAddons();
-         unsubCategories();
-       };
-    }
+    // Removed early return so public clients can listen to orders for the TV queue
 
     // Orders Listener
     // Always fetch all orders so the public Splash Screen (Order Orbit TV) can display the queue
