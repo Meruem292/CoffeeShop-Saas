@@ -103,10 +103,10 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
       </header>
 
       {/* Hero Content & Queue Layout */}
-      <main className="flex-1 relative z-10 flex flex-col md:flex-row px-8 md:px-12 max-w-[1600px] mx-auto w-full py-8 lg:py-12 gap-8 lg:gap-12 shrink-0 overflow-hidden h-full">
+      <main className="flex-1 relative z-10 flex flex-col lg:flex-row px-6 lg:px-12 max-w-[1600px] mx-auto w-full py-8 lg:py-12 gap-12 shrink-0 overflow-y-auto lg:overflow-hidden h-auto lg:h-full pointer-events-auto lg:pointer-events-none scrollbar-hide">
         
         {/* Left Column: Queuing Status */}
-        <div className="flex w-full lg:w-[450px] flex-col gap-4 lg:gap-6 shrink-0 lg:h-full lg:overflow-hidden animate-in fade-in slide-in-from-bottom-5 lg:slide-in-from-left-5 duration-1000 z-10 relative order-2 lg:order-1 flex-1 lg:flex-none">
+        <div className="flex w-full lg:w-[450px] flex-col gap-4 lg:gap-6 shrink-0 lg:h-full lg:overflow-hidden animate-in fade-in slide-in-from-bottom-5 lg:slide-in-from-left-5 duration-1000 z-10 relative order-2 lg:order-1 flex-1 lg:flex-none pointer-events-auto min-h-[600px] lg:min-h-0">
           
           <div className="absolute -inset-4 bg-amber-500/10 blur-3xl rounded-full z-0 pointer-events-none" />
           <h2 className="relative text-xl lg:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2 flex items-center gap-3 shrink-0 bg-amber-500/20 dark:bg-amber-500/20 p-5 rounded-3xl backdrop-blur-xl border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
