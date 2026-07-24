@@ -127,18 +127,12 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     }
 
     // Orders Listener
-    let qOrders;
-    if (isAdmin) {
-       qOrders = query(collection(db, 'orders'), orderBy('createdAt', 'asc'));
-    } else {
-       qOrders = query(collection(db, 'orders'), where('customerId', '==', userUid));
-    }
+    // Always fetch all orders so the public Splash Screen (Order Orbit TV) can display the queue
+    const qOrders = query(collection(db, 'orders'), orderBy('createdAt', 'asc'));
     
     const unsubOrders = onSnapshot(qOrders, (snapshot) => {
       let o = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
-      if (!isAdmin) {
-         o = o.sort((a, b) => a.createdAt - b.createdAt);
-      }
+      // No need to sort manually since orderBy does it
       setOrders(o);
       setLoading(false);
     }, (err) => handleSnapshotError(err, OperationType.LIST, 'orders'));
