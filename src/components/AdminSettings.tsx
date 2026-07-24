@@ -79,6 +79,22 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     }
   }, [shopSettings]);
 
+  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('QR Code image must be less than 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setShopData(prev => ({ ...prev, qrCodeUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -122,6 +138,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     setSaving(true);
     try {
       await onUpdateSplash(splashData);
+      await onUpdateShop(shopData);
     } finally {
       setSaving(false);
     }
@@ -432,6 +449,32 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                   placeholder="The finest orbital roast..."
                 />
               </div>
+              
+              <div>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">QR Code (Order Orbit)</label>
+                <div className="flex items-center gap-4 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10">
+                  {shopData.qrCodeUrl ? (
+                    <div className="w-16 h-16 rounded-xl bg-white p-1 overflow-hidden shrink-0 border border-black/10 dark:border-white/10 relative group">
+                      <img src={shopData.qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />
+                      <button type="button" onClick={() => setShopData({...shopData, qrCodeUrl: ''})} className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 flex items-center justify-center shrink-0">
+                      <QrCode className="w-6 h-6 text-slate-400" />
+                    </div>
+                  )}
+                  <label className="flex-1 flex items-center justify-center border-2 border-dashed border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-xl p-4 cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5 text-center group">
+                    <Upload className="w-5 h-5 text-slate-500 dark:text-white/40 group-hover:text-amber-500 mr-2 transition-all" />
+                    <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Upload QR</span>
+                    <input type="file" accept="image/*" onChange={handleQrUpload} className="hidden" />
+                  </label>
+                </div>
+                <p className="text-[9px] font-bold text-amber-500/50 mt-2 uppercase tracking-widest ml-1">
+                  Note: Make sure to hit "SAVE CHANGES" at the bottom of the form after uploading. You might also want to click the Brand Identity tab to save there.
+                </p>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
@@ -563,6 +606,17 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                     <p className="text-[9px] sm:text-[10px] text-coffee-600 leading-relaxed font-black uppercase tracking-widest">
                       {splashData.subtitle || "Your cosmic ritual, elevated."}
                     </p>
+                    {shopData.qrCodeUrl && (
+                      <div className="mt-4 flex items-center gap-2 sm:gap-3 bg-black/10 dark:bg-white/5 p-2 rounded-xl">
+                        <div className="w-10 h-10 bg-white p-1 rounded-lg shrink-0">
+                          <img src={shopData.qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Order Mobile</p>
+                          <p className="text-[7px] font-bold text-amber-500 uppercase tracking-widest">Scan QR</p>
+                        </div>
+                      </div>
+                    )}
                   </main>
                </div>
             </div>
