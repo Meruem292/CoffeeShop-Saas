@@ -144,7 +144,8 @@ export function AdminProducts({
 
   const initialCategoryState = {
     name: '',
-    iconName: 'Coffee'
+    iconName: 'Coffee',
+    isActive: true
   };
 
   const [formData, setFormData] = useState<Omit<Product, 'id'>>(initialFormState);
@@ -913,6 +914,20 @@ export function AdminProducts({
                     </div>
                   </div>
 
+                  <div className="flex items-center gap-3 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/5">
+                    <button 
+                      type="button" 
+                      onClick={() => setCategoryFormData({ ...categoryFormData, isActive: !categoryFormData.isActive })}
+                      className={`w-12 h-6 rounded-full transition-colors relative ${categoryFormData.isActive !== false ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    >
+                      <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${categoryFormData.isActive !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                    <div>
+                      <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest block">Available on Sale</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">Toggle whether this category appears in the ordering menus</span>
+                    </div>
+                  </div>
+
                   <div className="flex justify-end gap-4 mt-2">
                     <button type="button" onClick={cancelCategoryEdit} className="px-8 py-3.5 text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white transition-all font-black uppercase tracking-widest text-xs">Cancel</button>
                     <button type="submit" className="px-8 py-3.5 bg-violet-600 text-slate-900 dark:text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-violet-500 transition-all shadow-xl active:scale-95">
@@ -947,6 +962,11 @@ export function AdminProducts({
                               <div className="min-w-0">
                                 <div className="font-black text-slate-900 dark:text-white text-sm sm:text-base uppercase tracking-tight group-hover:text-violet-400 transition-colors whitespace-normal break-words max-w-[120px] xs:max-w-[180px] sm:max-w-[350px]">{category.name}</div>
                                 <div className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest mt-0.5">Icon: {category.iconName}</div>
+                                {category.isActive !== false ? (
+                                  <span className="inline-block mt-1 px-2 py-0.5 bg-green-500/20 text-green-600 dark:text-green-400 text-[9px] font-black uppercase tracking-widest rounded-full">Active</span>
+                                ) : (
+                                  <span className="inline-block mt-1 px-2 py-0.5 bg-red-500/20 text-red-600 dark:text-red-400 text-[9px] font-black uppercase tracking-widest rounded-full">Hidden</span>
+                                )}
                               </div>
                               
                               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">

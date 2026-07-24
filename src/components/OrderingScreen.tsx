@@ -19,14 +19,18 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   const categories = useMemo(() => {
     let list: string[] = [];
     if (categoriesData && categoriesData.length > 0) {
-      list = categoriesData.map(c => c.name);
+      // First, get all active categories
+      list = categoriesData.filter(c => c.isActive !== false).map(c => c.name);
+      
+      // We also need all configured categories (even hidden) to avoid accidentally adding them back
+      const allConfiguredCategories = categoriesData.map(c => c.name);
       
       // Also include categories from products that might not be in categoriesData
       const productCats = Array.from(new Set(menu.map(p => p.category)));
       productCats.forEach(pCat => {
         const pCatLower = (pCat || '').trim().toLowerCase();
         
-        const isCovered = list.some(cName => {
+        const isCovered = allConfiguredCategories.some(cName => {
           const cNameLower = cName.trim().toLowerCase();
           if (cNameLower === pCatLower) return true;
           
@@ -37,6 +41,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
           return cParts.some(cp => pParts.includes(cp) || pCatLower === cp);
         });
         
+        // Only add if it's not configured AT ALL. If it's configured and hidden, skip it.
         if (!isCovered && pCat && pCat.trim()) {
           list.push(pCat.trim());
         }
