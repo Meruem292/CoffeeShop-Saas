@@ -60,6 +60,14 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
     }, 0);
   }, [filteredOrders]);
 
+  const totalDrinksQuantity = useMemo(() => {
+    return filteredOrders.reduce((sum, order) => {
+      if (order.status === 'cancelled') return sum;
+      const orderQty = order.items.reduce((itemSum, item) => itemSum + (item.quantity || 1), 0);
+      return sum + orderQty;
+    }, 0);
+  }, [filteredOrders]);
+
   const handleDeleteConfirm = async () => {
     if (!orderToDelete) return;
     setIsActionLoading(true);
@@ -94,6 +102,7 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
       'Type': order.orderType || 'N/A',
       'Source': order.source,
       'Status': order.status,
+      'Items Qty': order.items.reduce((sum, item) => sum + (item.quantity || 1), 0),
       'Total (₱)': order.total
     }));
 
@@ -107,19 +116,20 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
     const doc = new jsPDF();
     doc.text('Transaction Report', 14, 15);
     doc.text(`Period: ${startDate || 'All Time'} - ${endDate || 'Present'}`, 14, 25);
-    doc.text(`Total Revenue: ₱${totalRevenue.toLocaleString()}`, 14, 35);
+    doc.text(`Total Drinks Qty: ${totalDrinksQuantity} | Total Revenue: ₱${totalRevenue.toLocaleString()}`, 14, 35);
 
     const tableData = filteredOrders.map(order => [
       new Date(order.createdAt).toLocaleString(),
       order.id?.substring(0, 8) || 'N/A',
       order.customerName,
+      order.items.reduce((sum, item) => sum + (item.quantity || 1), 0),
       order.status,
       `P${order.total.toLocaleString()}`
     ]);
 
     doc.autoTable({
       startY: 45,
-      head: [['Date', 'ID', 'Customer', 'Status', 'Total']],
+      head: [['Date', 'ID', 'Customer', 'Qty', 'Status', 'Total']],
       body: tableData,
     });
 
@@ -133,6 +143,7 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
           new TableCell({ children: [new Paragraph(new Date(order.createdAt).toLocaleString())] }),
           new TableCell({ children: [new Paragraph(order.id?.substring(0, 8) || 'N/A')] }),
           new TableCell({ children: [new Paragraph(order.customerName)] }),
+          new TableCell({ children: [new Paragraph(String(order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)))] }),
           new TableCell({ children: [new Paragraph(order.status)] }),
           new TableCell({ children: [new Paragraph(`P${order.total.toLocaleString()}`)] }),
         ],
@@ -148,7 +159,7 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
             ],
           }),
           new Paragraph({ text: `Period: ${startDate || 'All Time'} - ${endDate || 'Present'}` }),
-          new Paragraph({ text: `Total Revenue: P${totalRevenue.toLocaleString()}` }),
+          new Paragraph({ text: `Total Drinks Qty: ${totalDrinksQuantity} | Total Revenue: P${totalRevenue.toLocaleString()}` }),
           new Paragraph({ text: '' }),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
@@ -158,6 +169,7 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Date', bold: true })] })] }),
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ID', bold: true })] })] }),
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Customer', bold: true })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Qty', bold: true })] })] }),
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Status', bold: true })] })] }),
                   new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Total', bold: true })] })] }),
                 ],
@@ -225,16 +237,20 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
           </div>
         </header>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 mb-8 md:mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 sm:gap-6 mb-8 md:mb-12">
           <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
             <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-1.5 sm:mb-2 opacity-50">Launch Count</span>
             <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{filteredOrders.length}</span>
           </div>
           <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-1.5 sm:mb-2 opacity-50">Total Drinks Qty</span>
+            <span className="text-2xl sm:text-3xl font-black text-cyan-500 dark:text-cyan-400">{totalDrinksQuantity}</span>
+          </div>
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
             <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-1.5 sm:mb-2 opacity-50">Total Fuel</span>
             <span className="text-2xl sm:text-3xl font-black text-amber-500">₱{totalRevenue.toLocaleString()}</span>
           </div>
-          <div className="sm:col-span-2 bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4">
+          <div className="sm:col-span-3 md:col-span-2 bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <label className="block text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase mb-1.5 tracking-widest opacity-50">Start Vector</label>
@@ -306,6 +322,7 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                   <th className="p-3 sm:p-6">Customer</th>
                   <th className="hidden sm:table-cell p-3 sm:p-6 text-center">Type</th>
                   <th className="hidden md:table-cell p-3 sm:p-6 text-center">Source</th>
+                  <th className="p-3 sm:p-6 text-center">Qty</th>
                   <th className="p-3 sm:p-6 text-center whitespace-nowrap">Status</th>
                   <th className="hidden sm:table-cell p-3 sm:p-6 text-right">Total</th>
                   <th className="p-3 sm:p-6 text-center">Action</th>
@@ -334,6 +351,11 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                       <span className="text-[10px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap opacity-50">{order.source}</span>
                     </td>
                     <td className="p-3 sm:p-6 text-center">
+                      <span className="text-xs font-black text-slate-900 dark:text-white bg-black/10 dark:bg-white/10 px-2.5 py-1 rounded-full border border-black/10 dark:border-white/10">
+                        {order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}
+                      </span>
+                    </td>
+                    <td className="p-3 sm:p-6 text-center">
                       <span className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${
                         order.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 
                         order.status === 'unpaid' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
@@ -358,7 +380,7 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                 ))}
                 {filteredOrders.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-24 text-center">
+                    <td colSpan={8} className="p-24 text-center">
                       <div className="flex flex-col items-center gap-4 opacity-20">
                         <Calendar className="w-16 h-16 text-slate-900 dark:text-white" />
                         <p className="font-black uppercase tracking-[0.3em] text-xs text-slate-900 dark:text-white">No transactions found</p>
