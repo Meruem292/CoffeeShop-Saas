@@ -103,10 +103,10 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
       </header>
 
       {/* Hero Content & Queue Layout */}
-      <main className="flex-1 relative z-10 flex flex-col lg:flex-row px-6 lg:px-12 max-w-[1600px] mx-auto w-full py-8 lg:py-12 gap-12 shrink-0 overflow-y-auto lg:overflow-hidden h-auto lg:h-full pointer-events-auto lg:pointer-events-none scrollbar-hide">
+      <main className="flex-1 relative z-10 flex flex-col lg:flex-row px-6 lg:px-12 max-w-[1600px] mx-auto w-full py-8 lg:py-12 gap-12 overflow-y-auto lg:overflow-hidden min-h-0 pointer-events-auto lg:pointer-events-none scrollbar-hide">
         
         {/* Left Column: Queuing Status */}
-        <div className="flex w-full lg:w-[450px] flex-col gap-4 lg:gap-6 shrink-0 lg:h-full lg:overflow-hidden animate-in fade-in slide-in-from-bottom-5 lg:slide-in-from-left-5 duration-1000 z-10 relative order-2 lg:order-1 flex-1 lg:flex-none pointer-events-auto min-h-[600px] lg:min-h-0">
+        <div className="flex w-full lg:w-[450px] flex-col gap-4 lg:gap-6 shrink-0 lg:h-full lg:overflow-hidden animate-in fade-in slide-in-from-bottom-5 lg:slide-in-from-left-5 duration-1000 z-10 relative order-2 lg:order-1 flex-1 lg:flex-none pointer-events-auto h-auto lg:min-h-0 mb-12 lg:mb-0">
           
           <div className="absolute -inset-4 bg-amber-500/10 blur-3xl rounded-full z-0 pointer-events-none" />
           <h2 className="relative text-xl lg:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2 flex items-center gap-3 shrink-0 bg-amber-500/20 dark:bg-amber-500/20 p-5 rounded-3xl backdrop-blur-xl border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
@@ -114,14 +114,14 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
             Order Orbit
           </h2>
 
-          <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide space-y-6 flex flex-col">
+          <div className="flex-1 lg:overflow-y-auto pr-0 lg:pr-2 scrollbar-hide flex flex-col gap-6">
             {/* Preparing Column */}
-            <div className="relative flex flex-col bg-white/50 dark:bg-black/50 backdrop-blur-3xl rounded-[2rem] border border-amber-500/30 overflow-hidden shrink-0 flex-1 min-h-0 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
+            <div className="relative flex flex-col bg-white/50 dark:bg-black/50 backdrop-blur-3xl rounded-[2rem] border border-amber-500/30 overflow-hidden shrink-0 lg:flex-1 lg:min-h-0 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
               <div className="px-6 py-4 border-b border-black/10 dark:border-white/10 flex items-center gap-3 bg-black/5 dark:bg-white/5">
                 <ChefHat className="w-6 h-6 text-amber-500" />
                 <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Preparing</span>
               </div>
-              <div className="p-6 flex flex-col gap-3 overflow-y-auto scrollbar-hide flex-1">
+              <div className="p-4 lg:p-6 flex flex-col gap-3 lg:overflow-y-auto scrollbar-hide flex-1">
                 {preparingOrders.length > 0 ? (
                   preparingOrders.map(order => (
                     <div key={order.id} className="flex items-center justify-between bg-white/60 dark:bg-black/40 px-4 py-3 rounded-xl border border-black/5 dark:border-white/5 shrink-0 shadow-sm">
@@ -140,12 +140,12 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
             </div>
 
             {/* Serving Column */}
-            <div className="relative flex flex-col bg-white/50 dark:bg-black/50 backdrop-blur-3xl rounded-[2rem] border border-green-500/30 overflow-hidden shrink-0 flex-1 min-h-0 shadow-[0_0_30px_rgba(34,197,94,0.15)]">
+            <div className="relative flex flex-col bg-white/50 dark:bg-black/50 backdrop-blur-3xl rounded-[2rem] border border-green-500/30 overflow-hidden shrink-0 lg:flex-1 lg:min-h-0 shadow-[0_0_30px_rgba(34,197,94,0.15)]">
               <div className="px-6 py-4 border-b border-black/10 dark:border-white/10 flex items-center gap-3 bg-black/5 dark:bg-white/5">
                 <CheckCircle2 className="w-6 h-6 text-green-500" />
                 <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Now Serving</span>
               </div>
-              <div className="p-6 flex flex-col gap-3 overflow-y-auto scrollbar-hide flex-1">
+              <div className="p-4 lg:p-6 flex flex-col gap-3 lg:overflow-y-auto scrollbar-hide flex-1">
                 {readyOrders.length > 0 ? (
                   readyOrders.map(order => (
                     <div key={order.id} className="flex items-center justify-between bg-white/60 dark:bg-black/40 px-4 py-3 rounded-xl border border-black/5 dark:border-white/5 animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.2)] shrink-0">
