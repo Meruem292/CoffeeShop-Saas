@@ -1,16 +1,13 @@
 const fs = require('fs');
 let code = fs.readFileSync('src/types.ts', 'utf8');
-code = code.replace(
-`export interface DynamicCategory {
-  id: string;
-  name: string;
-  iconName: string;
-}`,
-`export interface DynamicCategory {
-  id: string;
-  name: string;
-  iconName: string;
-  order?: number;
-}`
-);
-fs.writeFileSync('src/types.ts', code);
+
+const oldCode = `  notificationVolume?: number;`;
+const newCode = `  notificationVolume?: number;\n  qrCodeUrl?: string;`;
+
+if (code.includes(oldCode)) {
+  code = code.replace(oldCode, newCode);
+  fs.writeFileSync('src/types.ts', code);
+  console.log('Successfully patched src/types.ts');
+} else {
+  console.log('Could not find old code in src/types.ts');
+}

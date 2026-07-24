@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SplashScreen, ShopSettings } from '../types';
-import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt } from 'lucide-react';
+import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt, QrCode, Link, Trash2 } from 'lucide-react';
 import { useTheme } from '../lib/ThemeProvider';
 
 interface AdminSettingsProps {
@@ -28,6 +28,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     name: '',
     initials: '',
     logoUrl: '',
+    qrCodeUrl: '',
     receiptName: '',
     receiptLogoUrl: '',
     themeColor: '#4b2c20',
@@ -62,6 +63,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         name: shopSettings.name,
         initials: shopSettings.initials,
         logoUrl: shopSettings.logoUrl,
+        qrCodeUrl: shopSettings.qrCodeUrl || '',
         receiptName: shopSettings.receiptName || '',
         receiptLogoUrl: shopSettings.receiptLogoUrl || '',
         themeColor: shopSettings.themeColor,

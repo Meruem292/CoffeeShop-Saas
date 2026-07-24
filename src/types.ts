@@ -68,6 +68,7 @@ export interface ShopSettings {
   tagline?: string;
   notificationSoundUrl?: string;
   notificationVolume?: number;
+  qrCodeUrl?: string;
 }
 
 export interface SplashScreen {
