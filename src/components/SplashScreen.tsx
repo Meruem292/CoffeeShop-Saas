@@ -29,7 +29,7 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
     return null;
   }
 
-  const preparingOrders = orders.filter(o => o.status === 'preparing').sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+  const preparingOrders = orders.filter(o => o.status === 'pending' || o.status === 'preparing').sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
   const readyOrders = orders.filter(o => o.status === 'ready').sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
 
   const themeColor = shopSettings?.themeColor || '#4b2c20';
