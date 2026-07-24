@@ -74,8 +74,8 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
         )}
       </div>
 
-      {/* Decorative Background Overlay / Vignette to ensure contrast (strong on left, fades to right on desktop) */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#020617] via-[#020617]/90 lg:via-[#020617]/40 to-[#020617]/10 lg:to-transparent pointer-events-none z-1" />
+      {/* Solid Background Overlay */}
+      <div className="absolute inset-0 bg-black/30 dark:bg-black/50 pointer-events-none z-1" />
 
       {/* Header / Nav */}
       <header className="relative z-20 flex items-center justify-between px-8 md:px-12 py-10 max-w-7xl mx-auto w-full shrink-0 pointer-events-auto">
@@ -106,16 +106,17 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
       <main className="flex-1 relative z-10 flex flex-col md:flex-row px-8 md:px-12 max-w-[1600px] mx-auto w-full py-8 lg:py-12 gap-8 lg:gap-12 shrink-0 overflow-hidden h-full">
         
         {/* Left Column: Queuing Status */}
-        <div className="hidden md:flex w-full lg:w-[450px] flex-col gap-6 shrink-0 h-full overflow-hidden animate-in fade-in slide-in-from-left-5 duration-1000 z-10 relative">
+        <div className="flex w-full lg:w-[450px] flex-col gap-4 lg:gap-6 shrink-0 lg:h-full lg:overflow-hidden animate-in fade-in slide-in-from-bottom-5 lg:slide-in-from-left-5 duration-1000 z-10 relative order-2 lg:order-1 flex-1 lg:flex-none">
           
-          <h2 className="text-xl lg:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2 flex items-center gap-3 shrink-0 bg-white/20 dark:bg-black/20 p-4 rounded-3xl backdrop-blur-xl border border-black/10 dark:border-white/10">
-            <div className="w-2 h-8 bg-amber-500 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
+          <div className="absolute -inset-4 bg-amber-500/10 blur-3xl rounded-full z-0 pointer-events-none" />
+          <h2 className="relative text-xl lg:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2 flex items-center gap-3 shrink-0 bg-amber-500/20 dark:bg-amber-500/20 p-5 rounded-3xl backdrop-blur-xl border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
+            <div className="w-2 h-8 bg-amber-500 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.8)] animate-pulse" />
             Order Orbit
           </h2>
 
           <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide space-y-6 flex flex-col">
             {/* Preparing Column */}
-            <div className="flex flex-col bg-black/10 dark:bg-white/10 backdrop-blur-2xl rounded-[2rem] border border-black/10 dark:border-white/10 overflow-hidden shrink-0 flex-1 min-h-0">
+            <div className="relative flex flex-col bg-white/50 dark:bg-black/50 backdrop-blur-3xl rounded-[2rem] border border-amber-500/30 overflow-hidden shrink-0 flex-1 min-h-0 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
               <div className="px-6 py-4 border-b border-black/10 dark:border-white/10 flex items-center gap-3 bg-black/5 dark:bg-white/5">
                 <ChefHat className="w-6 h-6 text-amber-500" />
                 <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Preparing</span>
@@ -139,7 +140,7 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
             </div>
 
             {/* Serving Column */}
-            <div className="flex flex-col bg-black/10 dark:bg-white/10 backdrop-blur-2xl rounded-[2rem] border border-black/10 dark:border-white/10 overflow-hidden shrink-0 flex-1 min-h-0">
+            <div className="relative flex flex-col bg-white/50 dark:bg-black/50 backdrop-blur-3xl rounded-[2rem] border border-green-500/30 overflow-hidden shrink-0 flex-1 min-h-0 shadow-[0_0_30px_rgba(34,197,94,0.15)]">
               <div className="px-6 py-4 border-b border-black/10 dark:border-white/10 flex items-center gap-3 bg-black/5 dark:bg-white/5">
                 <CheckCircle2 className="w-6 h-6 text-green-500" />
                 <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Now Serving</span>
@@ -165,7 +166,7 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
         </div>
 
         {/* Right Column: Hero Content */}
-        <div className="flex-1 flex items-center justify-center lg:justify-end animate-in fade-in slide-in-from-right-10 duration-1000 z-10 w-full lg:pl-12">
+        <div className="flex-1 flex items-center justify-center lg:justify-end animate-in fade-in slide-in-from-top-10 lg:slide-in-from-right-10 duration-1000 z-10 w-full lg:pl-12 order-1 lg:order-2 shrink-0 lg:shrink">
           {/* Glassmorphic Panel: Floating Typography & CTA */}
           <div className="w-full max-w-xl p-8 md:p-14 rounded-[3.5rem] bg-black/5 dark:bg-white/5 dark:bg-slate-900/20 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col text-left pointer-events-auto mt-auto mb-auto">
             <div className="mb-8">
