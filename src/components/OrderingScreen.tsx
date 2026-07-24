@@ -234,11 +234,16 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
     // Ensure we have a default order type if not set
     const finalOrderType = orderType || 'take-away';
     
+    if (!customerName.trim()) {
+      alert('Please enter your name before placing the order.');
+      return;
+    }
+
     onPlaceOrder({
       items: cart,
       total,
       source: mode,
-      customerName: customerName.trim() || 'Guest',
+      customerName: customerName.trim(),
       tableNumber: finalOrderType === 'dine-in' ? (tableNumber || undefined) : undefined,
       orderType: finalOrderType,
     });
