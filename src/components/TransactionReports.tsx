@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Order } from '../types';
-import { Calendar, FileText, Download, Table as TableIcon, File as FileWord, Search, Filter, ArrowLeft, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Calendar, FileText, Download, Table as TableIcon, File as FileWord, Search, Filter, ArrowLeft, Trash2, X, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
@@ -37,6 +37,7 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
 
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
@@ -329,55 +330,114 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/10 dark:divide-white/5">
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors group">
-                    <td className="p-3 sm:p-6">
-                      <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors">{new Date(order.createdAt).toLocaleDateString()}</div>
-                      <div className="text-[10px] text-white/20 font-bold uppercase tracking-widest mt-1 opacity-50">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                    </td>
-                    <td className="p-3 sm:p-6">
-                      <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors break-words line-clamp-2 max-w-[80px] xs:max-w-[120px] sm:max-w-none">{order.customerName}</div>
-                      <div className="flex items-center gap-2 flex-wrap mt-1">
-                        {order.tableNumber && <div className="text-[9px] text-amber-500 font-black uppercase tracking-widest">Table {order.tableNumber}</div>}
-                        <div className="sm:hidden text-[9px] font-black text-slate-900 dark:text-white bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-full border border-black/10 dark:border-white/10 uppercase tracking-widest">₱{order.total.toLocaleString()}</div>
-                      </div>
-                    </td>
-                    <td className="hidden sm:table-cell p-3 sm:p-6 text-center">
-                      <span className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${order.orderType === 'dine-in' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'}`}>
-                        {order.orderType}
-                      </span>
-                    </td>
-                    <td className="hidden md:table-cell p-3 sm:p-6 text-center">
-                      <span className="text-[10px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap opacity-50">{order.source}</span>
-                    </td>
-                    <td className="p-3 sm:p-6 text-center">
-                      <span className="text-xs font-black text-slate-900 dark:text-white bg-black/10 dark:bg-white/10 px-2.5 py-1 rounded-full border border-black/10 dark:border-white/10">
-                        {order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}
-                      </span>
-                    </td>
-                    <td className="p-3 sm:p-6 text-center">
-                      <span className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${
-                        order.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 
-                        order.status === 'unpaid' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
-                        order.status === 'cancelled' ? 'bg-slate-500/10 text-slate-400 border border-slate-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="hidden sm:table-cell p-3 sm:p-6 text-right">
-                      <div className="text-sm font-black text-slate-900 dark:text-white whitespace-nowrap">₱{order.total.toLocaleString()}</div>
-                    </td>
-                    <td className="p-3 sm:p-6 text-center whitespace-nowrap">
-                      <button
-                        onClick={() => setOrderToDelete(order.id || null)}
-                        className="p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl transition-all hover:scale-105 active:scale-95"
-                        title="Delete Transaction"
+                {filteredOrders.map((order) => {
+                  const isExpanded = expandedOrderId === order.id;
+                  return (
+                    <React.Fragment key={order.id}>
+                      <tr 
+                        onClick={() => setExpandedOrderId(isExpanded ? null : (order.id || null))}
+                        className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors group cursor-pointer"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                        <td className="p-3 sm:p-6">
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? <ChevronDown className="w-4 h-4 text-amber-500 shrink-0" /> : <ChevronRight className="w-4 h-4 text-white/30 shrink-0" />}
+                            <div>
+                              <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors">{new Date(order.createdAt).toLocaleDateString()}</div>
+                              <div className="text-[10px] text-white/20 font-bold uppercase tracking-widest mt-1 opacity-50">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3 sm:p-6">
+                          <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors break-words line-clamp-2 max-w-[80px] xs:max-w-[120px] sm:max-w-none">{order.customerName}</div>
+                          <div className="flex items-center gap-2 flex-wrap mt-1">
+                            {order.tableNumber && <div className="text-[9px] text-amber-500 font-black uppercase tracking-widest">Table {order.tableNumber}</div>}
+                            <div className="sm:hidden text-[9px] font-black text-slate-900 dark:text-white bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-full border border-black/10 dark:border-white/10 uppercase tracking-widest">₱{order.total.toLocaleString()}</div>
+                          </div>
+                        </td>
+                        <td className="hidden sm:table-cell p-3 sm:p-6 text-center">
+                          <span className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${order.orderType === 'dine-in' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'}`}>
+                            {order.orderType}
+                          </span>
+                        </td>
+                        <td className="hidden md:table-cell p-3 sm:p-6 text-center">
+                          <span className="text-[10px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap opacity-50">{order.source}</span>
+                        </td>
+                        <td className="p-3 sm:p-6 text-center">
+                          <span className="text-xs font-black text-slate-900 dark:text-white bg-black/10 dark:bg-white/10 px-2.5 py-1 rounded-full border border-black/10 dark:border-white/10">
+                            {order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}
+                          </span>
+                        </td>
+                        <td className="p-3 sm:p-6 text-center">
+                          <span className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${
+                            order.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 
+                            order.status === 'unpaid' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
+                            order.status === 'cancelled' ? 'bg-slate-500/10 text-slate-400 border border-slate-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                          }`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="hidden sm:table-cell p-3 sm:p-6 text-right">
+                          <div className="text-sm font-black text-slate-900 dark:text-white whitespace-nowrap">₱{order.total.toLocaleString()}</div>
+                        </td>
+                        <td className="p-3 sm:p-6 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => setOrderToDelete(order.id || null)}
+                            className="p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl transition-all hover:scale-105 active:scale-95"
+                            title="Delete Transaction"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-black/5 dark:bg-white/[0.02]">
+                          <td colSpan={8} className="p-4 sm:p-6">
+                            <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 sm:p-6 border border-black/10 dark:border-white/10">
+                              <div className="flex items-center justify-between mb-4 pb-2 border-b border-black/10 dark:border-white/10">
+                                <div>
+                                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">Transaction Items Breakdown</h4>
+                                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-0.5">ID: {order.id || 'N/A'}</p>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-xs font-black text-amber-500">Total: ₱{order.total.toLocaleString()}</span>
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                {order.items.map((item, idx) => (
+                                  <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+                                    <div className="flex items-start gap-3">
+                                      <span className="w-6 h-6 rounded-full bg-amber-500/10 text-amber-500 font-black text-xs flex items-center justify-center shrink-0 border border-amber-500/20">
+                                        {item.quantity || 1}x
+                                      </span>
+                                      <div>
+                                        <div className="text-xs font-black text-slate-900 dark:text-white uppercase">{item.name}</div>
+                                        <div className="flex items-center gap-2 flex-wrap mt-1">
+                                          {item.selectedSize && <span className="text-[9px] font-bold bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">Size: {item.selectedSize.name} (₱{item.selectedSize.price})</span>}
+                                          {item.sugarLevel && <span className="text-[9px] font-bold bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded border border-purple-500/20">Sugar: {item.sugarLevel}</span>}
+                                          {item.selectedAddons && item.selectedAddons.length > 0 && (
+                                            <span className="text-[9px] font-bold bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded border border-amber-500/20">
+                                              Add-ons: {item.selectedAddons.map(a => `${a.name} (+₱${a.price})`).join(', ')}
+                                            </span>
+                                          )}
+                                          {item.notes && <span className="text-[9px] font-bold italic text-white/50">Note: "{item.notes}"</span>}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right sm:self-center">
+                                      <span className="text-xs font-black text-slate-900 dark:text-white">
+                                        ₱{((item.selectedSize ? item.selectedSize.price : item.price) + (item.selectedAddons ? item.selectedAddons.reduce((s, a) => s + a.price, 0) : 0)) * (item.quantity || 1)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
                 {filteredOrders.length === 0 && (
                   <tr>
                     <td colSpan={8} className="p-24 text-center">
