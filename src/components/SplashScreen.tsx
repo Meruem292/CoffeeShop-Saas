@@ -168,53 +168,53 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
         {/* Right Column: Hero Content */}
         <div className="flex-1 flex items-center justify-center lg:justify-end animate-in fade-in slide-in-from-top-10 lg:slide-in-from-right-10 duration-1000 z-10 w-full lg:pl-12 order-1 lg:order-2 shrink-0 lg:shrink">
           {/* Glassmorphic Panel: Floating Typography & CTA */}
-          <div className="w-full max-w-xl p-8 md:p-14 rounded-[3.5rem] bg-black/5 dark:bg-white/5 dark:bg-slate-900/20 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col text-left pointer-events-auto mt-auto mb-auto">
-            <div className="mb-8">
-              <div className="flex items-center gap-3 mb-6">
+          <div className="w-full max-w-xl max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hide p-6 md:p-10 rounded-[3rem] bg-black/5 dark:bg-white/5 dark:bg-slate-900/20 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col text-left pointer-events-auto my-auto">
+            <div className="mb-4">
+              <div className="flex items-center gap-3 mb-3">
                 <div className="h-px w-8 bg-amber-500/60" />
                 <span className="text-amber-500 font-black uppercase tracking-[0.5em] text-[10px] md:text-xs">
                   {data.title || "The Orbit Experience"}
                 </span>
               </div>
-              <h1 className="text-6xl md:text-7xl lg:text-[7.5rem] font-black text-slate-900 dark:text-white font-display leading-[0.8] mb-6 lg:mb-8 uppercase italic tracking-tighter">
+              <h1 className="text-5xl md:text-6xl lg:text-[6.5rem] font-black text-slate-900 dark:text-white font-display leading-[0.8] mb-4 uppercase italic tracking-tighter">
                 WE ARE <br /> 
                 <span className="text-slate-600 dark:text-slate-400 not-italic">OPEN!</span>
               </h1>
             </div>
             <p
-              className="text-lg lg:text-2xl text-slate-700 dark:text-slate-300 mb-10 lg:mb-14 leading-tight font-black uppercase tracking-tighter opacity-90"
+              className="text-base lg:text-xl text-slate-700 dark:text-slate-300 mb-6 leading-tight font-black uppercase tracking-tighter opacity-95"
             >
               {data.subtitle || "Elevate your daily ritual in our galactic sanctuary."}
             </p>
             <button
               onClick={onStart}
-              className="group relative inline-flex items-center justify-center w-full gap-8 bg-white text-[#020617] px-10 py-5 lg:py-6 rounded-[2rem] font-black text-xl lg:text-2xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] transition-all active:scale-95 overflow-hidden"
+              className="group relative inline-flex items-center justify-center w-full gap-6 bg-white text-[#020617] px-8 py-4 lg:py-5 rounded-[2rem] font-black text-lg lg:text-xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] transition-all active:scale-95 overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#020617]/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
               <span className="relative uppercase tracking-[0.2em]">{data.buttonText || "Begin Mission"}</span>
-              <div className="relative w-10 h-10 bg-slate-50 dark:bg-[#020617] rounded-xl flex items-center justify-center group-hover:translate-x-3 transition-transform shrink-0 shadow-inner">
+              <div className="relative w-9 h-9 bg-slate-50 dark:bg-[#020617] rounded-xl flex items-center justify-center group-hover:translate-x-3 transition-transform shrink-0 shadow-inner">
                 <ArrowRight className="w-5 h-5 text-slate-900 dark:text-white" />
               </div>
             </button>
             
-                        {/* QR Code Section */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center gap-6 justify-center sm:justify-start bg-gradient-to-r from-amber-500/15 via-black/10 dark:via-white/5 to-transparent backdrop-blur-2xl p-5 sm:p-6 rounded-[2.5rem] border-2 border-amber-500/50 shadow-[0_0_40px_rgba(245,158,11,0.25)] animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 w-24 h-24 bg-amber-500/25 rounded-full blur-2xl pointer-events-none" />
-              <div className="w-36 h-36 sm:w-44 sm:h-44 bg-white p-3 rounded-3xl shrink-0 shadow-2xl border-2 border-amber-500/60 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300">
+            {/* QR Code Section */}
+            <div className="mt-5 flex flex-col sm:flex-row items-center gap-5 justify-center sm:justify-start bg-gradient-to-r from-amber-500/15 via-black/10 dark:via-white/5 to-transparent backdrop-blur-2xl p-4 sm:p-5 rounded-[2.2rem] border-2 border-amber-500/50 shadow-[0_0_30px_rgba(245,158,11,0.25)] animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 w-20 h-20 bg-amber-500/25 rounded-full blur-2xl pointer-events-none" />
+              <div className="w-32 h-32 sm:w-36 sm:h-36 bg-white p-2.5 rounded-2xl shrink-0 shadow-2xl border-2 border-amber-500/60 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300">
                 {shopSettings?.qrCodeUrl ? (
-                  <img src={shopSettings.qrCodeUrl} alt="Order QR Code" className="w-full h-full object-contain rounded-2xl" />
+                  <img src={shopSettings.qrCodeUrl} alt="Order QR Code" className="w-full h-full object-contain rounded-xl" />
                 ) : (
-                  <div className="text-center flex flex-col items-center justify-center h-full w-full border-2 border-dashed border-amber-300 rounded-2xl bg-amber-50/50">
+                  <div className="text-center flex flex-col items-center justify-center h-full w-full border-2 border-dashed border-amber-300 rounded-xl bg-amber-50/50">
                      <span className="text-xs font-black text-amber-600 uppercase tracking-widest">Scan QR</span>
                   </div>
                 )}
               </div>
               <div className="text-center sm:text-left flex flex-col justify-center">
-                <div className="inline-flex items-center gap-2 bg-amber-500 text-slate-950 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-2 w-max mx-auto sm:mx-0 shadow-sm">
+                <div className="inline-flex items-center gap-2 bg-amber-500 text-slate-950 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-1.5 w-max mx-auto sm:mx-0 shadow-sm">
                   ⚡ Instant Ordering
                 </div>
-                <p className="text-slate-900 dark:text-white font-black uppercase tracking-wider text-base sm:text-xl mb-1">Order From Your Phone</p>
-                <p className="text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest text-xs sm:text-sm">Scan QR Code to Start Mission</p>
+                <p className="text-slate-900 dark:text-white font-black uppercase tracking-wider text-sm sm:text-lg mb-0.5">Order From Your Phone</p>
+                <p className="text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest text-[10px] sm:text-xs">Scan QR Code to Start Mission</p>
               </div>
             </div>
           </div>
