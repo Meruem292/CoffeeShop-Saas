@@ -198,19 +198,23 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
             </button>
             
                         {/* QR Code Section */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center gap-6 justify-center sm:justify-start bg-black/10 dark:bg-white/5 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-black/10 dark:border-white/10 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
-              <div className="w-24 h-24 bg-white p-2 rounded-2xl shrink-0 shadow-xl border border-black/5 flex items-center justify-center">
+            <div className="mt-8 flex flex-col sm:flex-row items-center gap-6 justify-center sm:justify-start bg-gradient-to-r from-amber-500/15 via-black/10 dark:via-white/5 to-transparent backdrop-blur-2xl p-5 sm:p-6 rounded-[2.5rem] border-2 border-amber-500/50 shadow-[0_0_40px_rgba(245,158,11,0.25)] animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 w-24 h-24 bg-amber-500/25 rounded-full blur-2xl pointer-events-none" />
+              <div className="w-36 h-36 sm:w-44 sm:h-44 bg-white p-3 rounded-3xl shrink-0 shadow-2xl border-2 border-amber-500/60 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300">
                 {shopSettings?.qrCodeUrl ? (
-                  <img src={shopSettings.qrCodeUrl} alt="Order QR Code" className="w-full h-full object-contain" />
+                  <img src={shopSettings.qrCodeUrl} alt="Order QR Code" className="w-full h-full object-contain rounded-2xl" />
                 ) : (
-                  <div className="text-center flex flex-col items-center justify-center h-full w-full border-2 border-dashed border-slate-300 rounded-xl">
-                     <span className="text-[8px] font-bold text-slate-400 uppercase">No QR</span>
+                  <div className="text-center flex flex-col items-center justify-center h-full w-full border-2 border-dashed border-amber-300 rounded-2xl bg-amber-50/50">
+                     <span className="text-xs font-black text-amber-600 uppercase tracking-widest">Scan QR</span>
                   </div>
                 )}
               </div>
-              <div className="text-center sm:text-left">
-                <p className="text-slate-900 dark:text-white font-black uppercase tracking-widest text-sm sm:text-base mb-1">Order from your phone</p>
-                <p className="text-amber-600 dark:text-amber-500 font-bold uppercase tracking-widest text-[9px] sm:text-[10px]">Scan QR to start mission</p>
+              <div className="text-center sm:text-left flex flex-col justify-center">
+                <div className="inline-flex items-center gap-2 bg-amber-500 text-slate-950 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-2 w-max mx-auto sm:mx-0 shadow-sm">
+                  ⚡ Instant Ordering
+                </div>
+                <p className="text-slate-900 dark:text-white font-black uppercase tracking-wider text-base sm:text-xl mb-1">Order From Your Phone</p>
+                <p className="text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest text-xs sm:text-sm">Scan QR Code to Start Mission</p>
               </div>
             </div>
           </div>
