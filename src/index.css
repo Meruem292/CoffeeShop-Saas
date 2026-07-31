@@ -49,10 +49,13 @@
   --breakpoint-xs: 480px;
 }
 
-body {
+html, body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
 }
 
 :root {

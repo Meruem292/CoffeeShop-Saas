@@ -99,6 +99,31 @@ export default function App() {
     }
   }, [isAdmin]);
 
+  // Prevent zooming (pinch-to-zoom / ctrl+wheel zoom / keyboard shortcuts on desktop and touch devices)
+  useEffect(() => {
+    const handleGestureStart = (e: Event) => e.preventDefault();
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('gesturestart', handleGestureStart);
+    document.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('gesturestart', handleGestureStart);
+      document.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   // Handle landing page state
   useEffect(() => {
     if (!isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) {
