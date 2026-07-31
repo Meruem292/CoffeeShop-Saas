@@ -21,6 +21,7 @@ const TransactionReports = lazy(() => import('./components/TransactionReports').
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('mobile');
   const [successOrder, setSuccessOrder] = useState<Order | null>(null);
+  const [successTimer, setSuccessTimer] = useState<number>(10);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -106,6 +107,29 @@ export default function App() {
       setIsStarted(true);
     }
   }, [currentView, isAdmin]);
+
+  // Auto-return to splash after 10s if successOrder is active and not clicked
+  useEffect(() => {
+    if (!successOrder) {
+      setSuccessTimer(10);
+      return;
+    }
+
+    setSuccessTimer(10);
+    const interval = setInterval(() => {
+      setSuccessTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setSuccessOrder(null);
+          setIsStarted(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [successOrder]);
 
   // Notification for new orders on admin side
   const prevOrderIds = useRef<Set<string>>(new Set());
@@ -718,6 +742,9 @@ export default function App() {
                 >
                   {successOrder.source === 'mobile' ? 'Track Status' : 'New Mission'}
                 </button>
+                <p className="text-amber-500/70 text-[10px] font-bold uppercase tracking-widest pt-2">
+                  Returning to splash in {successTimer}s...
+                </p>
               </div>
             </div>
           </div>
