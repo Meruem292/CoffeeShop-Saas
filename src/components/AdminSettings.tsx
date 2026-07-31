@@ -38,7 +38,8 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     mobileGridColumns: 2,
     address: '',
     phone: '',
-    tagline: ''
+    tagline: '',
+    speakCustomerName: false
   });
 
   const [saving, setSaving] = useState(false);
@@ -74,7 +75,8 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         phone: shopSettings.phone || '',
         tagline: shopSettings.tagline || '',
         notificationSoundUrl: shopSettings.notificationSoundUrl || '',
-        notificationVolume: shopSettings.notificationVolume !== undefined ? shopSettings.notificationVolume : 1.0
+        notificationVolume: shopSettings.notificationVolume !== undefined ? shopSettings.notificationVolume : 1.0,
+        speakCustomerName: shopSettings.speakCustomerName || false
       });
     }
   }, [shopSettings]);
@@ -289,6 +291,23 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="flex items-center gap-4 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10">
+                <input 
+                  type="checkbox"
+                  id="speakCustomerName"
+                  checked={shopData.speakCustomerName || false}
+                  onChange={e => {
+                    const val = e.target.checked;
+                    setShopData({ ...shopData, speakCustomerName: val });
+                    onUpdateShop({ speakCustomerName: val });
+                  }}
+                  className="w-5 h-5 accent-amber-500 rounded cursor-pointer"
+                />
+                <label htmlFor="speakCustomerName" className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider cursor-pointer">
+                  Read Customer Name Out Loud When Ready (Docking)
+                </label>
               </div>
 
               <div>

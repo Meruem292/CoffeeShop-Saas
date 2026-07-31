@@ -133,10 +133,13 @@ export default function App() {
 
   // Notification for new orders on admin side
   const prevOrderIds = useRef<Set<string>>(new Set());
+  const prevOrderStatuses = useRef<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (isAdmin) {
       const currentIds = new Set(orders.map(o => o.id || ''));
+      const currentStatuses = new Map(orders.map(o => [o.id || '', o.status]));
+
       if (prevOrderIds.current.size > 0) {
         let hasNew = false;
         for (const id of currentIds) {
@@ -152,9 +155,25 @@ export default function App() {
            playNotificationSound(shopSettings?.notificationSoundUrl, shopSettings?.notificationVolume);
         }
       }
+
+      if (prevOrderStatuses.current.size > 0) {
+        for (const [id, status] of currentStatuses.entries()) {
+          const prevStatus = prevOrderStatuses.current.get(id);
+          if (prevStatus !== 'ready' && status === 'ready') {
+            const order = orders.find(o => o.id === id);
+            if (order && shopSettings?.speakCustomerName && 'speechSynthesis' in window) {
+              const text = `Order ready for pickup, ${order.customerName || 'Guest'}`;
+              const utterance = new SpeechSynthesisUtterance(text);
+              window.speechSynthesis.speak(utterance);
+            }
+          }
+        }
+      }
+
       prevOrderIds.current = currentIds;
+      prevOrderStatuses.current = currentStatuses;
     }
-  }, [orders, isAdmin]);
+  }, [orders, isAdmin, shopSettings?.speakCustomerName, shopSettings?.notificationSoundUrl, shopSettings?.notificationVolume]);
 
   const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>) => {
     const initialStatus: OrderStatus = 'unpaid';
