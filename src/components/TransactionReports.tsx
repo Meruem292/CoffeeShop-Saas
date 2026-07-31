@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Order } from '../types';
-import { Calendar, FileText, Download, Table as TableIcon, File as FileWord, Search, Filter, ArrowLeft, Trash2, X, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Calendar, FileText, Download, Table as TableIcon, File as FileWord, Search, Filter, ArrowLeft, Trash2, X, AlertTriangle, ChevronDown, ChevronRight, BarChart3, TrendingUp } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } from 'docx';
 import { saveAs } from 'file-saver';
+import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 // Extend jsPDF with autotable types for TypeScript
 declare module 'jspdf' {
@@ -32,12 +33,23 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
   const [startDate, setStartDate] = useState(getTodayString());
   const [endDate, setEndDate] = useState(getTodayString());
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   // Modals & Action States
   const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+
+  const allCategories = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        if (item.category) set.add(item.category);
+      });
+    });
+    return Array.from(set);
+  }, [orders]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
@@ -49,10 +61,13 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                             order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             order.tableNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesCategory = selectedCategory === 'all' || 
+                              order.items.some(item => (item.category || '').toLowerCase() === selectedCategory.toLowerCase());
       
-      return isWithinDateRange && matchesSearch;
+      return isWithinDateRange && matchesSearch && matchesCategory;
     }).sort((a, b) => b.createdAt - a.createdAt);
-  }, [orders, startDate, endDate, searchTerm]);
+  }, [orders, startDate, endDate, searchTerm, selectedCategory]);
 
   const totalRevenue = useMemo(() => {
     return filteredOrders.reduce((sum, order) => {
@@ -61,12 +76,54 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
     }, 0);
   }, [filteredOrders]);
 
-  const totalDrinksQuantity = useMemo(() => {
-    return filteredOrders.reduce((sum, order) => {
-      if (order.status === 'cancelled') return sum;
-      const orderQty = order.items.reduce((itemSum, item) => itemSum + (item.quantity || 1), 0);
-      return sum + orderQty;
-    }, 0);
+  const { totalDrinksQuantity, totalPastryQuantity } = useMemo(() => {
+    let drinks = 0;
+    let pastry = 0;
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      order.items.forEach(item => {
+        const cat = (item.category || '').toLowerCase();
+        const qty = item.quantity || 1;
+        if (cat.includes('food') || cat.includes('pastry') || cat.includes('bakery')) {
+          pastry += qty;
+        } else {
+          drinks += qty;
+        }
+      });
+    });
+    return { totalDrinksQuantity: drinks, totalPastryQuantity: pastry };
+  }, [filteredOrders]);
+
+  const salesTrendData = useMemo(() => {
+    const map: Record<string, { date: string; revenue: number; orders: number }> = {};
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      const dateStr = new Date(order.createdAt).toISOString().split('T')[0];
+      if (!map[dateStr]) {
+        map[dateStr] = { date: dateStr, revenue: 0, orders: 0 };
+      }
+      map[dateStr].revenue += order.total;
+      map[dateStr].orders += 1;
+    });
+    return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+  }, [filteredOrders]);
+
+  const categoryChartData = useMemo(() => {
+    const map: Record<string, { category: string; revenue: number; quantity: number }> = {};
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      order.items.forEach(item => {
+        const cat = item.category || 'Other';
+        const qty = item.quantity || 1;
+        const price = item.price || 0;
+        if (!map[cat]) {
+          map[cat] = { category: cat, revenue: 0, quantity: 0 };
+        }
+        map[cat].revenue += price * qty;
+        map[cat].quantity += qty;
+      });
+    });
+    return Object.values(map);
   }, [filteredOrders]);
 
   const handleDeleteConfirm = async () => {
@@ -238,7 +295,7 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
           </div>
         </header>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-4 sm:gap-6 mb-8 md:mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 md:mb-12">
           <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
             <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-1.5 sm:mb-2 opacity-50">Launch Count</span>
             <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{filteredOrders.length}</span>
@@ -248,11 +305,16 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
             <span className="text-2xl sm:text-3xl font-black text-cyan-500 dark:text-cyan-400">{totalDrinksQuantity}</span>
           </div>
           <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
-            <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-1.5 sm:mb-2 opacity-50">Total Fuel</span>
-            <span className="text-2xl sm:text-3xl font-black text-amber-500">₱{totalRevenue.toLocaleString()}</span>
+            <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-1.5 sm:mb-2 opacity-50">Total Pastry Qty</span>
+            <span className="text-2xl sm:text-3xl font-black text-amber-500 dark:text-amber-400">{totalPastryQuantity}</span>
           </div>
-          <div className="sm:col-span-3 md:col-span-2 bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4">
-            <div className="flex flex-col sm:flex-row gap-4">
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-1.5 sm:mb-2 opacity-50">Total Fuel</span>
+            <span className="text-2xl sm:text-3xl font-black text-emerald-500">₱{totalRevenue.toLocaleString()}</span>
+          </div>
+        </div>
+        <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="flex-1">
                 <label className="block text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase mb-1.5 tracking-widest opacity-50">Start Vector</label>
                 <input 
@@ -270,6 +332,19 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                   onChange={(e) => setEndDate(e.target.value)}
                   className="w-full p-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-lg focus:border-amber-500/50 outline-none text-slate-900 dark:text-white font-bold transition-all text-[11px] sm:text-xs"
                 />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase mb-1.5 tracking-widest opacity-50">Category Filter</label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full p-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-lg focus:border-amber-500/50 outline-none text-slate-900 dark:text-white font-bold transition-all text-[11px] sm:text-xs uppercase"
+                >
+                  <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">All Categories</option>
+                  {allCategories.map(cat => (
+                    <option key={cat} value={cat} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{cat}</option>
+                  ))}
+                </select>
               </div>
             </div>
             
@@ -291,15 +366,86 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                 onClick={() => {
                   setStartDate('');
                   setEndDate('');
+                  setSelectedCategory('all');
                 }}
                 className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
-                  !startDate && !endDate
+                  !startDate && !endDate && selectedCategory === 'all'
                     ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]'
                     : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/5'
                 }`}
               >
-                All Time
+                Reset All
               </button>
+            </div>
+          </div>
+
+        {/* Charts & Graphs Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 md:mb-12">
+          {/* Sales Trend Chart */}
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-amber-500" />
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Sales Trend (Revenue over Time)</h3>
+              </div>
+              <span className="text-[10px] font-bold text-amber-500/60 uppercase">₱ Revenue</span>
+            </div>
+            <div className="h-64 w-full">
+              {salesTrendData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={salesTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                    <XAxis dataKey="date" stroke="#888888" fontSize={10} tickLine={false} />
+                    <YAxis stroke="#888888" fontSize={10} tickLine={false} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#09090b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px' }}
+                      formatter={(val: any) => [`₱${Number(val).toLocaleString()}`, 'Revenue']}
+                    />
+                    <Area type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                  No data available for selected filter
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Category Performance Chart */}
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-cyan-500" />
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Category Revenue Breakdown</h3>
+              </div>
+              <span className="text-[10px] font-bold text-cyan-500/60 uppercase">₱ by Category</span>
+            </div>
+            <div className="h-64 w-full">
+              {categoryChartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={categoryChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                    <XAxis dataKey="category" stroke="#888888" fontSize={10} tickLine={false} />
+                    <YAxis stroke="#888888" fontSize={10} tickLine={false} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#09090b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px' }}
+                      formatter={(val: any) => [`₱${Number(val).toLocaleString()}`, 'Revenue']}
+                    />
+                    <Bar dataKey="revenue" fill="#06b6d4" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                  No data available for selected filter
+                </div>
+              )}
             </div>
           </div>
         </div>

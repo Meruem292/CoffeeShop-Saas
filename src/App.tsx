@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 import { ViewMode, Order, Product, OrderStatus } from './types';
 import { SplashScreen } from './components/SplashScreen';
 import { AdminLoginModal } from './components/AdminLoginModal';
@@ -159,6 +159,46 @@ export default function App() {
   // Notification for new orders on admin side
   const prevOrderIds = useRef<Set<string>>(new Set());
   const prevOrderStatuses = useRef<Map<string, string>>(new Map());
+
+  const mostPickedProductIds = useMemo(() => {
+    const counts: Record<string, number> = {};
+    orders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      order.items.forEach(item => {
+        if (item.id) {
+          counts[item.id] = (counts[item.id] || 0) + (item.quantity || 1);
+        }
+      });
+    });
+
+    const categoryProducts: Record<string, Product[]> = {};
+    products.forEach(p => {
+      const cat = p.category || 'Other';
+      if (!categoryProducts[cat]) categoryProducts[cat] = [];
+      categoryProducts[cat].push(p);
+    });
+
+    const topIds = new Set<string>();
+
+    Object.values(categoryProducts).forEach(catProds => {
+      let maxCount = -1;
+      let topId: string | null = null;
+      catProds.forEach(p => {
+        const count = counts[p.id] || 0;
+        if (count > maxCount) {
+          maxCount = count;
+          topId = p.id;
+        }
+      });
+      if (topId) {
+        topIds.add(topId);
+      } else if (catProds.length > 0) {
+        topIds.add(catProds[0].id);
+      }
+    });
+
+    return topIds;
+  }, [orders, products]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -670,6 +710,7 @@ export default function App() {
                       searchQuery={searchQuery}
                       shopSettings={shopSettings}
                       categoriesData={categories}
+                      mostPickedProductIds={mostPickedProductIds}
                     />
                   )}
                   {currentView === 'kiosk' && (
@@ -681,6 +722,7 @@ export default function App() {
                       searchQuery={searchQuery}
                       shopSettings={shopSettings}
                       categoriesData={categories}
+                      mostPickedProductIds={mostPickedProductIds}
                     />
                   )}
                   {currentView === 'mobile' && (
@@ -692,6 +734,7 @@ export default function App() {
                       searchQuery={searchQuery}
                       shopSettings={shopSettings}
                       categoriesData={categories}
+                      mostPickedProductIds={mostPickedProductIds}
                     />
                   )}
                   {currentView === 'cashier' && (

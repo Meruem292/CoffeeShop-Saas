@@ -13,9 +13,10 @@ interface OrderingScreenProps {
   searchQuery?: string;
   shopSettings?: ShopSettings | null;
   categoriesData?: DynamicCategory[];
+  mostPickedProductIds?: Set<string>;
 }
 
-export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQuery = '', shopSettings, categoriesData }: OrderingScreenProps) {
+export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQuery = '', shopSettings, categoriesData, mostPickedProductIds }: OrderingScreenProps) {
   const categories = useMemo(() => {
     let list: string[] = [];
     if (categoriesData && categoriesData.length > 0) {
@@ -476,6 +477,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                     mode={mode}
                     cartCount={cart.filter(c => c.id === item.id).reduce((sum, item) => sum + item.quantity, 0)}
                     onClick={handleProductClick}
+                    isMostPicked={mostPickedProductIds ? mostPickedProductIds.has(item.id) : false}
                   />
                 ))}
             </div>
