@@ -70,6 +70,10 @@ export interface ShopSettings {
   notificationVolume?: number;
   qrCodeUrl?: string;
   speakCustomerName?: boolean;
+  kioskPin?: string;
+  pointsEarnedPer100Pesos?: number;
+  gcashQrUrl?: string;
+  gcashNumber?: string;
 }
 
 export interface SplashScreen {
@@ -83,7 +87,7 @@ export interface SplashScreen {
   glbUrl?: string;
 }
 
-export type OrderStatus = 'unpaid' | 'pending' | 'preparing' | 'ready' | 'completed' | 'cancelled';
+export type OrderStatus = 'unpaid' | 'pending' | 'pending-verification' | 'preparing' | 'ready' | 'completed' | 'cancelled';
 
 export interface Order {
   id?: string;
@@ -95,4 +99,7 @@ export interface Order {
   customerName: string;
   tableNumber?: string;
   orderType?: 'dine-in' | 'take-away';
+  gcashReference?: string;
+  receiptUrl?: string;
+  accountId?: string;
 }

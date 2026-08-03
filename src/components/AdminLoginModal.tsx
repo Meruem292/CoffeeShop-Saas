@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Store, X } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
+import { useToast } from '../lib/ToastContext';
 
 export function AdminLoginModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState('');
@@ -9,6 +10,7 @@ export function AdminLoginModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false);
   
   const { signInWithEmail } = useAuth();
+  const { toast } = useToast();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,10 +19,13 @@ export function AdminLoginModal({ onClose }: { onClose: () => void }) {
 
     try {
       await signInWithEmail(email, password);
+      toast.success('Successfully logged in!');
       onClose();
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'An error occurred. Please try again.');
+      const msg = err.message || 'An error occurred. Please try again.';
+      setError(msg);
+      toast.error(`Login failed: ${msg}`);
     } finally {
       setLoading(false);
     }

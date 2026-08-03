@@ -3,6 +3,7 @@ import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, order
 import { db, auth } from '../firebase';
 import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory } from '../types';
 import { handleFirestoreError } from './AuthContext';
+import { useToast } from './ToastContext';
 
 enum OperationType {
   CREATE = 'create',
@@ -14,6 +15,7 @@ enum OperationType {
 }
 
 export function useFirebase(userUid?: string, isAdmin?: boolean) {
+  const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [addons, setAddons] = useState<Addon[]>([]);
   const [categories, setCategories] = useState<DynamicCategory[]>([]);
@@ -35,14 +37,18 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     // Shop Settings Sync
     const unsubSettings = onSnapshot(doc(db, 'settings', 'shop'), (snapshot) => {
       if (snapshot.exists()) {
-        setShopSettings({ id: snapshot.id, ...snapshot.data() } as ShopSettings);
+        setShopSettings({ id: snapshot.id, kioskPin: '0000', pointsEarnedPer100Pesos: 10, gcashQrUrl: '', gcashNumber: '', ...snapshot.data() } as ShopSettings);
       } else {
         setShopSettings({
           id: 'shop',
           name: 'CoffeeHouse OS',
           initials: 'CH',
           logoUrl: '',
-          themeColor: '#4b2c20'
+          themeColor: '#4b2c20',
+          kioskPin: '0000',
+          pointsEarnedPer100Pesos: 10,
+          gcashQrUrl: '',
+          gcashNumber: '0917-123-4567'
         });
       }
     }, (err) => handleSnapshotError(err, OperationType.GET, 'settings/shop'));
@@ -142,8 +148,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     try {
       const { id, ...data } = updates;
       await setDoc(doc(db, 'settings', 'shop'), data, { merge: true });
+      toast.success('Shop settings updated successfully!');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, 'settings/shop');
+      toast.error('Failed to update shop settings');
     }
   };
 
@@ -152,8 +160,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     try {
       const { id, ...data } = updates;
       await setDoc(doc(db, 'settings', 'splash'), data, { merge: true });
+      toast.success('Splash screen updated successfully!');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, 'settings/splash');
+      toast.error('Failed to update splash screen');
     }
   };
 
@@ -164,8 +174,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
         Object.entries(product).filter(([_, v]) => v !== undefined)
       );
       await addDoc(collection(db, 'products'), cleanData);
+      toast.success(`Product "${product.name}" added successfully!`);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'products');
+      toast.error('Failed to add product');
     }
   };
 
@@ -175,16 +187,20 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
         Object.entries(updates).filter(([_, v]) => v !== undefined)
       );
       await updateDoc(doc(db, 'products', id), cleanData);
+      toast.success(`Product updated successfully!`);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `products/${id}`);
+      toast.error('Failed to update product');
     }
   };
 
   const deleteProduct = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'products', id));
+      toast.success('Product deleted successfully!');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `products/${id}`);
+      toast.error('Failed to delete product');
     }
   };
 
@@ -195,8 +211,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
         Object.entries(addon).filter(([_, v]) => v !== undefined)
       );
       await addDoc(collection(db, 'addons'), cleanData);
+      toast.success(`Add-on "${addon.name}" added successfully!`);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'addons');
+      toast.error('Failed to add add-on');
     }
   };
 
@@ -206,16 +224,20 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
         Object.entries(updates).filter(([_, v]) => v !== undefined)
       );
       await updateDoc(doc(db, 'addons', id), cleanData);
+      toast.success('Add-on updated successfully!');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `addons/${id}`);
+      toast.error('Failed to update add-on');
     }
   };
 
   const deleteAddon = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'addons', id));
+      toast.success('Add-on deleted successfully!');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `addons/${id}`);
+      toast.error('Failed to delete add-on');
     }
   };
 
@@ -223,8 +245,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const addCategory = async (category: Omit<DynamicCategory, 'id'>) => {
     try {
       await addDoc(collection(db, 'categories'), category);
+      toast.success(`Category "${category.name}" added successfully!`);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'categories');
+      toast.error('Failed to add category');
     }
   };
 
@@ -232,16 +256,20 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     try {
       const { id: _, ...data } = updates;
       await updateDoc(doc(db, 'categories', id), data);
+      toast.success('Category updated successfully!');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `categories/${id}`);
+      toast.error('Failed to update category');
     }
   };
 
   const deleteCategory = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'categories', id));
+      toast.success('Category deleted successfully!');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `categories/${id}`);
+      toast.error('Failed to delete category');
     }
   };
 
@@ -283,8 +311,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const updateOrderStatus = async (id: string, status: OrderStatus) => {
     try {
       await updateDoc(doc(db, 'orders', id), { status });
+      toast.success(`Order status updated to ${status}!`);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `orders/${id}`);
+      toast.error('Failed to update order status');
     }
   };
 
@@ -292,8 +322,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     try {
       const cleanData = deepCleanUndefined(updates);
       await updateDoc(doc(db, 'orders', id), cleanData);
+      toast.success('Order details updated successfully!');
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `orders/${id}`);
+      toast.error('Failed to update order details');
     }
   };
 
@@ -303,8 +335,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       const newStock = Math.max(0, product.stock + delta);
       try {
         await updateDoc(doc(db, 'products', id), { stock: newStock });
+        toast.success(`Updated stock for "${product.name}"!`);
       } catch (err) {
         handleFirestoreError(err, OperationType.UPDATE, `products/${id}`);
+        toast.error('Failed to update stock');
       }
     }
   };
@@ -312,8 +346,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const deleteOrder = async (id: string) => {
     try {
       await deleteDoc(doc(db, 'orders', id));
+      toast.success('Order deleted successfully!');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `orders/${id}`);
+      toast.error('Failed to delete order');
     }
   };
 
@@ -324,8 +360,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
         batch.delete(doc(db, 'orders', id));
       });
       await batch.commit();
+      toast.success('All completed orders cleared successfully!');
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, 'orders/clear');
+      toast.error('Failed to clear completed orders');
     }
   };
 

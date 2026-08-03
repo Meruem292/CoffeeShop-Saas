@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Order, CartItem, Addon, Product, SugarLevel } from '../types';
 import { X, Trash2, Plus, Minus, AlertTriangle, Save, RefreshCw } from 'lucide-react';
 import { ConfirmationModal } from './ConfirmationModal';
+import { useToast } from '../lib/ToastContext';
 
 interface EditOrderModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface EditOrderModalProps {
 }
 
 export function EditOrderModal({ isOpen, onClose, order, onSave, onCancelOrder, availableAddons }: EditOrderModalProps) {
+  const { toast } = useToast();
   const [items, setItems] = useState<CartItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -108,7 +110,7 @@ export function EditOrderModal({ isOpen, onClose, order, onSave, onCancelOrder, 
       onClose();
     } catch (err) {
       console.error('Failed to save order updates:', err);
-      alert('An error occurred while saving changes.');
+      toast.error('An error occurred while saving changes.');
     } finally {
       setIsSaving(false);
     }
@@ -121,7 +123,7 @@ export function EditOrderModal({ isOpen, onClose, order, onSave, onCancelOrder, 
       onClose();
     } catch (err) {
       console.error('Failed to cancel order:', err);
-      alert('An error occurred while cancelling the order.');
+      toast.error('An error occurred while cancelling the order.');
     } finally {
       setIsCancelling(false);
     }

@@ -6,6 +6,7 @@ import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCi
 import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
 import { useTheme } from './lib/ThemeProvider';
+import { useToast } from './lib/ToastContext';
 import { playNotificationSound } from './lib/audio';
 import ShapeGrid from './components/ShapeGrid';
 
@@ -19,6 +20,7 @@ const CashierView = lazy(() => import('./components/CashierView').then(m => ({ d
 const TransactionReports = lazy(() => import('./components/TransactionReports').then(m => ({ default: m.TransactionReports })));
 
 export default function App() {
+  const { toast } = useToast();
   const [currentView, setCurrentView] = useState<ViewMode>('mobile');
   const [successOrder, setSuccessOrder] = useState<Order | null>(null);
   const [successTimer, setSuccessTimer] = useState<number>(10);
@@ -26,7 +28,23 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  const { user, isAdmin, loading: authLoading, logOut } = useAuth();
+  const [isKioskModeActive, setIsKioskModeActive] = useState(() => {
+    return localStorage.getItem('astro_pos_kiosk_active') === 'true';
+  });
+  const [showExitKioskModal, setShowExitKioskModal] = useState(false);
+  const [exitKioskPassword, setExitKioskPassword] = useState('');
+  const [exitKioskError, setExitKioskError] = useState('');
+  const [exitKioskLoading, setExitKioskLoading] = useState(false);
+
+  const { user, isAdmin, loading: authLoading, logOut, signInWithEmail } = useAuth();
+  const handleLogout = async () => {
+    try {
+      await logOut();
+      toast.success('Logged out successfully');
+    } catch (err: any) {
+      toast.error('Failed to log out');
+    }
+  };
   const { theme, setTheme } = useTheme();
   
   const {
@@ -240,8 +258,8 @@ export default function App() {
     }
   }, [orders, isAdmin, shopSettings?.speakCustomerName, shopSettings?.notificationSoundUrl, shopSettings?.notificationVolume]);
 
-  const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'createdAt' | 'status'>) => {
-    const initialStatus: OrderStatus = 'unpaid';
+  const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'createdAt'>) => {
+    const initialStatus: OrderStatus = orderData.status || 'unpaid';
     
     try {
       await addOrder({
@@ -256,10 +274,10 @@ export default function App() {
         status: initialStatus,
       };
       setSuccessOrder(modalOrder);
+      toast.success(initialStatus === 'pending-verification' ? 'Order submitted! Pending GCash verification.' : 'Order placed successfully!');
     } catch (err) {
       console.error('Failed to place order', err);
-      // Let the user try again instead of falsely showing success
-      alert('Failed to place order. Please try again.');
+      toast.error('Failed to place order. Please try again.');
     }
   };
 
@@ -281,7 +299,7 @@ export default function App() {
       items.push({
         label: 'Logout',
         link: '#',
-        onClick: logOut
+        onClick: handleLogout
       });
     } else {
       items.push({
@@ -291,7 +309,7 @@ export default function App() {
       });
     }
     return items;
-  }, [allowedNavigation, user, logOut]);
+  }, [allowedNavigation, user, handleLogout]);
 
   const socialItems = React.useMemo(() => [
     { label: 'Instagram', link: 'https://instagram.com' },
@@ -370,6 +388,79 @@ export default function App() {
       </div>
 
       <div className="flex-1 flex min-h-screen overflow-hidden relative z-10 w-full">
+        {isKioskModeActive && (
+          <div className="absolute top-4 right-4 z-[300]">
+            <button
+              onClick={() => setShowExitKioskModal(true)}
+              className="px-4 py-2 bg-black/80 hover:bg-black backdrop-blur-md border border-amber-500/30 rounded-full text-amber-500 font-black text-xs uppercase tracking-widest flex items-center gap-2 shadow-2xl transition-all"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              Exit Kiosk
+            </button>
+          </div>
+        )}
+
+        {isKioskModeActive && showExitKioskModal && (
+          <div className="fixed inset-0 z-[350] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+            <div className="bg-[#0a0a0c] rounded-[2.5rem] p-8 max-w-sm w-full border border-white/10 shadow-2xl relative">
+              <button 
+                onClick={() => setShowExitKioskModal(false)}
+                className="absolute top-5 right-5 p-2 text-white/40 hover:text-white bg-white/5 rounded-full"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="text-center mb-6">
+                <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">Exit Kiosk Mode</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mt-1">Enter Kiosk Exit PIN to Unlock</p>
+              </div>
+
+              {exitKioskError && (
+                <div className="bg-rose-500/10 text-rose-500 p-3 rounded-xl text-[10px] font-black uppercase tracking-widest mb-4 border border-rose-500/20 text-center">
+                  {exitKioskError}
+                </div>
+              )}
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                setExitKioskError('');
+                setExitKioskLoading(true);
+                setTimeout(() => {
+                  const targetPin = shopSettings?.kioskPin || '0000';
+                  if (exitKioskPassword === targetPin) {
+                    setIsKioskModeActive(false);
+                    localStorage.removeItem('astro_pos_kiosk_active');
+                    setShowExitKioskModal(false);
+                    setExitKioskPassword('');
+                    toast.success('Successfully exited Kiosk Mode!');
+                  } else {
+                    setExitKioskError('Invalid Kiosk PIN');
+                    toast.error('Invalid Kiosk exit PIN!');
+                  }
+                  setExitKioskLoading(false);
+                }, 400);
+              }} className="space-y-4">
+                <input 
+                  type="password"
+                  required
+                  placeholder="Kiosk Exit PIN..."
+                  value={exitKioskPassword}
+                  onChange={e => setExitKioskPassword(e.target.value)}
+                  className="w-full p-3.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold text-xs focus:border-amber-500/50 outline-none"
+                />
+                <button
+                  disabled={exitKioskLoading}
+                  type="submit"
+                  className="w-full py-3.5 bg-amber-500 text-black rounded-xl font-black uppercase tracking-widest text-xs hover:bg-amber-400 transition-all disabled:opacity-50"
+                >
+                  {exitKioskLoading ? 'Verifying...' : 'Unlock & Exit'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
         {dbError && (
           <div className="fixed top-0 left-0 right-0 z-[400] bg-amber-600 text-slate-900 dark:text-white text-[10px] sm:text-xs py-1.5 px-4 text-center font-bold flex items-center justify-center gap-2 animate-in fade-in slide-in-from-top duration-500">
             <ShieldAlert className="w-3.5 h-3.5" />
@@ -378,7 +469,7 @@ export default function App() {
         )}
 
         {/* Elegant iOS-Inclined Sidebar - Desktop (lg and up) */}
-        {!(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
+        {!isKioskModeActive && !(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
           <aside className="hidden lg:flex flex-col w-72 bg-white/60 dark:bg-slate-950/40 border-r border-black/10 dark:border-white/5 backdrop-blur-3xl h-screen shrink-0 relative z-10 transition-all duration-300">
             {/* Store Brand Header */}
             <div className="p-6 border-b border-black/10 dark:border-white/5 flex items-center gap-3 shrink-0">
@@ -458,6 +549,19 @@ export default function App() {
 
             {/* Bottom Profile / Admin Portal Widget */}
             <div className="p-4 border-t border-black/10 dark:border-white/5 bg-white dark:bg-slate-950/20 shrink-0">
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    setIsKioskModeActive(true);
+                    localStorage.setItem('astro_pos_kiosk_active', 'true');
+                    toast.success('Secure Kiosk Mode activated!');
+                  }}
+                  className="w-full mb-3 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg"
+                >
+                  <MonitorSmartphone className="w-3.5 h-3.5" />
+                  Launch Secure Kiosk
+                </button>
+              )}
               {user ? (
                 <div className="flex items-center justify-between p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5">
                   <div className="flex items-center gap-3 min-w-0">
@@ -471,7 +575,7 @@ export default function App() {
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <button 
-                      onClick={logOut}
+                      onClick={handleLogout}
                       className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-red-400 transition-all shrink-0"
                       title="Logout"
                     >
@@ -496,7 +600,7 @@ export default function App() {
         <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-20 min-w-0">
           
           {/* Top Bar - Mobile View Only (lg and below) */}
-          {!(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
+          {!isKioskModeActive && !(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
             <header className="lg:hidden flex items-center justify-between px-6 py-4 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-b border-black/10 dark:border-white/5 shrink-0 relative z-20">
               <div className="flex items-center gap-3 min-w-0">
                 <button 
@@ -624,7 +728,21 @@ export default function App() {
                   })}
                 </nav>
 
-                <div className="pt-4 border-t border-black/10 dark:border-white/5 shrink-0">
+                <div className="pt-4 border-t border-black/10 dark:border-white/5 shrink-0 space-y-2">
+                  {isAdmin && (
+                    <button 
+                      onClick={() => {
+                        setIsKioskModeActive(true);
+                        localStorage.setItem('astro_pos_kiosk_active', 'true');
+                        setIsMobileMenuOpen(false);
+                        toast.success('Secure Kiosk Mode activated!');
+                      }}
+                      className="w-full py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+                    >
+                      <MonitorSmartphone className="w-4 h-4" />
+                      Launch Secure Kiosk
+                    </button>
+                  )}
                   {user ? (
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-3 p-2 rounded-lg bg-black/5 dark:bg-white/5">
@@ -635,7 +753,7 @@ export default function App() {
                       </div>
                       <button 
                         onClick={() => {
-                          logOut();
+                          handleLogout();
                           setIsMobileMenuOpen(false);
                         }}
                         className="w-full py-2.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-xs font-bold uppercase transition-all"

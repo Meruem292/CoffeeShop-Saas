@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { SplashScreen, ShopSettings } from '../types';
-import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt, QrCode, Link, Trash2 } from 'lucide-react';
+import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt, QrCode, Link, Trash2, Lock } from 'lucide-react';
 import { useTheme } from '../lib/ThemeProvider';
+import { useToast } from '../lib/ToastContext';
 
 interface AdminSettingsProps {
   splashScreen: SplashScreen | null;
@@ -11,6 +12,7 @@ interface AdminSettingsProps {
 }
 
 export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUpdateShop }: AdminSettingsProps) {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'shop' | 'splash'>('shop');
   const { theme, setTheme } = useTheme();
   
@@ -39,7 +41,11 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     address: '',
     phone: '',
     tagline: '',
-    speakCustomerName: false
+    speakCustomerName: false,
+    kioskPin: '0000',
+    pointsEarnedPer100Pesos: 10,
+    gcashQrUrl: '',
+    gcashNumber: ''
   });
 
   const [saving, setSaving] = useState(false);
@@ -76,7 +82,11 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         tagline: shopSettings.tagline || '',
         notificationSoundUrl: shopSettings.notificationSoundUrl || '',
         notificationVolume: shopSettings.notificationVolume !== undefined ? shopSettings.notificationVolume : 1.0,
-        speakCustomerName: shopSettings.speakCustomerName || false
+        speakCustomerName: shopSettings.speakCustomerName || false,
+        kioskPin: shopSettings.kioskPin || '0000',
+        pointsEarnedPer100Pesos: shopSettings.pointsEarnedPer100Pesos || 10,
+        gcashQrUrl: shopSettings.gcashQrUrl || '',
+        gcashNumber: shopSettings.gcashNumber || ''
       });
     }
   }, [shopSettings]);
@@ -86,7 +96,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert('QR Code image must be less than 2MB');
+      toast.warning('QR Code image must be less than 2MB');
       return;
     }
 
@@ -97,12 +107,28 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     reader.readAsDataURL(file);
   };
 
+  const handleGcashQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.warning('GCash QR Code image must be less than 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setShopData(prev => ({ ...prev, gcashQrUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.size > 2 * 1024 * 1024) {
-      alert("Audio file is too large. Please select a file under 2MB.");
+      toast.warning("Audio file is too large. Please select a file under 2MB.");
       return;
     }
 
@@ -121,7 +147,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     if (!file) return;
 
     if (file.size > 1.5 * 1024 * 1024) {
-      alert("Image size is too large. Please select an image under 1.5MB to ensure reliable storage.");
+      toast.warning("Image size is too large. Please select an image under 1.5MB to ensure reliable storage.");
       return;
     }
 
@@ -414,6 +440,77 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                       placeholder="e.g. +63 900 123 4567"
                     />
                   </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Kiosk Mode Exit PIN / Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/20 dark:text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.kioskPin || ''}
+                      onChange={e => setShopData({ ...shopData, kioskPin: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. 0000"
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">This PIN is used to exit Kiosk mode, separate from your main Admin credentials.</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Points Earned per 100 Pesos Spent</label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      value={shopData.pointsEarnedPer100Pesos || 10}
+                      onChange={e => setShopData({ ...shopData, pointsEarnedPer100Pesos: parseInt(e.target.value) })}
+                      className="w-full px-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. 10"
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">Configure how many loyalty points a user receives for every 100 pesos spent.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 border-t border-black/10 dark:border-white/10 pt-6 mt-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">GCash Account/Phone Number</label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/20 dark:text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.gcashNumber || ''}
+                      onChange={e => setShopData({ ...shopData, gcashNumber: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. 0917-123-4567"
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">The GCash number shown to customers during online payment checkout.</p>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">GCash Payment QR Code</label>
+                  <div className="flex items-center gap-4 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10 h-[58px]">
+                    {shopData.gcashQrUrl ? (
+                      <div className="w-10 h-10 rounded-xl bg-white p-0.5 overflow-hidden shrink-0 border border-black/10 dark:border-white/10 relative group">
+                        <img src={shopData.gcashQrUrl} alt="GCash QR Code" className="w-full h-full object-contain" />
+                        <button type="button" onClick={() => setShopData({...shopData, gcashQrUrl: ''})} className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 flex items-center justify-center shrink-0">
+                        <QrCode className="w-5 h-5 text-slate-400" />
+                      </div>
+                    )}
+                    <label className="flex-1 flex items-center justify-center border-2 border-dashed border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-xl p-2 cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5 text-center group h-full">
+                      <Upload className="w-4 h-4 text-slate-500 dark:text-white/40 group-hover:text-amber-500 mr-2 transition-all cursor-pointer" />
+                      <span className="text-[9px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Upload QR</span>
+                      <input type="file" accept="image/*" onChange={handleGcashQrUpload} className="hidden" />
+                    </label>
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">Upload GCash QR code image for users to scan and pay.</p>
                 </div>
               </div>
 

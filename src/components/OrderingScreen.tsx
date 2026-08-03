@@ -1,15 +1,18 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream } from 'lucide-react';
+import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus } from '../types';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
+import { useAuth } from '../lib/AuthContext';
+import { CustomerAuthModal } from './CustomerAuthModal';
+import { useToast } from '../lib/ToastContext';
 
 interface OrderingScreenProps {
   mode: 'pos' | 'kiosk' | 'mobile';
   menu: Product[];
   addons?: Addon[];
-  onPlaceOrder: (order: Omit<Order, 'id' | 'createdAt' | 'status'>) => void;
+  onPlaceOrder: (order: Omit<Order, 'id' | 'createdAt'>) => void;
   searchQuery?: string;
   shopSettings?: ShopSettings | null;
   categoriesData?: DynamicCategory[];
@@ -17,6 +20,7 @@ interface OrderingScreenProps {
 }
 
 export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQuery = '', shopSettings, categoriesData, mostPickedProductIds }: OrderingScreenProps) {
+  const { toast } = useToast();
   const categories = useMemo(() => {
     let list: string[] = [];
     if (categoriesData && categoriesData.length > 0) {
@@ -73,9 +77,72 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
     }
   }, [categories, activeCategory]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const { user, logOut } = useAuth();
+  const [showCustomerAuth, setShowCustomerAuth] = useState(false);
+  const [receiptBase64, setReceiptBase64] = useState('');
+  const [compressingImage, setCompressingImage] = useState(false);
+
+  // Sync customer name if logged in
+  React.useEffect(() => {
+    if (user && !user.email?.endsWith('@astro.local') && user.email !== 'newroskoto@gmail.com') { // exclude admin
+      setCustomerName(user.displayName || user.email.split('@')[0] || '');
+    }
+  }, [user]);
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setCompressingImage(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target?.result as string;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 500;
+            const MAX_HEIGHT = 500;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.5));
+          };
+          img.onerror = reject;
+        };
+        reader.onerror = reject;
+      });
+      setReceiptBase64(base64);
+    } catch (err) {
+      console.error('Failed to process image:', err);
+      toast.error('Failed to process receipt image. Please try another image.');
+    } finally {
+      setCompressingImage(false);
+    }
+  };
+
   const [customerName, setCustomerName] = useState('');
   const [tableNumber, setTableNumber] = useState('');
-  const [orderType, setOrderType] = useState<'dine-in' | 'take-away' | null>(null);
+  const [accountId, setAccountId] = useState('');
+  const [orderType, setOrderType] = useState<'dine-in' | 'take-away' | null>('take-away');
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
   const [isKioskCartOpen, setIsKioskCartOpen] = useState(false);
   const [isPosCartDrawerOpen, setIsPosCartDrawerOpen] = useState(false);
@@ -126,11 +193,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
         JSON.stringify(ci.selectedAddons?.map(a => a.id).sort()) === JSON.stringify(selectedAddons?.map(a => a.id).sort())
       );
       if (existingIndex > -1) {
+        toast.success(`Increased ${product.name} quantity in cart`);
         return prev.map((ci, idx) => idx === existingIndex ? { ...ci, quantity: ci.quantity + 1 } : ci);
       }
+      toast.success(`${product.name} added to cart`);
       return [...prev, { ...product, cartId, quantity: 1, notes: '', selectedSize: size, price: finalPrice, sugarLevel, selectedAddons }];
     });
-  }, []);
+  }, [toast]);
 
   // Product Click Handler
   const handleProductClick = useCallback((product: Product) => {
@@ -169,15 +238,19 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   };
 
   const updateQuantity = (cartId: string, delta: number) => {
-    setCart((prev) =>
-      prev.map((item) => {
+    setCart((prev) => {
+      const itemToUpdate = prev.find(item => item.cartId === cartId);
+      if (itemToUpdate && itemToUpdate.quantity + delta <= 0) {
+        toast.info(`Removed ${itemToUpdate.name} from cart`);
+      }
+      return prev.map((item) => {
         if (item.cartId === cartId) {
           const newQuantity = Math.max(0, item.quantity + delta);
           return { ...item, quantity: newQuantity };
         }
         return item;
-      }).filter((item) => item.quantity > 0)
-    );
+      }).filter((item) => item.quantity > 0);
+    });
   };
 
   const availableSubCategories = useMemo(() => {
@@ -235,83 +308,50 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
     // Ensure we have a default order type if not set
     const finalOrderType = orderType || 'take-away';
     
-    if (!customerName.trim()) {
-      alert('Please enter your name before placing the order.');
+    // Enforce Customer Login in mobile view
+    if (mode === 'mobile' && !user) {
+      setShowCustomerAuth(true);
       return;
+    }
+    
+    if (!customerName.trim()) {
+      toast.warning('Please enter your name before placing the order.');
+      return;
+    }
+
+    if (finalOrderType === 'take-away' && mode === 'mobile') {
+      if (!receiptBase64) {
+        toast.warning('Please upload your GCash payment receipt screenshot.');
+        return;
+      }
     }
 
     onPlaceOrder({
       items: cart,
       total,
-      source: mode,
+      source: mode === 'kiosk' ? 'mobile' : mode,
       customerName: customerName.trim(),
       tableNumber: finalOrderType === 'dine-in' ? (tableNumber || undefined) : undefined,
       orderType: finalOrderType,
+      status: finalOrderType === 'take-away' && mode === 'mobile' ? 'pending-verification' : 'unpaid',
+      receiptUrl: finalOrderType === 'take-away' && mode === 'mobile' ? receiptBase64 : undefined,
+      accountId: accountId.trim() || undefined
     });
+
     setCart([]);
     setCustomerName('');
     setTableNumber('');
-    setOrderType(null);
+    setAccountId('');
+    setReceiptBase64('');
+    setOrderType('take-away');
     setIsMobileCartOpen(false);
     setIsKioskCartOpen(false);
     setIsPosCartDrawerOpen(false);
   };
 
-  if (mode === 'kiosk' && !orderType) {
-    return (
-      <div className="fixed inset-0 z-[100] bg-transparent flex flex-col items-center justify-center p-8 overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-900/10 via-transparent to-transparent" />
-          <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[150px] rounded-full animate-pulse" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-purple-600/10 blur-[150px] rounded-full animate-pulse delay-700" />
-          <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
-        </div>
-        <div 
-          className="relative z-10 text-center mb-16"
-        >
-          <div className="w-24 h-24 bg-amber-500/10 backdrop-blur-xl border border-amber-500/30 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
-            <Sparkles className="w-12 h-12 text-amber-500" />
-          </div>
-          <h1 className="text-7xl font-black text-foreground mb-6 uppercase italic tracking-tighter leading-none">
-            Welcome to <span className="text-amber-500">Astro</span> Coffee
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400 text-2xl font-bold uppercase tracking-[0.3em]">Select your experience</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-12 w-full max-w-5xl relative z-10">
-          <button
-            onClick={() => setOrderType('dine-in')}
-            className="flex flex-col items-center gap-10 bg-white dark:bg-slate-900 shadow-2xl p-16 rounded-[4rem] group transition-all hover:shadow-amber-500/10 border-2 border-slate-100 dark:border-white/5 hover:border-amber-500/50"
-          >
-            <div className="w-48 h-48 bg-amber-500/5 rounded-full flex items-center justify-center group-hover:bg-amber-500/10 transition-all group-hover:scale-110 shadow-inner">
-              <Store className="w-24 h-24 text-amber-500" />
-            </div>
-            <div className="text-center">
-              <span className="text-5xl font-black text-foreground block mb-2 uppercase italic tracking-tighter group-hover:text-amber-500 transition-colors">Dine In</span>
-              <span className="text-slate-600 dark:text-slate-400 font-bold uppercase tracking-[0.4em] text-sm">Station Experience</span>
-            </div>
-          </button>
-
-          <button
-            onClick={() => setOrderType('take-away')}
-            className="flex flex-col items-center gap-10 bg-white dark:bg-slate-900 shadow-2xl p-16 rounded-[4rem] group transition-all hover:shadow-amber-500/10 border-2 border-slate-100 dark:border-white/5 hover:border-amber-500/50"
-          >
-            <div className="w-48 h-48 bg-amber-500/5 rounded-full flex items-center justify-center group-hover:bg-amber-500/10 transition-all group-hover:scale-110 shadow-inner">
-              <ShoppingBag className="w-24 h-24 text-amber-500" />
-            </div>
-            <div className="text-center">
-              <span className="text-5xl font-black text-foreground block mb-2 uppercase italic tracking-tighter group-hover:text-amber-500 transition-colors">Take Out</span>
-              <span className="text-slate-600 dark:text-slate-400 font-bold uppercase tracking-[0.4em] text-sm">Orbit Ready</span>
-            </div>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const containerClasses = {
     pos: 'flex h-screen overflow-hidden bg-transparent',
-    kiosk: 'flex h-screen w-screen bg-transparent overflow-hidden border-black/10 dark:border-white/5',
+    kiosk: 'flex flex-col h-screen w-full bg-transparent relative',
     mobile: 'flex flex-col h-screen w-full bg-transparent relative',
   };
 
@@ -378,6 +418,55 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
 
         <div className={`flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 lg:p-12 scrollbar-hide ${mode === 'mobile' ? 'pb-32' : ''}`}>
           <div className="w-full max-w-[1600px] mx-auto">
+            {mode === 'mobile' && (
+              <div className="mb-6 p-4 rounded-3xl bg-slate-50 dark:bg-[#11141d]/80 border border-black/5 dark:border-white/5 backdrop-blur-xl flex items-center justify-between gap-4 animate-in fade-in duration-300">
+                {user ? (
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-amber-500/10 text-amber-500 rounded-xl flex items-center justify-center font-black border border-amber-500/20 shadow-inner">
+                        <UserIcon className="w-4 h-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                          {user.displayName || user.email?.split('@')[0]}
+                        </span>
+                        <span className="text-[8px] font-bold text-coffee-600 uppercase tracking-widest leading-none mt-0.5">
+                          Verified Coffee Enthusiast
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => logOut()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 border border-rose-500/15"
+                    >
+                      <LogOut className="w-3 h-3" /> Log Out
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-amber-500/10 text-amber-500 rounded-xl flex items-center justify-center border border-amber-500/20">
+                        <LogIn className="w-4 h-4 text-amber-500" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight leading-tight">
+                          Unlock Pickup & Rewards
+                        </span>
+                        <span className="text-[8px] font-medium text-coffee-600 uppercase tracking-widest leading-none mt-0.5">
+                          Log in or sign up to place mobile orders
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowCustomerAuth(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 animate-pulse"
+                    >
+                      Sign In / Sign Up
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <header className={`${mode === 'mobile' ? 'mb-4 flex items-center px-1' : 'mb-12 flex flex-col lg:flex-row lg:items-end justify-between gap-6'}`}>
               <div className={`${mode === 'mobile' ? 'flex items-center gap-2' : 'flex flex-col'}`}>
                 {mode === 'mobile' ? (
@@ -587,6 +676,19 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
             />
           </div>
 
+          {mode === 'kiosk' && (
+            <div className="relative group mt-4">
+              <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] mb-2 ml-1">Account ID (Optional to Redeem Points)</label>
+              <input
+                type="text"
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-sm font-bold transition-all placeholder:text-white/20"
+                placeholder="Enter Account ID"
+              />
+            </div>
+          )}
+
           {orderType === 'dine-in' && (
             <div className="animate-in fade-in slide-in-from-top-4 duration-500 relative group">
               <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] mb-2 ml-1">Table Number</label>
@@ -599,6 +701,97 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
               />
             </div>
           )}
+
+          {orderType === 'take-away' && mode === 'mobile' && (
+            <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-4">
+              {/* Payment Details Box */}
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 text-amber-500">
+                  <QrCode className="w-4 h-4" />
+                  <span className="text-[10px] font-black uppercase tracking-wider">GCash Payment Details</span>
+                </div>
+
+                {shopSettings?.gcashQrUrl && (
+                  <div className="flex justify-center my-3">
+                    <div className="bg-white p-2 rounded-2xl border border-amber-500/20 shadow-md max-w-[180px]">
+                      <img 
+                        src={shopSettings.gcashQrUrl} 
+                        alt="GCash Payment QR" 
+                        className="w-full h-auto object-contain rounded-xl"
+                        referrerPolicy="no-referrer"
+                      />
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-wider text-center mt-1">Scan to Pay</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="text-xs text-slate-800 dark:text-slate-200">
+                  Send exactly <span className="font-black text-amber-500">₱{total.toLocaleString()}</span> to:
+                </div>
+                <div className="flex items-center justify-between mt-1 text-sm bg-black/10 dark:bg-white/5 px-3 py-2 rounded-xl">
+                  <span className="font-bold text-slate-900 dark:text-white">{shopSettings?.gcashNumber || '0917-123-4567'}</span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 border border-amber-500/10 px-2 py-0.5 rounded-full">{shopSettings?.name || 'Astro Coffee'}</span>
+                </div>
+              </div>
+
+              {/* Screenshot Upload */}
+              <div className="space-y-2">
+                <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">
+                  Receipt Screenshot
+                </label>
+                {receiptBase64 ? (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between gap-3 animate-in zoom-in-95">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <img src={receiptBase64} className="w-12 h-12 object-cover rounded-xl border border-emerald-500/10" alt="Receipt Preview" referrerPolicy="no-referrer" />
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-wider flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Uploaded successfully
+                        </span>
+                        <span className="text-[8px] font-medium text-slate-500 uppercase truncate">
+                          payment_screenshot.jpg
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setReceiptBase64('')}
+                      className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
+                      title="Remove receipt"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center p-6 border border-dashed border-black/20 dark:border-white/10 hover:border-amber-500/40 bg-black/5 dark:bg-white/5 rounded-2xl cursor-pointer hover:bg-black/10 transition-all text-center">
+                    <Upload className="w-6 h-6 text-slate-400 group-hover:text-amber-500 mb-2 transition-colors" />
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-300">
+                      {compressingImage ? 'Processing Image...' : 'Choose or Drag Receipt File'}
+                    </span>
+                    <span className="text-[8px] font-medium text-slate-500 dark:text-white/30 uppercase tracking-widest mt-1">
+                      PNG or JPG (will be compressed)
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleReceiptUpload}
+                      className="hidden"
+                      disabled={compressingImage}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Verification & Payment Notice */}
+        <div className="mt-4 mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+          <div className="space-y-1">
+            <p className="text-[10px] font-black uppercase text-amber-500 tracking-[0.2em]">Order Notice</p>
+            <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 leading-relaxed uppercase tracking-wider">
+              Your order will <span className="font-black text-amber-500">not</span> be made if not confirmed by the cashier (the e-payment) or not paid personally.
+            </p>
+          </div>
         </div>
 
         <div className="flex justify-between items-center mb-8 px-2">
@@ -625,70 +818,14 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
         <div className="flex-1 flex flex-col overflow-hidden">
           {renderMenuGrid()}
         </div>
-
-        {/* Cart Area - Kiosk (Bottom Bar) */}
-        {mode === 'kiosk' && (
-          <div className="h-32 bg-white/90 dark:bg-[#0D0F14]/90 backdrop-blur-2xl border-t border-black/10 dark:border-white/5 shadow-[0_-20px_60px_-15px_rgba(0,0,0,0.5)] z-30 flex items-stretch px-8 py-5 gap-8">
-            <button 
-              onClick={() => {
-                setCart([]);
-                setOrderType(null);
-              }}
-              className="px-10 bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 rounded-[2rem] border border-black/10 dark:border-white/5 font-black text-xs uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/20 transition-all flex items-center gap-3 active:scale-95"
-            >
-              <X className="w-5 h-5" />
-              Abort
-            </button>
-            
-            <div className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-[2.5rem] flex items-center px-10 shadow-inner group">
-              <div className="flex-1">
-                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-500/50 mb-1">Total Fuel</div>
-                <div className="text-4xl font-black text-slate-900 dark:text-white italic">₱{total.toLocaleString()}</div>
-              </div>
-              <div className="flex -space-x-4 overflow-hidden py-2">
-                 {cart.slice(0, 4).map((item, i) => (
-                   <div key={item.cartId} className="relative transition-transform duration-300 group-hover:translate-x-2" style={{ zIndex: 10 - i }}>
-                     <img 
-                      src={item.image || undefined} 
-                      className="w-14 h-14 rounded-full border-4 border-slate-900 shadow-xl object-cover" 
-                      alt={item.name} 
-                     />
-                   </div>
-                 ))}
-                 {cart.length > 4 && (
-                   <div className="w-14 h-14 rounded-full border-4 border-slate-900 bg-black/5 dark:bg-white/5 backdrop-blur-md flex items-center justify-center text-xs font-black text-slate-500 dark:text-white/40 shadow-xl relative z-0">
-                     +{cart.length - 4}
-                   </div>
-                 )}
-              </div>
-            </div>
-
-            <button 
-              onClick={() => setIsKioskCartOpen(true)}
-              disabled={cart.length === 0}
-              className="px-16 bg-amber-500 hover:bg-amber-400 text-black rounded-[2.5rem] font-black text-2xl uppercase tracking-tighter italic hover:scale-[1.02] transition-all shadow-xl active:scale-95 disabled:opacity-50 disabled:grayscale flex items-center gap-4"
-            >
-              Ignition
-              <ArrowRight className="w-8 h-8" />
-            </button>
-          </div>
-        )}
-
-        {isKioskCartOpen && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-8 bg-slate-300 dark:bg-black/60 backdrop-blur-lg">
-            <div className="bg-black/80 w-full max-w-3xl h-[85vh] rounded-[4rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,1)] border-2 border-black/10 dark:border-white/5 flex flex-col animate-in zoom-in-95 duration-500">
-              {renderCart()}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Cart Area - Mobile & POS (Floating Button & Drawer) */}
-      {(mode === 'mobile' || mode === 'pos') && (
+      {/* Cart Area - Mobile, Kiosk & POS (Floating Button & Drawer) */}
+      {(mode === 'mobile' || mode === 'kiosk' || mode === 'pos') && (
         <>
           {cart.length > 0 && !isMobileCartOpen && !isPosCartDrawerOpen && (
             <button
-              onClick={() => mode === 'mobile' ? setIsMobileCartOpen(true) : setIsPosCartDrawerOpen(true)}
+              onClick={() => mode === 'pos' ? setIsPosCartDrawerOpen(true) : setIsMobileCartOpen(true)}
               className="fixed bottom-8 right-8 z-[60] bg-white dark:bg-slate-900 text-black dark:text-white p-5 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] flex items-center gap-4 group transition-all active:scale-95 animate-in fade-in zoom-in-95 duration-500 border border-black/10 dark:border-white/10"
             >
               <div className="relative">
@@ -713,7 +850,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                 }}
               >
                 <div 
-                  className={`bg-black/90 w-full ${mode === 'mobile' ? 'h-[90vh]' : 'max-w-md ml-auto h-full'} rounded-t-[3rem] md:rounded-t-none md:rounded-l-[3rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] border-t border-black/10 dark:border-white/5 md:border-t-0 md:border-l border-black/10 dark:border-white/5 flex flex-col animate-in ${mode === 'mobile' ? 'slide-in-from-bottom' : 'slide-in-from-right'} duration-700`}
+                  className={`bg-black/90 w-full ${mode === 'mobile' || mode === 'kiosk' ? 'h-[90vh]' : 'max-w-md ml-auto h-full'} rounded-t-[3rem] md:rounded-t-none md:rounded-l-[3rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] border-t border-black/10 dark:border-white/5 md:border-t-0 md:border-l border-black/10 dark:border-white/5 flex flex-col animate-in ${mode === 'mobile' || mode === 'kiosk' ? 'slide-in-from-bottom' : 'slide-in-from-right'} duration-700`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex-1 overflow-hidden">
@@ -723,6 +860,15 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
               </div>
             )}
         </>
+      )}
+
+      {showCustomerAuth && (
+        <CustomerAuthModal 
+          onClose={() => setShowCustomerAuth(false)} 
+          onSuccess={(displayName) => {
+            setCustomerName(displayName);
+          }} 
+        />
       )}
         {/* Customization Modal */}
         {selectedProductForConfig && (
