@@ -88,6 +88,7 @@ export default function App() {
 
   const navigationItems: { id: ViewMode; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
     { id: 'mobile', label: 'App', icon: <Smartphone className="w-4 h-4" /> },
+    { id: 'kiosk', label: 'Kiosk', icon: <Tablet className="w-4 h-4" />, adminOnly: true },
     { id: 'pos', label: 'POS', icon: <MonitorSmartphone className="w-4 h-4" />, adminOnly: true },
     { id: 'cashier', label: 'Cashier', icon: <Banknote className="w-4 h-4" />, adminOnly: true },
     { id: 'queue', label: 'Kitchen', icon: <ChefHat className="w-4 h-4" />, adminOnly: true },
@@ -100,7 +101,7 @@ export default function App() {
   const unpaidOrdersCount = orders.filter(o => o.status === 'unpaid').length;
   const pendingOrdersCount = orders.filter(o => o.status === 'pending').length;
 
-  const allowedNavigation = navigationItems.filter(item => !item.adminOnly || isAdmin);
+  const allowedNavigation = navigationItems.filter(item => !item.adminOnly || isAdmin || (item.id === 'kiosk' && isKioskModeActive));
 
   // Automatically switch to an allowed view if current is restricted
   useEffect(() => {
@@ -110,12 +111,19 @@ export default function App() {
     }
   }, [allowedNavigation, currentView]);
 
-  // Auto-start for admin to avoid splash screen in management view
+  // Force Kiosk view if kiosk mode is active
   useEffect(() => {
-    if (isAdmin) {
+    if (isKioskModeActive) {
+      setCurrentView('kiosk');
+    }
+  }, [isKioskModeActive]);
+
+  // Auto-start for admin to avoid splash screen in management view (unless Kiosk mode is active)
+  useEffect(() => {
+    if (isAdmin && !isKioskModeActive) {
       setIsStarted(true);
     }
-  }, [isAdmin]);
+  }, [isAdmin, isKioskModeActive]);
 
   // Prevent zooming (pinch-to-zoom / ctrl+wheel zoom / keyboard shortcuts on desktop and touch devices)
   useEffect(() => {
@@ -144,12 +152,12 @@ export default function App() {
 
   // Handle landing page state
   useEffect(() => {
-    if (!isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) {
+    if ((!isAdmin || isKioskModeActive) && (currentView === 'mobile' || currentView === 'kiosk')) {
       // Keep isStarted as is (likely false at start)
     } else {
       setIsStarted(true);
     }
-  }, [currentView, isAdmin]);
+  }, [currentView, isAdmin, isKioskModeActive]);
 
   // Auto-return to splash after 10s if successOrder is active and not clicked
   useEffect(() => {
@@ -432,6 +440,7 @@ export default function App() {
                   if (exitKioskPassword === targetPin) {
                     setIsKioskModeActive(false);
                     localStorage.removeItem('astro_pos_kiosk_active');
+                    setCurrentView('pos');
                     setShowExitKioskModal(false);
                     setExitKioskPassword('');
                     toast.success('Successfully exited Kiosk Mode!');
@@ -554,6 +563,8 @@ export default function App() {
                   onClick={() => {
                     setIsKioskModeActive(true);
                     localStorage.setItem('astro_pos_kiosk_active', 'true');
+                    setCurrentView('kiosk');
+                    setIsStarted(false);
                     toast.success('Secure Kiosk Mode activated!');
                   }}
                   className="w-full mb-3 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg"
@@ -734,6 +745,8 @@ export default function App() {
                       onClick={() => {
                         setIsKioskModeActive(true);
                         localStorage.setItem('astro_pos_kiosk_active', 'true');
+                        setCurrentView('kiosk');
+                        setIsStarted(false);
                         setIsMobileMenuOpen(false);
                         toast.success('Secure Kiosk Mode activated!');
                       }}
