@@ -99,6 +99,7 @@ export interface Order {
   customerName: string;
   tableNumber?: string;
   orderType?: 'dine-in' | 'take-away';
+  paymentMethod?: 'counter' | 'gcash';
   gcashReference?: string;
   receiptUrl?: string;
   accountId?: string;

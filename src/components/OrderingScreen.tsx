@@ -143,6 +143,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   const [tableNumber, setTableNumber] = useState('');
   const [accountId, setAccountId] = useState('');
   const [orderType, setOrderType] = useState<'dine-in' | 'take-away' | null>('take-away');
+  const [paymentMethod, setPaymentMethod] = useState<'counter' | 'gcash'>('counter');
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
   const [isKioskCartOpen, setIsKioskCartOpen] = useState(false);
   const [isPosCartDrawerOpen, setIsPosCartDrawerOpen] = useState(false);
@@ -319,7 +320,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
       return;
     }
 
-    if (finalOrderType === 'take-away' && mode === 'mobile') {
+    if (paymentMethod === 'gcash') {
       if (!receiptBase64) {
         toast.warning('Please upload your GCash payment receipt screenshot.');
         return;
@@ -333,8 +334,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
       customerName: customerName.trim(),
       tableNumber: finalOrderType === 'dine-in' ? (tableNumber || undefined) : undefined,
       orderType: finalOrderType,
-      status: finalOrderType === 'take-away' && mode === 'mobile' ? 'pending-verification' : 'unpaid',
-      receiptUrl: finalOrderType === 'take-away' && mode === 'mobile' ? receiptBase64 : undefined,
+      paymentMethod: paymentMethod,
+      status: paymentMethod === 'gcash' ? 'pending-verification' : 'unpaid',
+      receiptUrl: paymentMethod === 'gcash' ? receiptBase64 : undefined,
       accountId: accountId.trim() || undefined
     });
 
@@ -662,6 +664,21 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
               className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'take-away' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
             >
               <ShoppingBag className="w-4 h-4" /> Take-out
+            </button>
+          </div>
+
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={() => setPaymentMethod('counter')}
+              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${paymentMethod === 'counter' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+            >
+              Pay Over Counter
+            </button>
+            <button
+              onClick={() => setPaymentMethod('gcash')}
+              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${paymentMethod === 'gcash' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+            >
+              Pay Online (GCash)
             </button>
           </div>
 
