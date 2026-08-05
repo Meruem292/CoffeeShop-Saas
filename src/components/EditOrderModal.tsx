@@ -157,7 +157,7 @@ export function EditOrderModal({ isOpen, onClose, order, onSave, onCancelOrder, 
         </div>
 
         {/* Content (Scrollable Items List) */}
-        <div className="flex-1 p-6 overflow-y-auto space-y-6 scrollbar-hide">
+        <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-4 md:space-y-6 scrollbar-hide">
           {items.length === 0 ? (
             <div className="py-12 text-center flex flex-col items-center justify-center text-slate-500">
               <AlertTriangle className="w-12 h-12 text-amber-500/40 mb-3" />

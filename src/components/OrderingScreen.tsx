@@ -578,7 +578,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   );
 
   const renderCart = () => (
-    <div className="flex flex-col h-full bg-white/95 dark:bg-[#0D0F14]/95 backdrop-blur-2xl text-slate-900 dark:text-white">
+    <div className="flex flex-col h-auto bg-white/95 dark:bg-[#0D0F14]/95 backdrop-blur-2xl text-slate-900 dark:text-white">
       <div className="p-6 border-b border-black/10 dark:border-white/5 bg-slate-50/80 dark:bg-[#131722]/80 flex justify-between items-center shrink-0">
         <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3 uppercase tracking-tighter italic">
           <ShoppingBag className="w-5 h-5 text-amber-500" />
@@ -595,7 +595,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 scrollbar-hide">
+      <div className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-4 scrollbar-hide">
           {cart.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-500 dark:text-white/40 space-y-4">
               <div className="w-20 h-20 bg-black/5 dark:bg-white/5 rounded-full flex items-center justify-center border border-black/10 dark:border-white/10 opacity-50">
@@ -648,8 +648,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
           )}
       </div>
 
-      <div className="p-6 bg-slate-50/80 dark:bg-[#131722]/80 backdrop-blur-xl border-t border-black/10 dark:border-white/5 shrink-0">
-        <div className="space-y-6 mb-8">
+      <div className="p-4 md:p-6 bg-slate-50/80 dark:bg-[#131722]/80 backdrop-blur-xl border-t border-black/10 dark:border-white/5 shrink-0">
+        <div className="space-y-4 md:space-y-6 mb-4 md:mb-8">
           <div className="flex gap-3">
             <button
               onClick={() => setOrderType('dine-in')}
