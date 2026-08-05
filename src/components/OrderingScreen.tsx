@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle } from 'lucide-react';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
@@ -652,82 +652,80 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
 
       <div className="p-4 md:p-6 bg-slate-50/80 dark:bg-[#131722]/80 backdrop-blur-xl border-t border-black/10 dark:border-white/5 shrink-0">
         <div className="space-y-4 md:space-y-6 mb-4 md:mb-8">
-          <div className="flex gap-3">
-            <button
-              onClick={() => setOrderType('dine-in')}
-              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'dine-in' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
-            >
-              <Store className="w-4 h-4" /> Dine-in
-            </button>
-            <button
-              onClick={() => setOrderType('take-away')}
-              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'take-away' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
-            >
-              <ShoppingBag className="w-4 h-4" /> Take-out
-            </button>
+          {/* Ordering Preferences */}
+          <div className="space-y-3">
+            <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">Ordering Preference</label>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setOrderType('dine-in')}
+                className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'dine-in' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+              >
+                <Store className="w-4 h-4" /> Dine-in
+              </button>
+              <button
+                onClick={() => setOrderType('take-away')}
+                className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${orderType === 'take-away' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+              >
+                <ShoppingBag className="w-4 h-4" /> Take-out
+              </button>
+            </div>
+            
+            <div className="flex gap-3 mt-2">
+              <button
+                onClick={() => setPaymentMethod('counter')}
+                className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${paymentMethod === 'counter' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+              >
+                Pay Over Counter
+              </button>
+              <button
+                onClick={() => setPaymentMethod('gcash')}
+                className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${paymentMethod === 'gcash' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+              >
+                Pay Online (GCash)
+              </button>
+            </div>
           </div>
 
-          <div className="flex gap-3 mt-4">
-            <button
-              onClick={() => setPaymentMethod('counter')}
-              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${paymentMethod === 'counter' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
-            >
-              Pay Over Counter
-            </button>
-            <button
-              onClick={() => setPaymentMethod('gcash')}
-              className={`flex-1 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 border ${paymentMethod === 'gcash' ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
-            >
-              Pay Online (GCash)
-            </button>
-          </div>
-
-          <div className="relative group">
-            <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] mb-2 ml-1">Reference Name</label>
+          {/* Customer Information */}
+          <div className="space-y-3 pt-2 border-t border-black/5 dark:border-white/5">
+            <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">Customer Details</label>
             <input
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-sm font-bold transition-all placeholder:text-white/20"
-              placeholder="Who is this for?"
+              placeholder="Reference Name"
             />
-          </div>
-
-          {mode === 'kiosk' && (
-            <div className="relative group mt-4">
-              <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] mb-2 ml-1">Account ID (Optional to Redeem Points)</label>
+            {mode === 'kiosk' && (
               <input
                 type="text"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-sm font-bold transition-all placeholder:text-white/20"
-                placeholder="Enter Account ID"
+                placeholder="Account ID (Optional)"
               />
-            </div>
-          )}
-
-          {orderType === 'dine-in' && (
-            <div className="animate-in fade-in slide-in-from-top-4 duration-500 relative group">
-              <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] mb-2 ml-1">Table Number</label>
+            )}
+            {orderType === 'dine-in' && (
               <input
                 type="text"
                 value={tableNumber}
                 onChange={(e) => setTableNumber(e.target.value)}
                 className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-sm font-bold transition-all placeholder:text-white/20"
-                placeholder="Station ID"
+                placeholder="Table Number"
               />
-            </div>
-          )}
+            )}
+          </div>
 
+          {/* Payment Verification */}
           {paymentMethod === 'gcash' && (
-            <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-4">
+            <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-4 pt-2 border-t border-black/5 dark:border-white/5">
+              <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">Payment Verification</label>
               {/* Payment Details Box */}
               <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-1.5">
                 <div className="flex items-center gap-2 text-amber-500">
                   <QrCode className="w-4 h-4" />
                   <span className="text-[10px] font-black uppercase tracking-wider">GCash Payment Details</span>
                 </div>
-
                 {shopSettings?.gcashQrUrl && (
                   <div className="flex justify-center my-3">
                     <div className="bg-white p-2 rounded-2xl border border-amber-500/20 shadow-md max-w-[180px]">
@@ -741,12 +739,21 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                     </div>
                   </div>
                 )}
-
                 <div className="text-xs text-slate-800 dark:text-slate-200">
                   Send exactly <span className="font-black text-amber-500">₱{total.toLocaleString()}</span> to:
                 </div>
                 <div className="flex items-center justify-between mt-1 text-sm bg-black/10 dark:bg-white/5 px-3 py-2 rounded-xl">
                   <span className="font-bold text-slate-900 dark:text-white">{shopSettings?.gcashNumber || '0917-123-4567'}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(shopSettings?.gcashNumber || '0917-123-4567');
+                      toast.success('GCash number copied to clipboard');
+                    }}
+                    className="p-1.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-all"
+                  >
+                    <Copy className="w-4 h-4 text-slate-500" />
+                  </button>
                   <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 border border-amber-500/10 px-2 py-0.5 rounded-full">{shopSettings?.name || 'Astro Coffee'}</span>
                 </div>
               </div>
