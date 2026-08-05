@@ -884,7 +884,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
               >
                 Pending Verification
                 {pendingVerificationOrders.length > 0 && (
-                  <span className="ml-2 bg-white/20 text-white font-black px-2.5 py-0.5 rounded-full text-[10px] animate-pulse">{pendingVerificationOrders.length}</span>
+                  <span className="ml-2 bg-white text-rose-500 font-black px-2.5 py-0.5 rounded-full text-[10px] animate-pulse">{pendingVerificationOrders.length}</span>
                 )}
               </button>
               <button 
