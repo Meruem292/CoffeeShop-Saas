@@ -853,7 +853,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                   className={`bg-black/90 w-full ${mode === 'mobile' || mode === 'kiosk' ? 'h-[90vh]' : 'max-w-md ml-auto h-full'} rounded-t-[3rem] md:rounded-t-none md:rounded-l-[3rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] border-t border-black/10 dark:border-white/5 md:border-t-0 md:border-l border-black/10 dark:border-white/5 flex flex-col animate-in ${mode === 'mobile' || mode === 'kiosk' ? 'slide-in-from-bottom' : 'slide-in-from-right'} duration-700`}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex-1 overflow-hidden">
+                  <div className="flex-1 overflow-y-auto">
                     {renderCart()}
                   </div>
                 </div>
