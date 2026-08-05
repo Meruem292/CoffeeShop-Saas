@@ -350,9 +350,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   };
 
   const containerClasses = {
-    pos: 'flex h-screen overflow-hidden bg-transparent',
-    kiosk: 'flex flex-col h-screen w-full bg-transparent relative',
-    mobile: 'flex flex-col h-screen w-full bg-transparent relative',
+    pos: 'flex h-full overflow-hidden bg-transparent',
+    kiosk: 'flex flex-col h-full w-full bg-transparent relative',
+    mobile: 'flex flex-col h-full w-full bg-transparent relative',
   };
 
   const getMobileGridClasses = (configuredCols: number) => {

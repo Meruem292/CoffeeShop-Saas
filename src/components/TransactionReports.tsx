@@ -244,7 +244,7 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
   };
 
   return (
-    <div className="min-h-screen bg-transparent p-3 sm:p-6 md:p-8 overflow-y-auto scrollbar-hide">
+    <div className="h-full bg-transparent p-3 sm:p-6 md:p-8 overflow-y-auto scrollbar-hide">
       <div className="max-w-6xl mx-auto">
         <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 md:mb-12">
           <div>

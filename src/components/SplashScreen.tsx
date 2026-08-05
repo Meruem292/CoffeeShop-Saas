@@ -103,7 +103,7 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
       </header>
 
       {/* Hero Content & Queue Layout */}
-      <main className="flex-1 relative z-10 flex flex-col lg:flex-row px-6 lg:px-12 max-w-[1600px] mx-auto w-full py-8 lg:py-12 gap-12 overflow-y-auto lg:overflow-hidden min-h-0 pointer-events-auto lg:pointer-events-none scrollbar-hide">
+      <main className="flex-1 relative z-10 flex flex-col lg:flex-row px-6 lg:px-12 max-w-[1600px] mx-auto w-full py-8 lg:py-12 gap-12 overflow-y-auto lg:overflow-hidden min-h-0 pointer-events-auto scrollbar-hide">
         
         {/* Left Column: Queuing Status */}
         <div className="flex w-full lg:w-[450px] flex-col gap-4 lg:gap-6 shrink-0 lg:h-full lg:overflow-hidden animate-in fade-in slide-in-from-bottom-5 lg:slide-in-from-left-5 duration-1000 z-10 relative order-2 lg:order-1 flex-1 lg:flex-none pointer-events-auto h-auto lg:min-h-0 mb-12 lg:mb-0">

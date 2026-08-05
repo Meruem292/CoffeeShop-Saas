@@ -183,7 +183,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
   };
 
   return (
-    <div className="min-h-screen bg-transparent p-3 sm:p-6 md:p-8 lg:p-12 overflow-y-auto">
+    <div className="h-full bg-transparent p-3 sm:p-6 md:p-8 lg:p-12 overflow-y-auto">
       <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 md:mb-12">
         <div>
           <div className="flex items-center gap-4 mb-3 md:mb-4">

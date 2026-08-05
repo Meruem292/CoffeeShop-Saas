@@ -41,7 +41,7 @@ export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder }: KitchenQ
   };
 
   return (
-    <div className="h-screen bg-transparent p-4 md:p-8 overflow-y-auto">
+    <div className="h-full bg-transparent p-4 md:p-8 overflow-y-auto">
       <div className="max-w-7xl mx-auto">
         <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
           <div>
