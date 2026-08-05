@@ -237,7 +237,7 @@ export default function App() {
         for (const id of currentIds) {
           if (!prevOrderIds.current.has(id)) {
             const order = orders.find(o => o.id === id);
-            if (order && (order.status === 'unpaid' || order.status === 'pending')) {
+            if (order && (order.status === 'unpaid' || order.status === 'pending' || order.status === 'pending-verification')) {
                hasNew = true;
                break;
             }
