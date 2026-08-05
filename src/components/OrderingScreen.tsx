@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy } from 'lucide-react';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
@@ -302,6 +302,25 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   }, [menu, searchQuery, activeCategory, activeSubCategory]);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const handleDownloadQR = async () => {
+    if (!shopSettings?.gcashQrUrl) return;
+    try {
+      const response = await fetch(shopSettings.gcashQrUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'gcash-qr.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('QR code downloaded');
+    } catch (error) {
+      toast.error('Failed to download QR code');
+    }
+  };
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
@@ -727,14 +746,21 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                   <span className="text-[10px] font-black uppercase tracking-wider">GCash Payment Details</span>
                 </div>
                 {shopSettings?.gcashQrUrl && (
-                  <div className="flex justify-center my-3">
-                    <div className="bg-white p-2 rounded-2xl border border-amber-500/20 shadow-md max-w-[180px]">
+                  <div className="flex justify-center my-3 relative">
+                    <div className="bg-white p-2 rounded-2xl border border-amber-500/20 shadow-md max-w-[180px] relative">
                       <img 
                         src={shopSettings.gcashQrUrl} 
                         alt="GCash Payment QR" 
                         className="w-full h-auto object-contain rounded-xl"
                         referrerPolicy="no-referrer"
                       />
+                      <button 
+                        onClick={handleDownloadQR}
+                        className="absolute top-3 right-3 p-1.5 bg-black/50 backdrop-blur rounded-full text-white hover:bg-amber-500 transition-colors"
+                        title="Download QR"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
                       <p className="text-[8px] font-black text-slate-500 uppercase tracking-wider text-center mt-1">Scan to Pay</p>
                     </div>
                   </div>

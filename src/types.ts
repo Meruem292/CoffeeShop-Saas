@@ -104,4 +104,5 @@ export interface Order {
   gcashReference?: string;
   receiptUrl?: string;
   accountId?: string;
+  voidReason?: string;
 }

@@ -320,6 +320,15 @@ export default function App() {
     return items;
   }, [allowedNavigation, user, handleLogout]);
 
+  const voidOrder = async (id: string, reason: string) => {
+    try {
+      await updateOrder(id, { status: 'cancelled', voidReason: reason });
+      toast.success('Order voided successfully!');
+    } catch (e) {
+      toast.error('Failed to void order');
+    }
+  };
+
   const socialItems = React.useMemo(() => [
     { label: 'Instagram', link: 'https://instagram.com' },
     { label: 'Facebook', link: 'https://facebook.com' },
@@ -887,6 +896,7 @@ export default function App() {
                       orders={orders} 
                       onUpdateStatus={updateOrderStatus} 
                       onDeleteOrder={deleteOrder}
+                      onVoidOrder={voidOrder}
                     />
                   )}
                   {currentView === 'inventory' && (

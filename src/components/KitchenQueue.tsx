@@ -2,20 +2,23 @@ import React, { useEffect, useRef } from 'react';
 import { Order, OrderStatus } from '../types';
 import { Clock, CheckCircle, ChefHat, Smartphone, MonitorSmartphone, Tablet, Trash2 } from 'lucide-react';
 import { ConfirmationModal } from './ConfirmationModal';
+import { VoidModal } from './VoidModal';
 
 interface KitchenQueueProps {
   orders: Order[];
   onUpdateStatus: (orderId: string, newStatus: OrderStatus) => Promise<void>;
   onDeleteOrder: (id: string) => Promise<void>;
+  onVoidOrder: (id: string, reason: string) => Promise<void>;
 }
 
-export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder }: KitchenQueueProps) {
+export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder, onVoidOrder }: KitchenQueueProps) {
   const [orderToCancel, setOrderToCancel] = React.useState<Order | null>(null);
+  const [orderToVoid, setOrderToVoid] = React.useState<Order | null>(null);
   const prevOrderCountRef = useRef(0);
   
   // Sort by created time (FIFO) - oldest first
   const activeOrders = orders
-    .filter((o) => o.status !== 'completed' && o.status !== 'unpaid' && o.status !== 'cancelled' && o.status !== 'pending-verification')
+    .filter((o) => o.status !== 'completed' && o.status !== 'unpaid' && o.status !== 'cancelled')
     .sort((a, b) => a.createdAt - b.createdAt);
 
   useEffect(() => {
@@ -80,15 +83,21 @@ export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder }: KitchenQ
               </span>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 md:gap-3 bg-black/5 dark:bg-white/5 p-2 rounded-2xl border border-black/10 dark:border-white/10 backdrop-blur-xl">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-500 px-3 py-2 rounded-xl border border-amber-500/20">
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></div> Incoming ({activeOrders.filter(o => o.status === 'pending').length})
+          <div className="flex flex-wrap gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-lg border border-black/10 dark:border-white/10 backdrop-blur-xl">
+            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest bg-red-500/10 text-red-500 px-2 py-1.5 rounded-lg border border-red-500/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div> Pay ({orders.filter(o => o.status === 'unpaid').length})
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-400 px-3 py-2 rounded-xl border border-blue-500/20">
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></div> Active ({activeOrders.filter(o => o.status === 'preparing').length})
+            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-500 px-2 py-1.5 rounded-lg border border-amber-500/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div> Verify ({orders.filter(o => o.status === 'pending-verification').length})
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-green-500/10 text-green-400 px-3 py-2 rounded-xl border border-green-500/20">
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div> Ready ({activeOrders.filter(o => o.status === 'ready').length})
+            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-500 px-2 py-1.5 rounded-lg border border-amber-500/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div> Incoming ({orders.filter(o => o.status === 'pending').length})
+            </div>
+            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-400 px-2 py-1.5 rounded-lg border border-blue-500/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div> Active ({orders.filter(o => o.status === 'preparing').length})
+            </div>
+            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest bg-green-500/10 text-green-400 px-2 py-1.5 rounded-lg border border-green-500/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div> Ready ({orders.filter(o => o.status === 'ready').length})
             </div>
           </div>
         </header>
@@ -189,14 +198,25 @@ export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder }: KitchenQ
                   </div>
 
                   <div className="mb-3">
-                    <button 
-                      onClick={() => setOrderToCancel(order)}
-                      className="w-full py-2.5 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-slate-900 dark:hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1 active:scale-95"
-                      title="Cancel Order"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Cancel Order
-                    </button>
+                    {order.status === 'pending-verification' ? (
+                      <button 
+                        onClick={() => setOrderToVoid(order)}
+                        className="w-full py-2.5 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-slate-900 dark:hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1 active:scale-95"
+                        title="Void Order"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Void Order
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => setOrderToCancel(order)}
+                        className="w-full py-2.5 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-slate-900 dark:hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1 active:scale-95"
+                        title="Cancel Order"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Cancel Order
+                      </button>
+                    )}
                   </div>
 
                   <button
@@ -213,6 +233,17 @@ export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder }: KitchenQ
             )}
         </div>
       </div>
+      <VoidModal
+        isOpen={orderToVoid !== null}
+        onClose={() => setOrderToVoid(null)}
+        onConfirm={async (reason) => {
+          if (orderToVoid) {
+            await onVoidOrder(orderToVoid.id!, reason).catch(console.error);
+            setOrderToVoid(null);
+          }
+        }}
+        title="Void Order"
+      />
       <ConfirmationModal
         isOpen={orderToCancel !== null}
         onClose={() => setOrderToCancel(null)}
