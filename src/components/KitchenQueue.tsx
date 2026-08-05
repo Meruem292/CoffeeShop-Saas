@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Order, OrderStatus } from '../types';
 import { Clock, CheckCircle, ChefHat, Smartphone, MonitorSmartphone, Tablet, Trash2 } from 'lucide-react';
 import { ConfirmationModal } from './ConfirmationModal';
@@ -11,10 +11,29 @@ interface KitchenQueueProps {
 
 export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder }: KitchenQueueProps) {
   const [orderToCancel, setOrderToCancel] = React.useState<Order | null>(null);
+  const prevOrderCountRef = useRef(0);
+  
   // Sort by created time (FIFO) - oldest first
   const activeOrders = orders
     .filter((o) => o.status !== 'completed' && o.status !== 'unpaid' && o.status !== 'cancelled' && o.status !== 'pending-verification')
     .sort((a, b) => a.createdAt - b.createdAt);
+
+  useEffect(() => {
+    if (activeOrders.length > prevOrderCountRef.current) {
+      // Play sound
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 880; // A5
+      gainNode.gain.value = 0.1;
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.1);
+    }
+    prevOrderCountRef.current = activeOrders.length;
+  }, [activeOrders.length]);
 
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
@@ -63,13 +82,13 @@ export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder }: KitchenQ
           </div>
           <div className="flex flex-wrap gap-2 md:gap-3 bg-black/5 dark:bg-white/5 p-2 rounded-2xl border border-black/10 dark:border-white/10 backdrop-blur-xl">
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-500 px-3 py-2 rounded-xl border border-amber-500/20">
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></div> Incoming
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></div> Incoming ({activeOrders.filter(o => o.status === 'pending').length})
             </div>
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-blue-500/10 text-blue-400 px-3 py-2 rounded-xl border border-blue-500/20">
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></div> Active
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></div> Active ({activeOrders.filter(o => o.status === 'preparing').length})
             </div>
             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-green-500/10 text-green-400 px-3 py-2 rounded-xl border border-green-500/20">
-              <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div> Launch
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div> Ready ({activeOrders.filter(o => o.status === 'ready').length})
             </div>
           </div>
         </header>
