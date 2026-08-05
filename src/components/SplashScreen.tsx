@@ -166,7 +166,7 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
         </div>
 
         {/* Right Column: Hero Content */}
-        <div className="flex-1 flex items-center justify-center lg:justify-end animate-in fade-in slide-in-from-top-10 lg:slide-in-from-right-10 duration-1000 z-10 w-full lg:pl-12 order-1 lg:order-2 shrink-0 lg:shrink">
+        <div className="flex-1 flex items-center justify-center lg:justify-center animate-in fade-in slide-in-from-top-10 lg:slide-in-from-right-10 duration-1000 z-10 w-full lg:pl-12 order-1 lg:order-2 shrink-0 lg:shrink">
           {/* Glassmorphic Panel: Floating Typography & CTA */}
           <div className="w-full max-w-xl max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hide p-6 md:p-10 rounded-[3rem] bg-black/5 dark:bg-white/5 dark:bg-slate-900/20 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col text-left pointer-events-auto my-auto">
             <div className="mb-4">
