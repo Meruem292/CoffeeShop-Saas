@@ -719,7 +719,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
             </div>
           )}
 
-          {orderType === 'take-away' && mode === 'mobile' && (
+          {paymentMethod === 'gcash' && (
             <div className="animate-in fade-in slide-in-from-top-4 duration-500 space-y-4">
               {/* Payment Details Box */}
               <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-1.5">
