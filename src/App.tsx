@@ -945,7 +945,7 @@ export default function App() {
 
               <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-3 uppercase italic tracking-tighter">Order Launched!</h2>
               <p className="text-coffee-600 text-xs font-bold uppercase tracking-widest mb-8 leading-relaxed">
-                Your sequence <span className="text-slate-900 dark:text-white">#{successOrder.id?.slice(-4)}</span> {successOrder.status === 'unpaid' ? 'is awaiting fuel credits. Please visit the station.' : 'is now being prepared in orbit.'}
+                Your sequence <span className="text-slate-900 dark:text-white">#{successOrder.id?.slice(-4)}</span> {(successOrder.status === 'unpaid' || successOrder.status === 'pending-verification') ? 'will not be made until payment is verified. Please proceed to the cashier.' : 'is now being prepared in orbit.'}
               </p>
               
               <div className="w-full space-y-3 relative z-10">
