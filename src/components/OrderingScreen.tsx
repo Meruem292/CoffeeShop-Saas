@@ -712,7 +712,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-sm font-bold transition-all placeholder:text-white/20"
+              disabled={!!user}
+              className={`w-full p-4 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-bold transition-all ${user ? 'bg-black/10 dark:bg-white/10 text-slate-500 cursor-not-allowed' : 'bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500'}`}
               placeholder="Reference Name"
             />
             {mode === 'kiosk' && (
@@ -720,7 +721,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                 type="text"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
-                className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-sm font-bold transition-all placeholder:text-white/20"
+                disabled={!!user}
+                className={`w-full p-4 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-bold transition-all ${user ? 'bg-black/10 dark:bg-white/10 text-slate-500 cursor-not-allowed' : 'bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500'}`}
                 placeholder="Account ID (Optional)"
               />
             )}
@@ -729,7 +731,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                 type="text"
                 value={tableNumber}
                 onChange={(e) => setTableNumber(e.target.value)}
-                className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-sm font-bold transition-all placeholder:text-white/20"
+                className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-sm font-bold transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 placeholder="Table Number"
               />
             )}
