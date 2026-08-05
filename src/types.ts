@@ -74,6 +74,7 @@ export interface ShopSettings {
   pointsEarnedPer100Pesos?: number;
   gcashQrUrl?: string;
   gcashNumber?: string;
+  footerContent?: string;
 }
 
 export interface SplashScreen {

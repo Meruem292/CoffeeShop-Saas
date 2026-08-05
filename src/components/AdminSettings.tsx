@@ -86,7 +86,8 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         kioskPin: shopSettings.kioskPin || '0000',
         pointsEarnedPer100Pesos: shopSettings.pointsEarnedPer100Pesos || 10,
         gcashQrUrl: shopSettings.gcashQrUrl || '',
-        gcashNumber: shopSettings.gcashNumber || ''
+        gcashNumber: shopSettings.gcashNumber || '',
+        footerContent: shopSettings.footerContent || ''
       });
     }
   }, [shopSettings]);
@@ -474,6 +475,20 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 border-t border-black/10 dark:border-white/10 pt-6 mt-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Footer Content</label>
+                  <div className="relative">
+                    <textarea 
+                      value={shopData.footerContent || ''}
+                      onChange={e => setShopData({ ...shopData, footerContent: e.target.value })}
+                      className="w-full px-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. © 2026 Astro Coffee. All rights reserved."
+                      rows={3}
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">The footer text displayed at the bottom of all pages.</p>
+                </div>
+                
                 <div>
                   <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">GCash Account/Phone Number</label>
                   <div className="relative">

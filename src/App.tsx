@@ -9,6 +9,7 @@ import { useTheme } from './lib/ThemeProvider';
 import { useToast } from './lib/ToastContext';
 import { playNotificationSound } from './lib/audio';
 import ShapeGrid from './components/ShapeGrid';
+import { Footer } from './components/Footer';
 
 // Lazy loaded components
 const OrderingScreen = lazy(() => import('./components/OrderingScreen').then(m => ({ default: m.OrderingScreen })));
@@ -967,6 +968,7 @@ export default function App() {
             </div>
           </div>
         )}
+        <Footer shopSettings={shopSettings} />
       </div>
     </div>
   );
