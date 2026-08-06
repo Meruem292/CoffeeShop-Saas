@@ -437,7 +437,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
           </div>
         )}
 
-        <div className={`flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 lg:p-12 scrollbar-hide ${mode === 'mobile' ? 'pb-32' : ''}`}>
+        <div className={`flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 lg:p-12 ${mode === 'mobile' ? 'scrollbar-hide pb-32' : 'pb-24'}`}>
           <div className="w-full max-w-[1600px] mx-auto">
             {mode === 'mobile' && (
               <div className="mb-6 p-4 rounded-3xl bg-slate-50 dark:bg-[#11141d]/80 border border-black/5 dark:border-white/5 backdrop-blur-xl flex items-center justify-between gap-4 animate-in fade-in duration-300">
@@ -866,7 +866,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
       {/* Mobile/Kiosk local header removed as search moved to global header */}
 
       {/* Main Layout */}
-      <div className={`${mode === 'kiosk' ? 'flex flex-col flex-1' : 'flex flex-1'} ${mode === 'mobile' ? 'overflow-hidden' : ''}`}>
+      <div className={`flex-1 overflow-hidden ${mode === 'kiosk' ? 'flex flex-col' : 'flex'}`}>
         <div className="flex-1 flex flex-col overflow-hidden">
           {renderMenuGrid()}
         </div>

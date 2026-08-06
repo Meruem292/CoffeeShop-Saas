@@ -123,12 +123,16 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     // Removed early return so public clients can listen to orders for the TV queue
 
     // Orders Listener
-    // Always fetch all orders so the public Splash Screen (Order Orbit TV) can display the queue
-    const qOrders = query(collection(db, 'orders'), orderBy('createdAt', 'asc'));
+    // Admin gets all orders, public/customer gets only active/unsettled orders to securecompleted history
+    const qOrders = isAdmin
+      ? query(collection(db, 'orders'), orderBy('createdAt', 'asc'))
+      : query(collection(db, 'orders'), where('status', 'in', ['unpaid', 'pending-verification', 'pending', 'preparing', 'ready']));
     
     const unsubOrders = onSnapshot(qOrders, (snapshot) => {
       let o = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
-      // No need to sort manually since orderBy does it
+      if (!isAdmin) {
+        o.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      }
       setOrders(o);
       setLoading(false);
     }, (err) => handleSnapshotError(err, OperationType.LIST, 'orders'));

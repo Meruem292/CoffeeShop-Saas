@@ -841,7 +841,7 @@ export default function App() {
                 key={currentView}
                 className="flex-1 overflow-hidden flex"
               >
-                <div className="flex-1 relative z-10 flex flex-col">
+                <div className="flex-1 relative z-10 flex flex-col overflow-hidden">
                   {currentView === 'pos' && (
                     <OrderingScreen 
                       mode="pos" 

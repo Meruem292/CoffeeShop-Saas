@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-display: "Outfit", var(--font-sans);
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
@@ -26,13 +26,13 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.7);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) * 1.3);
+  --radius-2xl: calc(var(--radius) * 1.7);
+  --radius-3xl: calc(var(--radius) * 2.1);
+  --radius-4xl: calc(var(--radius) * 2.5);
 
   --color-coffee-50: #0a0a0c;
   --color-coffee-100: #1a1a1e;
@@ -49,64 +49,113 @@
   --breakpoint-xs: 480px;
 }
 
-html, body {
+/* Root dynamic typography scaling for Mobile vs Kiosk (Responsive Screen base) */
+html {
+  font-size: 14px; /* Default for mobile/portrait smartphones */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+@media (min-width: 640px) {
+  html {
+    font-size: 15px; /* Large mobile, small tablet */
+  }
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 17px; /* Tablet landscape / Small kiosk */
+  }
+}
+
+@media (min-width: 1280px) {
+  html {
+    font-size: 19px; /* Medium-sized POS and kiosk terminals */
+  }
+}
+
+@media (min-width: 1600px) {
+  html {
+    font-size: 21px; /* Large 1080p kiosk screens */
+  }
+}
+
+@media (min-width: 1920px) {
+  html {
+    font-size: 23px; /* Full 1080p HD monitors, wall-mount TV queues, and ultra-wide kiosks */
+  }
+}
+
+body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  touch-action: pan-x pan-y;
+  touch-action: manipulation;
   -webkit-text-size-adjust: 100%;
   overflow-x: hidden;
 }
 
 :root {
-  --background: #fdfcfb;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
+  /* iOS-like System Colors - Light Mode */
+  --background: #f2f2f7; /* iOS Light Gray 6 background */
+  --foreground: #1c1c1e; /* iOS Dark text */
+  --card: #ffffff; /* iOS Widget / Card background */
+  --card-foreground: #1c1c1e;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #f59e0b;
+  --popover-foreground: #1c1c1e;
+  --primary: #ff9500; /* iOS Classic Amber/Orange */
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #fff7ed;
-  --accent-foreground: #c2410c;
-  --destructive: #ef4444;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #f59e0b;
-  --radius: 0.75rem;
+  --secondary: #e5e5ea; /* iOS System Gray 5 */
+  --secondary-foreground: #1c1c1e;
+  --muted: #f2f2f7;
+  --muted-foreground: #8e8e93; /* iOS System Gray */
+  --accent: #ffe5cc;
+  --accent-foreground: #ff9500;
+  --destructive: #ff3b30; /* iOS System Red */
+  --border: #e5e5ea;
+  --input: #e5e5ea;
+  --ring: #ff9500;
+  --radius: 1.15rem; /* iOS Super-elliptical look */
   
   /* Galaxy Light Accents */
-  --galaxy-accent: #6366f1;
-  --galaxy-glow: rgba(99, 102, 241, 0.1);
+  --galaxy-accent: #5856d6; /* iOS Purple */
+  --galaxy-glow: rgba(88, 86, 214, 0.1);
 }
 
 .dark {
-  --background: #020617;
-  --foreground: #f8fafc;
-  --card: #0f172a;
-  --card-foreground: #f8fafc;
-  --popover: #0f172a;
-  --popover-foreground: #f8fafc;
-  --primary: #f59e0b;
+  /* iOS-like System Colors - Dark Mode */
+  --background: #000000; /* iOS Pure Black background */
+  --foreground: #ffffff;
+  --card: #1c1c1e; /* iOS Dark Gray 6 widget background */
+  --card-foreground: #ffffff;
+  --popover: #1c1c1e;
+  --popover-foreground: #ffffff;
+  --primary: #ff9500;
   --primary-foreground: #000000;
-  --secondary: #1e293b;
-  --secondary-foreground: #f8fafc;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --accent: #f59e0b;
+  --secondary: #2c2c2e; /* iOS System Gray 4 */
+  --secondary-foreground: #ffffff;
+  --muted: #2c2c2e;
+  --muted-foreground: #8e8e93;
+  --accent: #ff9500;
   --accent-foreground: #ffffff;
-  --destructive: #7f1d1d;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: #f59e0b;
+  --destructive: #ff453a; /* iOS Dark System Red */
+  --border: #2c2c2e;
+  --input: #2c2c2e;
+  --ring: #ff9500;
   
   /* Galaxy Dark Accents */
-  --galaxy-accent: #a855f7;
-  --galaxy-glow: rgba(168, 85, 247, 0.2);
+  --galaxy-accent: #af52de; /* iOS Dark Purple */
+  --galaxy-glow: rgba(175, 82, 222, 0.2);
+}
+
+/* iOS Active Feedback Scale Animation */
+.ios-active-scale {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+.ios-active-scale:active {
+  transform: scale(0.96);
+  opacity: 0.85;
 }
 
 @layer base {
