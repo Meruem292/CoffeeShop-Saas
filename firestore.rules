@@ -1,97 +1,42 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny catch-all
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // --- Helpers ---
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
-    }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    // --- Entity Validations ---
-    function isValidProduct(data) {
-      return data.keys().hasAll(['name', 'category', 'price', 'stock', 'isActive']) &&
-             data.name is string && data.name.size() > 0 &&
-             data.category is string &&
-             data.price is number && data.price >= 0 &&
-             data.stock is number &&
-             data.isActive is bool;
-    }
-
-    function isValidOrder(data) {
-      return data.keys().hasAll(['items', 'total', 'status', 'createdAt']) &&
-             data.items is list &&
-             data.total is number && data.total >= 0 &&
-             data.status in ['unpaid', 'pending-verification', 'pending', 'preparing', 'ready', 'completed', 'cancelled'] &&
-             data.createdAt is number;
-    }
-
-    function isValidAdmin(data) {
-      return data.keys().hasAll(['email', 'createdAt']) &&
-             data.email is string &&
-             data.createdAt is number;
-    }
-
-    function isValidCategory(data) {
-      return data.keys().hasAll(['name', 'iconName']) &&
-             data.name is string && data.name.size() > 0 &&
-             data.iconName is string && data.iconName.size() > 0;
-    }
-
-    // --- Rules ---
+    // Rules for settings
     match /settings/{docId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    // Rules for addons
     match /addons/{addonId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     // Admin Collection
     match /admins/{userId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update, delete: if isAdmin();
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     // Products Collection
     match /products/{productId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     // Categories Collection
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if isAdmin() && isValidCategory(incoming());
+      allow write: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
     // Orders Collection
     match /orders/{orderId} {
       allow read: if true;
       allow create: if true;
-      allow update, delete: if isAdmin();
+      allow update, delete: if request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
   }
 }
