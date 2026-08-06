@@ -9,17 +9,18 @@ interface ProductCardProps {
   cartCount: number;
   onClick: (item: Product) => void;
   isMostPicked?: boolean;
+  isFavorite?: boolean;
 }
 
-export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostPicked }: ProductCardProps) => {
+export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostPicked, isFavorite }: ProductCardProps) => {
   const isAvailable = item.isActive !== false;
 
   return (
     <MagicBento 
       key={item.id}
       className={`flex flex-col h-full overflow-hidden rounded-[1.75rem] border transition-all duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.15)] ${
-        isMostPicked && isAvailable
-          ? 'cursor-pointer group/card border-2 border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.35)] bg-amber-500/10 hover:border-amber-400'
+        (isMostPicked || isFavorite) && isAvailable
+          ? `cursor-pointer group/card border-2 ${isFavorite ? 'border-rose-500/80 shadow-[0_0_30px_rgba(244,63,94,0.25)] bg-rose-500/5 hover:border-rose-400' : 'border-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.35)] bg-amber-500/10 hover:border-amber-400'}`
           : isAvailable 
             ? 'cursor-pointer group/card border-black/10 dark:border-white/5 bg-slate-100 dark:bg-slate-900/20 backdrop-blur-xl hover:bg-slate-900/40 hover:border-white/10' 
             : 'cursor-not-allowed border-black/10 dark:border-white/5 bg-white dark:bg-slate-950/10 opacity-60'
@@ -65,14 +66,8 @@ export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostP
             )}
           </div>
           
-          {isMostPicked && isAvailable && (
-            <div className="absolute top-2.5 right-2.5 bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-lg z-20 flex items-center gap-1 animate-pulse">
-              ⭐ Most Picked
-            </div>
-          )}
-
-          {cartCount > 0 && isAvailable && !isMostPicked && (
-            <div className={`absolute bg-amber-500 text-slate-900 dark:text-white rounded-full flex items-center justify-center font-bold border border-black/20 dark:border-white/20 shadow-lg ${mode === 'mobile' ? 'top-2 right-2 w-5 h-5 text-[9px]' : 'top-2.5 right-2.5 w-6 h-6 text-[10px]'}`}>
+          {cartCount > 0 && isAvailable && (
+            <div className={`absolute bg-amber-500 text-slate-950 rounded-full flex items-center justify-center font-bold border border-black/20 dark:border-white/20 shadow-lg ${mode === 'mobile' ? 'top-2 right-2 w-5 h-5 text-[9px]' : 'top-2.5 right-2.5 w-6 h-6 text-[10px]'} z-20`}>
               {cartCount}
             </div>
           )}
@@ -96,6 +91,15 @@ export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostP
         </div>
         
         <div className={`flex flex-col flex-1 px-4 pb-4 pt-1 text-left ${!isAvailable ? 'opacity-50' : ''}`}>
+          {isFavorite && isAvailable ? (
+            <span className="text-[9px] text-rose-500 dark:text-rose-400 font-extrabold uppercase tracking-widest mb-1.5 flex items-center gap-1">
+              ❤️ Your Favorite
+            </span>
+          ) : isMostPicked && isAvailable ? (
+            <span className="text-[9px] text-amber-500 dark:text-amber-400 font-extrabold uppercase tracking-widest mb-1.5 flex items-center gap-1">
+              🔥 Best seller
+            </span>
+          ) : null}
           <h3 className={`font-display font-bold text-slate-900 dark:text-white tracking-tight leading-tight transition-colors ${isAvailable ? 'group-hover/card:text-amber-400' : ''} ${mode === 'mobile' ? 'text-xs mb-1' : 'text-sm md:text-base mb-1.5'}`}>
             {item.name}
           </h3>

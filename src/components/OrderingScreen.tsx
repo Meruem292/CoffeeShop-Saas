@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download } from 'lucide-react';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
@@ -82,10 +84,69 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   const [receiptBase64, setReceiptBase64] = useState('');
   const [compressingImage, setCompressingImage] = useState(false);
 
+  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery || '');
+  const [sortBy, setSortBy] = useState<'best-seller' | 'alphabetical' | 'price-asc' | 'price-desc'>('best-seller');
+  const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
+
+  React.useEffect(() => {
+    if (searchQuery !== undefined) {
+      setLocalSearchQuery(searchQuery);
+    }
+  }, [searchQuery]);
+
+  // Real-time listener for the logged-in customer's orders to calculate favorites
+  React.useEffect(() => {
+    if (!user) {
+      setCustomerOrders([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'orders'),
+      where('accountId', '==', user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ordersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      setCustomerOrders(ordersList);
+    }, (err) => {
+      console.warn('Error listening to customer orders:', err);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Compute customer's favorites: count item occurrences and sort descending
+  const customerFavorites = useMemo(() => {
+    if (!user || customerOrders.length === 0) return [];
+
+    const counts: Record<string, number> = {};
+    customerOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+
+      order.items?.forEach(item => {
+        counts[item.id] = (counts[item.id] || 0) + (item.quantity || 1);
+      });
+    });
+
+    // Sort products by their purchase count descending
+    const sortedFavs = Object.entries(counts)
+      .filter(([_, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([prodId, count]) => {
+        const prod = menu.find(p => p.id === prodId);
+        return prod ? { product: prod, count } : null;
+      })
+      .filter((item): item is { product: Product; count: number } => item !== null);
+
+    return sortedFavs;
+  }, [user, customerOrders, menu]);
+
   // Sync customer name if logged in
   React.useEffect(() => {
     if (user && !user.email?.endsWith('@astro.local') && user.email !== 'newroskoto@gmail.com') { // exclude admin
       setCustomerName(user.displayName || user.email.split('@')[0] || '');
+      setAccountId(user.uid);
     }
   }, [user]);
 
@@ -276,30 +337,54 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   }, [menu, activeCategory]);
 
   const filteredMenu = useMemo(() => {
-    if (searchQuery) {
-      return menu.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    }
-    const activeCatLower = (activeCategory || '').trim().toLowerCase();
-    const catFiltered = menu.filter(item => {
-      const itemCatLower = (item.category || '').trim().toLowerCase();
-      if (itemCatLower === activeCatLower) return true;
-      
-      // Support slash-separated combined categories (e.g., "Matcha/Non-Coffee" matches "Non-Coffee")
-      const productParts = itemCatLower.split('/').map(s => s.trim());
-      if (productParts.includes(activeCatLower)) return true;
-      
-      const activeParts = activeCatLower.split('/').map(s => s.trim());
-      return activeParts.some(ap => productParts.includes(ap) || itemCatLower === ap);
-    });
+    let list = [...menu];
     
-    if (activeSubCategory === 'All') {
-      return catFiltered;
+    if (localSearchQuery) {
+      list = list.filter(item => 
+        item.name.toLowerCase().includes(localSearchQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(localSearchQuery.toLowerCase()) ||
+        (item.description || '').toLowerCase().includes(localSearchQuery.toLowerCase())
+      );
+    } else {
+      const activeCatLower = (activeCategory || '').trim().toLowerCase();
+      const catFiltered = list.filter(item => {
+        const itemCatLower = (item.category || '').trim().toLowerCase();
+        if (itemCatLower === activeCatLower) return true;
+        
+        // Support slash-separated combined categories (e.g., "Matcha/Non-Coffee" matches "Non-Coffee")
+        const productParts = itemCatLower.split('/').map(s => s.trim());
+        if (productParts.includes(activeCatLower)) return true;
+        
+        const activeParts = activeCatLower.split('/').map(s => s.trim());
+        return activeParts.some(ap => productParts.includes(ap) || itemCatLower === ap);
+      });
+      
+      if (activeSubCategory === 'All') {
+        list = catFiltered;
+      } else {
+        list = catFiltered.filter(item => 
+          (item.subCategory || '').trim().toLowerCase() === activeSubCategory.toLowerCase()
+        );
+      }
     }
-    
-    return catFiltered.filter(item => 
-      (item.subCategory || '').trim().toLowerCase() === activeSubCategory.toLowerCase()
-    );
-  }, [menu, searchQuery, activeCategory, activeSubCategory]);
+
+    // Apply sorting
+    if (sortBy === 'alphabetical') {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === 'price-asc') {
+      list.sort((a, b) => a.price - b.price);
+    } else if (sortBy === 'price-desc') {
+      list.sort((a, b) => b.price - a.price);
+    } else if (sortBy === 'best-seller') {
+      list.sort((a, b) => {
+        const aIsMost = mostPickedProductIds?.has(a.id) ? 1 : 0;
+        const bIsMost = mostPickedProductIds?.has(b.id) ? 1 : 0;
+        return bIsMost - aIsMost;
+      });
+    }
+
+    return list;
+  }, [menu, localSearchQuery, activeCategory, activeSubCategory, sortBy, mostPickedProductIds]);
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -414,6 +499,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
           setActiveCategory={handleCategoryChange}
           mode={mode}
           categoriesData={categoriesData}
+          shopSettings={shopSettings}
         />
       )}
 
@@ -488,13 +574,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                 )}
               </div>
             )}
-            <header className={`${mode === 'mobile' ? 'mb-4 flex items-center px-1' : 'mb-12 flex flex-col lg:flex-row lg:items-end justify-between gap-6'}`}>
+            <header className={`${mode === 'mobile' ? 'mb-4 flex items-center px-1' : 'mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6'}`}>
               <div className={`${mode === 'mobile' ? 'flex items-center gap-2' : 'flex flex-col'}`}>
                 {mode === 'mobile' ? (
                   <>
                     <div className="w-1 h-5 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
                     <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                      {searchQuery ? 'Search Results' : activeCategory}
+                      {localSearchQuery ? 'Search Results' : activeCategory}
                     </h2>
                   </>
                 ) : (
@@ -506,8 +592,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                       <div className="h-[1px] flex-1 bg-slate-200" />
                     </div>
                     <h2 className="text-5xl md:text-6xl lg:text-7xl font-black text-foreground uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-4">
-                      {searchQuery ? 'Results' : activeCategory.split(' ')[0]}
-                      {!searchQuery && activeCategory.split(' ')[1] && (
+                      {localSearchQuery ? 'Results' : activeCategory.split(' ')[0]}
+                      {!localSearchQuery && activeCategory.split(' ')[1] && (
                         <span className="text-slate-700 dark:text-slate-300 not-italic font-medium text-4xl md:text-5xl lg:text-6xl">{activeCategory.split(' ')[1]}</span>
                       )}
                     </h2>
@@ -523,19 +609,19 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
 
               <div className={`${mode === 'mobile' ? 'hidden' : 'flex items-center gap-4'}`}>
                 {/* Column Toggle - POS/Kiosk Only */}
-                {mode !== 'mobile' && !searchQuery && (
+                {mode !== 'mobile' && !localSearchQuery && (
                   <div className="flex flex-col items-end gap-2 pl-4 border-l border-slate-200">
                     <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-[0.2em]">Layout</span>
                     <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
                       {[4, 5, 6].map((cols) => (
                         <button
-                          key={cols}
-                          onClick={() => setGridColumns(cols as 4 | 5 | 6)}
-                          className={`w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-black transition-all ${
-                            gridColumns === cols
-                              ? 'bg-amber-500 text-slate-900 dark:text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-foreground hover:bg-white'
-                          }`}
+                           key={cols}
+                           onClick={() => setGridColumns(cols as 4 | 5 | 6)}
+                           className={`w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-black transition-all ${
+                             gridColumns === cols
+                               ? 'bg-amber-500 text-slate-900 dark:text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105'
+                               : 'text-slate-600 dark:text-slate-400 hover:text-foreground hover:bg-white'
+                           }`}
                         >
                           {cols}
                         </button>
@@ -546,7 +632,77 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
               </div>
             </header>
 
-            {availableSubCategories.length > 1 && !searchQuery && (
+            {/* Product Search and Sort Controls Row */}
+            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between bg-white/40 dark:bg-slate-900/10 backdrop-blur-xl p-4 rounded-3xl border border-black/10 dark:border-white/5 shadow-sm">
+              <div className="relative w-full sm:max-w-md">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={localSearchQuery}
+                  onChange={(e) => setLocalSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-8 py-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all placeholder:text-slate-500"
+                />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                {localSearchQuery && (
+                  <button 
+                    onClick={() => setLocalSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto shrink-0 justify-end">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest shrink-0">Sort By:</span>
+                <div className="relative w-full sm:w-56">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="w-full pl-4 pr-10 py-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer"
+                  >
+                    <option value="best-seller" className="dark:bg-slate-950">🔥 Best Seller</option>
+                    <option value="alphabetical" className="dark:bg-slate-950">🔠 Alphabetical (A-Z)</option>
+                    <option value="price-asc" className="dark:bg-slate-950">📈 Price: Low to High</option>
+                    <option value="price-desc" className="dark:bg-slate-950">📉 Price: High to Low</option>
+                  </select>
+                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+
+            {/* Customer Favorites Section */}
+            {user && customerFavorites.length > 0 && (
+              <div className="mb-8 p-5 bg-rose-500/5 dark:bg-rose-500/5 rounded-3xl border border-rose-500/20 shadow-[0_4px_24px_rgba(244,63,94,0.05)] animate-in fade-in slide-in-from-top-4 duration-500">
+                <div className="flex items-center gap-2 mb-4">
+                  <Heart className="w-4 h-4 text-rose-500 fill-rose-500 animate-pulse" />
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                    Your Favorites
+                    <span className="text-[8px] text-rose-500 font-extrabold bg-rose-500/10 px-2 py-0.5 rounded-full uppercase border border-rose-500/10 tracking-widest">
+                      Most Purchased
+                    </span>
+                  </h3>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {customerFavorites.slice(0, 5).map(({ product, count }) => (
+                    <div key={`fav-${product.id}`} className="relative">
+                      <ProductCard
+                        item={product}
+                        mode={mode}
+                        cartCount={cart.filter(c => c.id === product.id).reduce((sum, item) => sum + item.quantity, 0)}
+                        onClick={handleProductClick}
+                        isFavorite={true}
+                      />
+                      <div className="absolute top-2.5 right-2.5 bg-rose-500 text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-md z-20 flex items-center gap-1 border border-white/25">
+                        ❤️ {count}x
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {availableSubCategories.length > 1 && !localSearchQuery && (
               <div className="flex flex-wrap gap-2 mb-8 animate-in fade-in slide-in-from-top-4">
                 {availableSubCategories.map(subCat => (
                   <button
@@ -570,7 +726,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                   <Search className="w-12 h-12 text-slate-700 dark:text-slate-300" />
                 </div>
                 <h3 className="text-2xl font-black text-foreground uppercase italic tracking-tighter mb-4">No Galactic Findings</h3>
-                <p className="text-slate-600 dark:text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest text-xs max-w-xs mx-auto">Our sensors couldn't locate any matching items in this sector.</p>
+                <p className="text-slate-600 dark:text-slate-400 font-bold uppercase tracking-widest text-xs max-w-xs mx-auto">Our sensors couldn't locate any matching items in this sector.</p>
               </div>
             ) : (
               <div 
@@ -578,7 +734,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
                   mode === 'mobile' ? `${getMobileGridClasses(shopSettings?.mobileGridColumns || 3)} gap-1.5` : 
                   `gap-3 md:gap-4 lg:gap-5 grid-cols-2 ${lgGridColsMap[gridColumns] || 'lg:grid-cols-5'}`
                 }`}
-                key={searchQuery ? 'search' : activeCategory}
+                key={localSearchQuery ? 'search' : activeCategory}
               >
                 {filteredMenu.map((item) => (
                   <ProductCard

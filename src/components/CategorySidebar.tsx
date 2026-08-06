@@ -3,7 +3,7 @@ import {
   Layout, Coffee, IceCream, CupSoda, Croissant, Utensils, Sparkles, Leaf,
   GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Package
 } from 'lucide-react';
-import { DynamicCategory } from '../types';
+import { DynamicCategory, ShopSettings } from '../types';
 
 interface CategorySidebarProps {
   categories: string[];
@@ -11,6 +11,7 @@ interface CategorySidebarProps {
   setActiveCategory: (cat: string) => void;
   mode: 'mobile' | 'kiosk' | 'pos';
   categoriesData?: DynamicCategory[];
+  shopSettings?: ShopSettings | null;
 }
 
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -54,15 +55,21 @@ const getCategoryIcon = (category: string, categoriesData?: DynamicCategory[]) =
   return <CupSoda className="w-5 h-5 md:w-6 md:h-6" />;
 };
 
-export const CategorySidebar = React.memo(({ categories, activeCategory, setActiveCategory, mode, categoriesData }: CategorySidebarProps) => {
+export const CategorySidebar = React.memo(({ categories, activeCategory, setActiveCategory, mode, categoriesData, shopSettings }: CategorySidebarProps) => {
   return (
     <div className={`flex flex-col py-6 md:py-8 overflow-y-auto scrollbar-hide shrink-0 z-20 transition-all ${mode === 'mobile' ? 'w-[76px] md:w-24 bg-white dark:bg-slate-950/20 backdrop-blur-3xl border-r border-black/10 dark:border-white/5 gap-4 pb-32' : 'w-24 md:w-28 lg:w-32 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-r border-black/10 dark:border-white/5 gap-6 md:gap-7'}`}>
       {mode !== 'mobile' && (
-        <div className="flex flex-col items-center gap-1.5 mb-6 opacity-90 animate-in fade-in slide-in-from-top-4 duration-700">
-          <div className="w-12 h-12 rounded-[1.25rem] border border-black/10 dark:border-white/10 flex items-center justify-center bg-black/5 dark:bg-white/5 shadow-inner">
-            <Sparkles className="w-5 h-5 text-amber-500" />
+        <div className="flex flex-col items-center gap-1.5 mb-6 opacity-90 animate-in fade-in slide-in-from-top-4 duration-700 w-full px-2 text-center shrink-0">
+          <div className="w-12 h-12 rounded-[1.25rem] border border-black/10 dark:border-white/10 flex items-center justify-center bg-black/5 dark:bg-white/5 shadow-inner overflow-hidden">
+            {shopSettings?.logoUrl ? (
+              <img src={shopSettings.logoUrl || undefined} className="w-full h-full object-cover" alt="Logo" referrerPolicy="no-referrer" />
+            ) : (
+              <Sparkles className="w-5 h-5 text-amber-500" />
+            )}
           </div>
-          <span className="text-[9px] text-amber-500 font-bold tracking-[0.3em] mt-2.5 uppercase">Astro</span>
+          <span className="text-[9px] text-amber-500 font-bold tracking-wider mt-2.5 uppercase truncate w-full px-1">
+            {shopSettings?.name || 'Astro Coffee'}
+          </span>
         </div>
       )}
 
