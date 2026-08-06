@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart } from 'lucide-react';
+import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher } from '../types';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
@@ -15,13 +15,13 @@ interface OrderingScreenProps {
   menu: Product[];
   addons?: Addon[];
   onPlaceOrder: (order: Omit<Order, 'id' | 'createdAt'>) => void;
-  searchQuery?: string;
   shopSettings?: ShopSettings | null;
   categoriesData?: DynamicCategory[];
   mostPickedProductIds?: Set<string>;
+  vouchers?: Voucher[];
 }
 
-export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQuery = '', shopSettings, categoriesData, mostPickedProductIds }: OrderingScreenProps) {
+export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSettings, categoriesData, mostPickedProductIds, vouchers = [] }: OrderingScreenProps) {
   const { toast } = useToast();
   const categories = useMemo(() => {
     let list: string[] = [];
@@ -84,15 +84,12 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
   const [receiptBase64, setReceiptBase64] = useState('');
   const [compressingImage, setCompressingImage] = useState(false);
 
-  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery || '');
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'best-seller' | 'alphabetical' | 'price-asc' | 'price-desc'>('best-seller');
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
-
-  React.useEffect(() => {
-    if (searchQuery !== undefined) {
-      setLocalSearchQuery(searchQuery);
-    }
-  }, [searchQuery]);
+  
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
 
   // Real-time listener for the logged-in customer's orders to calculate favorites
   React.useEffect(() => {
@@ -115,6 +112,27 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
 
     return () => unsubscribe();
   }, [user]);
+
+  // Compute available points
+  const availablePoints = useMemo(() => {
+    if (!user || customerOrders.length === 0) return 0;
+    
+    const earnRate = shopSettings?.pointsEarnedPer100Pesos || 10;
+    
+    const totalEarned = customerOrders
+      .filter(o => o.status === 'completed')
+      .reduce((sum, o) => {
+        if (o.pointsEarned !== undefined) return sum + o.pointsEarned;
+        // Backward compatibility
+        return sum + Math.floor((o.total || 0) / 100) * earnRate;
+      }, 0);
+      
+    const totalSpent = customerOrders
+      .filter(o => o.status !== 'cancelled')
+      .reduce((sum, o) => sum + (o.pointsSpent || 0), 0);
+      
+    return Math.max(0, totalEarned - totalSpent);
+  }, [customerOrders, user, shopSettings?.pointsEarnedPer100Pesos]);
 
   // Compute customer's favorites: count item occurrences and sort descending
   const customerFavorites = useMemo(() => {
@@ -386,7 +404,15 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
     return list;
   }, [menu, localSearchQuery, activeCategory, activeSubCategory, sortBy, mostPickedProductIds]);
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  
+  const discountAmount = appliedVoucher 
+    ? (appliedVoucher.type === 'percentage' 
+        ? subtotal * (appliedVoucher.value / 100) 
+        : appliedVoucher.value)
+    : 0;
+    
+  const total = Math.max(0, subtotal - discountAmount);
 
   const handleDownloadQR = async () => {
     if (!shopSettings?.gcashQrUrl) return;
@@ -430,10 +456,18 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
         return;
       }
     }
+    
+    const earnRate = shopSettings?.pointsEarnedPer100Pesos || 10;
+    const pointsEarned = Math.floor(total / 100) * earnRate;
 
     onPlaceOrder({
       items: cart,
       total,
+      subtotal,
+      discountAmount,
+      voucherCode: appliedVoucher?.code,
+      pointsSpent: appliedVoucher?.pointsCost || 0,
+      pointsEarned,
       source: mode === 'kiosk' ? 'mobile' : mode,
       customerName: customerName.trim(),
       tableNumber: finalOrderType === 'dine-in' ? (tableNumber || undefined) : undefined,
@@ -500,6 +534,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
           mode={mode}
           categoriesData={categoriesData}
           shopSettings={shopSettings}
+          user={user}
+          onSignOut={logOut}
+          onSignInClick={() => setShowCustomerAuth(true)}
         />
       )}
 
@@ -525,55 +562,6 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
 
         <div className={`flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 lg:p-12 ${mode === 'mobile' ? 'scrollbar-hide pb-32' : 'pb-24'}`}>
           <div className="w-full max-w-[1600px] mx-auto">
-            {mode === 'mobile' && (
-              <div className="mb-6 p-4 rounded-3xl bg-slate-50 dark:bg-[#11141d]/80 border border-black/5 dark:border-white/5 backdrop-blur-xl flex items-center justify-between gap-4 animate-in fade-in duration-300">
-                {user ? (
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-amber-500/10 text-amber-500 rounded-xl flex items-center justify-center font-black border border-amber-500/20 shadow-inner">
-                        <UserIcon className="w-4 h-4" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                          {user.displayName || user.email?.split('@')[0]}
-                        </span>
-                        <span className="text-[8px] font-bold text-coffee-600 uppercase tracking-widest leading-none mt-0.5">
-                          Verified Coffee Enthusiast
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => logOut()}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 border border-rose-500/15"
-                    >
-                      <LogOut className="w-3 h-3" /> Log Out
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-amber-500/10 text-amber-500 rounded-xl flex items-center justify-center border border-amber-500/20">
-                        <LogIn className="w-4 h-4 text-amber-500" />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight leading-tight">
-                          Unlock Pickup & Rewards
-                        </span>
-                        <span className="text-[8px] font-medium text-coffee-600 uppercase tracking-widest leading-none mt-0.5">
-                          Log in or sign up to place mobile orders
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowCustomerAuth(true)}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 animate-pulse"
-                    >
-                      Sign In / Sign Up
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
             <header className={`${mode === 'mobile' ? 'mb-4 flex items-center px-1' : 'mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6'}`}>
               <div className={`${mode === 'mobile' ? 'flex items-center gap-2' : 'flex flex-col'}`}>
                 {mode === 'mobile' ? (
@@ -633,40 +621,39 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
             </header>
 
             {/* Product Search and Sort Controls Row */}
-            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between bg-white/40 dark:bg-slate-900/10 backdrop-blur-xl p-4 rounded-3xl border border-black/10 dark:border-white/5 shadow-sm">
-              <div className="relative w-full sm:max-w-md">
+            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full sm:max-w-xs">
                 <input
                   type="text"
                   placeholder="Search products..."
                   value={localSearchQuery}
                   onChange={(e) => setLocalSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-8 py-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all placeholder:text-slate-500"
+                  className="w-full pl-9 pr-8 py-2 bg-white/40 dark:bg-slate-900/40 border border-black/10 dark:border-white/5 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-all placeholder:text-slate-500 backdrop-blur-xl"
                 />
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 {localSearchQuery && (
                   <button 
                     onClick={() => setLocalSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
 
-              <div className="flex items-center gap-3 w-full sm:w-auto shrink-0 justify-end">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest shrink-0">Sort By:</span>
-                <div className="relative w-full sm:w-56">
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+                <div className="relative group">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
-                    className="w-full pl-4 pr-10 py-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all appearance-none cursor-pointer"
+                    className="appearance-none pl-3 pr-8 py-2 bg-transparent text-[11px] font-bold text-slate-600 dark:text-slate-400 focus:outline-none cursor-pointer uppercase tracking-wider hover:text-slate-900 dark:hover:text-white transition-colors"
                   >
-                    <option value="best-seller" className="dark:bg-slate-950">🔥 Best Seller</option>
-                    <option value="alphabetical" className="dark:bg-slate-950">🔠 Alphabetical (A-Z)</option>
-                    <option value="price-asc" className="dark:bg-slate-950">📈 Price: Low to High</option>
-                    <option value="price-desc" className="dark:bg-slate-950">📉 Price: High to Low</option>
+                    <option value="best-seller">🔥 Best Seller</option>
+                    <option value="alphabetical">🔠 A-Z</option>
+                    <option value="price-asc">📈 Price ↑</option>
+                    <option value="price-desc">📉 Price ↓</option>
                   </select>
-                  <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none group-hover:text-slate-900 dark:group-hover:text-white transition-colors" />
                 </div>
               </div>
             </div>
@@ -991,6 +978,103 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
           )}
         </div>
 
+        {/* Vouchers & Promos */}
+        <div className="space-y-4 pt-4 mt-4 border-t border-black/5 dark:border-white/5">
+          <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">Vouchers & Promos</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={promoCodeInput}
+              onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+              className="flex-1 p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-xs font-bold transition-all uppercase placeholder:text-slate-400 dark:placeholder:text-slate-500"
+              placeholder="Promo Code"
+            />
+            <button
+              onClick={() => {
+                if (!promoCodeInput) return;
+                const found = vouchers?.find(v => v.code === promoCodeInput && v.isActive);
+                if (found) {
+                  if (found.minSpend && subtotal < found.minSpend) {
+                    toast.error(`Minimum spend of ₱${found.minSpend} required`);
+                    return;
+                  }
+                  if (found.usageLimit && (found.usedCount || 0) >= found.usageLimit) {
+                    toast.error('Voucher usage limit reached');
+                    return;
+                  }
+                  if (found.pointsCost && found.pointsCost > availablePoints) {
+                    toast.error(`Not enough points. Need ${found.pointsCost}`);
+                    return;
+                  }
+                  setAppliedVoucher(found);
+                  setPromoCodeInput('');
+                  toast.success('Voucher applied!');
+                } else {
+                  toast.error('Invalid promo code');
+                }
+              }}
+              className="px-4 py-3 bg-slate-900 dark:bg-white text-white dark:text-black rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/10 dark:shadow-white/10"
+            >
+              Apply
+            </button>
+          </div>
+          
+          {appliedVoucher && (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase text-emerald-500 tracking-wider flex items-center gap-1.5"><Check className="w-3 h-3" /> Voucher Applied</span>
+                <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mt-0.5">{appliedVoucher.code}</span>
+              </div>
+              <button
+                onClick={() => setAppliedVoucher(null)}
+                className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {user && vouchers && vouchers.filter(v => v.pointsCost && v.pointsCost > 0 && v.isActive).length > 0 && (
+            <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">Claim Rewards</span>
+                <span className="text-[9px] font-black text-amber-500 uppercase tracking-wider">{availablePoints} Points</span>
+              </div>
+              <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide">
+                {vouchers.filter(v => v.pointsCost && v.pointsCost > 0 && v.isActive).map(v => (
+                  <button
+                    key={v.id}
+                    onClick={() => {
+                      if (v.minSpend && subtotal < v.minSpend) {
+                        toast.error(`Minimum spend of ₱${v.minSpend} required`);
+                        return;
+                      }
+                      if (v.usageLimit && (v.usedCount || 0) >= v.usageLimit) {
+                        toast.error('Reward usage limit reached');
+                        return;
+                      }
+                      if ((v.pointsCost || 0) > availablePoints) {
+                        toast.error('Not enough points');
+                        return;
+                      }
+                      setAppliedVoucher(v);
+                      toast.success('Reward applied!');
+                    }}
+                    disabled={(v.pointsCost || 0) > availablePoints}
+                    className="shrink-0 p-3 bg-white/40 dark:bg-slate-900/40 border border-amber-500/30 rounded-xl backdrop-blur-sm flex flex-col gap-2 min-w-[140px] text-left hover:border-amber-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <Tag className="w-4 h-4 text-amber-500" />
+                      <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">{v.pointsCost} Pts</span>
+                    </div>
+                    <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{v.code}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Verification & Payment Notice */}
         <div className="mt-4 mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
@@ -1002,9 +1086,21 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, searchQu
           </div>
         </div>
 
-        <div className="flex justify-between items-center mb-8 px-2">
-          <span className="text-slate-500 dark:text-white/40 font-black uppercase tracking-[0.2em] text-[10px]">Total Fuel</span>
-          <span className="text-3xl font-black text-slate-900 dark:text-white italic">₱{total.toLocaleString()}</span>
+        <div className="space-y-2 mb-8 px-2">
+          <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500">
+            <span>Subtotal</span>
+            <span>₱{subtotal.toLocaleString()}</span>
+          </div>
+          {discountAmount > 0 && (
+            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-emerald-500">
+              <span>Discount</span>
+              <span>-₱{discountAmount.toLocaleString()}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center pt-2 border-t border-black/5 dark:border-white/5">
+            <span className="text-slate-500 dark:text-white/40 font-black uppercase tracking-[0.2em] text-[10px]">Total Fuel</span>
+            <span className="text-3xl font-black text-slate-900 dark:text-white italic">₱{total.toLocaleString()}</span>
+          </div>
         </div>
         <button
           onClick={handleCheckout}

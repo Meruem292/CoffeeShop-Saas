@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory } from '../types';
+import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher } from '../types';
 import { handleFirestoreError } from './AuthContext';
 import { useToast } from './ToastContext';
 
@@ -20,6 +20,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const [addons, setAddons] = useState<Addon[]>([]);
   const [categories, setCategories] = useState<DynamicCategory[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [splashScreen, setSplashScreen] = useState<SplashScreen | null>(null);
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,6 +121,12 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       }
     }, (err) => handleSnapshotError(err, OperationType.LIST, 'categories'));
 
+    // Vouchers Listener
+    const unsubVouchers = onSnapshot(collection(db, 'vouchers'), (snapshot) => {
+      const v = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Voucher));
+      setVouchers(v);
+    }, (err) => handleSnapshotError(err, OperationType.LIST, 'vouchers'));
+
     // Removed early return so public clients can listen to orders for the TV queue
 
     // Orders Listener
@@ -143,6 +150,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       unsubProducts();
       unsubAddons();
       unsubCategories();
+      unsubVouchers();
       unsubOrders();
     };
   }, [userUid, isAdmin]);
@@ -277,6 +285,37 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     }
   };
 
+  const addVoucher = async (voucher: Omit<Voucher, 'id'>) => {
+    try {
+      await addDoc(collection(db, 'vouchers'), voucher);
+      toast.success(`Voucher "${voucher.code}" added successfully!`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'vouchers');
+      toast.error('Failed to add voucher');
+    }
+  };
+
+  const updateVoucher = async (id: string, updates: Partial<Voucher>) => {
+    try {
+      const { id: _, ...data } = updates as any;
+      await updateDoc(doc(db, 'vouchers', id), data);
+      toast.success('Voucher updated successfully!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `vouchers/${id}`);
+      toast.error('Failed to update voucher');
+    }
+  };
+
+  const deleteVoucher = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'vouchers', id));
+      toast.success('Voucher deleted successfully!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `vouchers/${id}`);
+      toast.error('Failed to delete voucher');
+    }
+  };
+
   // --- Order Operations ---
   // Clean up undefined values as Firestore doesn't like them
   const deepCleanUndefined = (obj: any): any => {
@@ -376,6 +415,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     addons,
     categories,
     orders,
+    vouchers,
     splashScreen,
     shopSettings,
     loading,
@@ -391,6 +431,9 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     addCategory,
     updateCategory,
     deleteCategory,
+    addVoucher,
+    updateVoucher,
+    deleteVoucher,
     addOrder,
     updateOrderStatus,
     updateOrder,

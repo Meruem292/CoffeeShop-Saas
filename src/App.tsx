@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'rea
 import { ViewMode, Order, Product, OrderStatus } from './types';
 import { SplashScreen } from './components/SplashScreen';
 import { AdminLoginModal } from './components/AdminLoginModal';
-import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sparkles, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight } from 'lucide-react';
+import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sparkles, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag } from 'lucide-react';
 import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
 import { useTheme } from './lib/ThemeProvider';
@@ -16,6 +16,7 @@ const OrderingScreen = lazy(() => import('./components/OrderingScreen').then(m =
 const KitchenQueue = lazy(() => import('./components/KitchenQueue').then(m => ({ default: m.KitchenQueue })));
 const InventoryManager = lazy(() => import('./components/InventoryManager').then(m => ({ default: m.InventoryManager })));
 const AdminProducts = lazy(() => import('./components/AdminProducts').then(m => ({ default: m.AdminProducts })));
+const AdminVouchers = lazy(() => import('./components/AdminVouchers').then(m => ({ default: m.AdminVouchers })));
 const AdminSettings = lazy(() => import('./components/AdminSettings').then(m => ({ default: m.AdminSettings })));
 const CashierView = lazy(() => import('./components/CashierView').then(m => ({ default: m.CashierView })));
 const TransactionReports = lazy(() => import('./components/TransactionReports').then(m => ({ default: m.TransactionReports })));
@@ -26,7 +27,6 @@ export default function App() {
   const [successOrder, setSuccessOrder] = useState<Order | null>(null);
   const [successTimer, setSuccessTimer] = useState<number>(10);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const [isKioskModeActive, setIsKioskModeActive] = useState(() => {
@@ -73,7 +73,11 @@ export default function App() {
     clearOrders,
     addCategory,
     updateCategory,
-    deleteCategory
+    deleteCategory,
+    vouchers,
+    addVoucher,
+    updateVoucher,
+    deleteVoucher
   } = useFirebase(user?.uid, isAdmin);
 
   const [isStarted, setIsStarted] = useState(false);
@@ -95,6 +99,7 @@ export default function App() {
     { id: 'queue', label: 'Kitchen', icon: <ChefHat className="w-4 h-4" />, adminOnly: true },
     { id: 'inventory', label: 'Inventory', icon: <Package className="w-4 h-4" />, adminOnly: true },
     { id: 'admin-products', label: 'Products', icon: <Package className="w-4 h-4" />, adminOnly: true },
+    { id: 'admin-vouchers', label: 'Vouchers', icon: <Tag className="w-4 h-4" />, adminOnly: true },
     { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" />, adminOnly: true },
     { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" />, adminOnly: true },
   ];
@@ -510,28 +515,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Sidebar Search bar */}
-            <div className="p-4 shrink-0">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Quick search menu..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500/30 transition-all placeholder:text-slate-500"
-                />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-                {searchQuery && (
-                  <button 
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-            </div>
-
             {/* Navigation Menu Links */}
             <nav className="flex-1 px-4 py-2 space-y-1.5 overflow-y-auto scrollbar-hide">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] px-3 block mb-2 leading-none">Navigation</span>
@@ -641,36 +624,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Mobile Quick Search Bar expansion */}
-              <div className="flex items-center gap-2 shrink-0">
-                {isSearchOpen ? (
-                  <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-300">
-                    <input
-                      type="text"
-                      placeholder="Search menu..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-28 xs:w-40 px-3 py-1.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg text-xs font-bold focus:outline-none"
-                    />
-                    <button 
-                      onClick={() => {
-                        setIsSearchOpen(false);
-                        setSearchQuery('');
-                      }}
-                      className="p-1 text-slate-600 dark:text-slate-400 hover:text-amber-500"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <button 
-                    onClick={() => setIsSearchOpen(true)}
-                    className="w-10 h-10 bg-black/5 dark:bg-white/5 rounded-xl border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95 shrink-0"
-                  >
-                    <Search className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
             </header>
           )}
 
@@ -704,20 +657,7 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="mb-6 shrink-0">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-4 py-1.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-lg text-xs"
-                    />
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-                  </div>
-                </div>
-
-                <nav className="flex-1 space-y-1.5 overflow-y-auto scrollbar-hide">
+                <nav className="flex-1 space-y-1.5 overflow-y-auto scrollbar-hide pt-4">
                   <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.3em] block mb-2 leading-none">Views</span>
                   {allowedNavigation.map((item) => {
                     const isActive = currentView === item.id;
@@ -848,10 +788,10 @@ export default function App() {
                       menu={products} 
                       addons={addons.filter(a => a.isActive)} 
                       onPlaceOrder={handlePlaceOrder} 
-                      searchQuery={searchQuery}
                       shopSettings={shopSettings}
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
+                      vouchers={vouchers}
                     />
                   )}
                   {currentView === 'kiosk' && (
@@ -860,10 +800,10 @@ export default function App() {
                       menu={products} 
                       addons={addons.filter(a => a.isActive)} 
                       onPlaceOrder={handlePlaceOrder} 
-                      searchQuery={searchQuery}
                       shopSettings={shopSettings}
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
+                      vouchers={vouchers}
                     />
                   )}
                   {currentView === 'mobile' && (
@@ -872,10 +812,10 @@ export default function App() {
                       menu={products} 
                       addons={addons.filter(a => a.isActive)} 
                       onPlaceOrder={handlePlaceOrder} 
-                      searchQuery={searchQuery}
                       shopSettings={shopSettings}
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
+                      vouchers={vouchers}
                     />
                   )}
                   {currentView === 'cashier' && (
@@ -916,6 +856,14 @@ export default function App() {
                       onAddCategory={addCategory}
                       onUpdateCategory={updateCategory}
                       onDeleteCategory={deleteCategory}
+                    />
+                  )}
+                  {currentView === 'admin-vouchers' && (
+                    <AdminVouchers
+                      vouchers={vouchers}
+                      onAddVoucher={addVoucher}
+                      onUpdateVoucher={updateVoucher}
+                      onDeleteVoucher={deleteVoucher}
                     />
                   )}
                   {currentView === 'settings' && (

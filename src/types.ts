@@ -1,4 +1,4 @@
-export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'settings' | 'cashier' | 'reports';
+export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'admin-vouchers' | 'settings' | 'cashier' | 'reports';
 export type Category = 'Hot Coffee' | 'Cold Coffee' | 'Tea' | 'Food';
 
 export interface DynamicCategory {
@@ -88,12 +88,29 @@ export interface SplashScreen {
   glbUrl?: string;
 }
 
+export interface Voucher {
+  id: string;
+  code: string;
+  type: 'percentage' | 'fixed';
+  value: number;
+  minSpend?: number;
+  isActive: boolean;
+  pointsCost?: number;
+  usageLimit?: number;
+  usedCount?: number;
+}
+
 export type OrderStatus = 'unpaid' | 'pending' | 'pending-verification' | 'preparing' | 'ready' | 'completed' | 'cancelled';
 
 export interface Order {
   id?: string;
   items: CartItem[];
   total: number;
+  subtotal?: number;
+  discountAmount?: number;
+  voucherCode?: string;
+  pointsSpent?: number;
+  pointsEarned?: number;
   status: OrderStatus;
   createdAt: number;
   source: 'pos' | 'kiosk' | 'mobile';
