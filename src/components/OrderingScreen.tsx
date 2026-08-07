@@ -1302,11 +1302,22 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
             const purchasedVouchers = userClaimedVouchers
               .filter(cv => !cv.isUsed)
               .map(cv => ({
-                ...cv,
-                // Override pointsCost to 0 because it's already paid for
+                id: cv.id || cv.voucherId,
+                code: cv.code,
+                type: cv.type,
+                value: cv.value,
+                minSpend: cv.minSpend,
+                isActive: true,
                 pointsCost: 0,
-                isPurchased: true
-              } as Voucher & { isPurchased: boolean }));
+                conditionType: cv.conditionType || 'none',
+                buyQuantity: cv.buyQuantity,
+                buyCategoryOrName: cv.buyCategoryOrName,
+                getQuantity: cv.getQuantity,
+                getCategoryOrName: cv.getCategoryOrName,
+                isAdminOnly: cv.isAdminOnly,
+                isPurchased: true,
+                claimedVoucherId: cv.id
+              } as unknown as Voucher & { isPurchased: boolean; claimedVoucherId?: string }));
 
             // Merge them, prioritizing purchased ones
             const allAvailableVouchers = [...purchasedVouchers, ...promoVouchers.filter(pv => !purchasedVouchers.some(p => p.id === pv.id))];
