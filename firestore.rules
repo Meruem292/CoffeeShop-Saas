@@ -9,7 +9,8 @@ service cloud.firestore {
     // Rules for vouchers
     match /vouchers/{voucherId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // Rules for settings
@@ -47,7 +48,7 @@ service cloud.firestore {
       allow create: if true;
       allow read: if isAdmin() 
                   || resource.data.status in ['unpaid', 'pending-verification', 'pending', 'preparing', 'ready']
-                  || (request.auth != null && resource.data.accountId == request.auth.uid);
+                  || (request.auth != null && (resource.data.accountId == request.auth.uid || resource.data.customerId == request.auth.uid));
       allow update, delete: if isAdmin();
     }
   }

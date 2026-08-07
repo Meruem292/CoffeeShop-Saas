@@ -20,6 +20,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const [addons, setAddons] = useState<Addon[]>([]);
   const [categories, setCategories] = useState<DynamicCategory[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [splashScreen, setSplashScreen] = useState<SplashScreen | null>(null);
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
@@ -144,6 +145,17 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       setLoading(false);
     }, (err) => handleSnapshotError(err, OperationType.LIST, 'orders'));
 
+    // User Orders Listener
+    let unsubUserOrders = () => {};
+    if (userUid && !isAdmin) {
+      const qUserOrders = query(collection(db, 'orders'), where('customerId', '==', userUid));
+      unsubUserOrders = onSnapshot(qUserOrders, (snapshot) => {
+        const o = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+        o.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        setUserOrders(o);
+      }, (err) => handleSnapshotError(err, OperationType.LIST, 'user-orders'));
+    }
+
     return () => {
       unsubSettings();
       unsubSplash();
@@ -152,6 +164,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       unsubCategories();
       unsubVouchers();
       unsubOrders();
+      unsubUserOrders();
     };
   }, [userUid, isAdmin]);
 
@@ -307,10 +320,17 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   };
 
   const deleteVoucher = async (id: string) => {
+    console.log('Attempting to delete voucher with ID:', id);
     try {
-      await deleteDoc(doc(db, 'vouchers', id));
+      const docRef = doc(db, 'vouchers', id);
+      console.log('Doc ref path:', docRef.path);
+      console.log('Before deleteDoc');
+      await deleteDoc(docRef);
+      console.log('After deleteDoc');
+      console.log('Voucher successfully deleted from Firestore');
       toast.success('Voucher deleted successfully!');
     } catch (err) {
+      console.error('Detailed Delete Voucher Error:', err);
       handleFirestoreError(err, OperationType.DELETE, `vouchers/${id}`);
       toast.error('Failed to delete voucher');
     }
@@ -415,6 +435,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     addons,
     categories,
     orders,
+    userOrders,
     vouchers,
     splashScreen,
     shopSettings,

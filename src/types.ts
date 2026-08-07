@@ -1,4 +1,4 @@
-export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'admin-vouchers' | 'settings' | 'cashier' | 'reports';
+export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'admin-vouchers' | 'settings' | 'cashier' | 'reports' | 'profile';
 export type Category = 'Hot Coffee' | 'Cold Coffee' | 'Tea' | 'Food';
 
 export interface DynamicCategory {
@@ -120,6 +120,7 @@ export interface Order {
   paymentMethod?: 'counter' | 'gcash';
   gcashReference?: string;
   receiptUrl?: string;
+  customerId?: string;
   accountId?: string;
   voidReason?: string;
 }

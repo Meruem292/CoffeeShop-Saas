@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Tag, Plus, Edit2, Trash2, X, Check, Save } from 'lucide-react';
 import { Voucher } from '../types';
 import { useToast } from '../lib/ToastContext';
+import { ConfirmationModal } from './ConfirmationModal';
 
 interface AdminVouchersProps {
   vouchers: Voucher[];
@@ -14,6 +15,7 @@ export function AdminVouchers({ vouchers, onAddVoucher, onUpdateVoucher, onDelet
   const { toast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [voucherToDelete, setVoucherToDelete] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<Partial<Voucher>>({
     code: '',
@@ -266,9 +268,7 @@ export function AdminVouchers({ vouchers, onAddVoucher, onUpdateVoucher, onDelet
                 </button>
                 <button
                   onClick={() => {
-                    if (window.confirm('Are you sure you want to delete this voucher?')) {
-                      onDeleteVoucher(voucher.id);
-                    }
+                    setVoucherToDelete(voucher.id);
                   }}
                   className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
                   title="Delete Voucher"
@@ -277,6 +277,19 @@ export function AdminVouchers({ vouchers, onAddVoucher, onUpdateVoucher, onDelet
                 </button>
               </div>
             </div>
+
+            <ConfirmationModal
+              isOpen={!!voucherToDelete}
+              onClose={() => setVoucherToDelete(null)}
+              onConfirm={() => {
+                if (voucherToDelete) {
+                  onDeleteVoucher(voucherToDelete);
+                  setVoucherToDelete(null);
+                }
+              }}
+              title="Delete Voucher"
+              message="Are you sure you want to delete this voucher? This action cannot be undone."
+            />
 
             <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest border-t border-black/5 dark:border-white/5 pt-4">
               <div className="text-slate-400">

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'rea
 import { ViewMode, Order, Product, OrderStatus } from './types';
 import { SplashScreen } from './components/SplashScreen';
 import { AdminLoginModal } from './components/AdminLoginModal';
-import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sparkles, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag } from 'lucide-react';
+import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sparkles, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag, User } from 'lucide-react';
 import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
 import { useTheme } from './lib/ThemeProvider';
@@ -20,6 +20,7 @@ const AdminVouchers = lazy(() => import('./components/AdminVouchers').then(m => 
 const AdminSettings = lazy(() => import('./components/AdminSettings').then(m => ({ default: m.AdminSettings })));
 const CashierView = lazy(() => import('./components/CashierView').then(m => ({ default: m.CashierView })));
 const TransactionReports = lazy(() => import('./components/TransactionReports').then(m => ({ default: m.TransactionReports })));
+const ProfilePage = lazy(() => import('./components/ProfilePage').then(m => ({ default: m.ProfilePage })));
 
 export default function App() {
   const { toast } = useToast();
@@ -52,6 +53,7 @@ export default function App() {
     products,
     addons,
     orders,
+    userOrders,
     categories,
     splashScreen,
     shopSettings,
@@ -91,8 +93,9 @@ export default function App() {
     }
   }, [shopSettings?.themeMode, setTheme]);
 
-  const navigationItems: { id: ViewMode; label: string; icon: React.ReactNode; adminOnly?: boolean }[] = [
+  const navigationItems: { id: ViewMode; label: string; icon: React.ReactNode; adminOnly?: boolean; userOnly?: boolean }[] = [
     { id: 'mobile', label: 'App', icon: <Smartphone className="w-4 h-4" /> },
+    { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" />, userOnly: true },
     { id: 'kiosk', label: 'Kiosk', icon: <Tablet className="w-4 h-4" />, adminOnly: true },
     { id: 'pos', label: 'POS', icon: <MonitorSmartphone className="w-4 h-4" />, adminOnly: true },
     { id: 'cashier', label: 'Cashier', icon: <Banknote className="w-4 h-4" />, adminOnly: true },
@@ -107,7 +110,10 @@ export default function App() {
   const unpaidOrdersCount = orders.filter(o => o.status === 'unpaid').length;
   const pendingOrdersCount = orders.filter(o => o.status === 'pending').length;
 
-  const allowedNavigation = navigationItems.filter(item => !item.adminOnly || isAdmin || (item.id === 'kiosk' && isKioskModeActive));
+  const allowedNavigation = navigationItems.filter(item => 
+    (!item.adminOnly || isAdmin || (item.id === 'kiosk' && isKioskModeActive)) &&
+    (!item.userOnly || user)
+  );
 
   // Automatically switch to an allowed view if current is restricted
   useEffect(() => {
@@ -191,6 +197,7 @@ export default function App() {
   // Notification for new orders on admin side
   const prevOrderIds = useRef<Set<string>>(new Set());
   const prevOrderStatuses = useRef<Map<string, string>>(new Map());
+  const prevUserOrderStatuses = useRef<Map<string, OrderStatus>>(new Map());
 
   const mostPickedProductIds = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -271,6 +278,19 @@ export default function App() {
       prevOrderStatuses.current = currentStatuses;
     }
   }, [orders, isAdmin, shopSettings?.speakCustomerName, shopSettings?.notificationSoundUrl, shopSettings?.notificationVolume]);
+
+  useEffect(() => {
+    if (user) {
+      userOrders.forEach(order => {
+        const prevStatus = prevUserOrderStatuses.current.get(order.id || '');
+        if (prevStatus && prevStatus !== 'ready' && order.status === 'ready') {
+          toast.success(`Your order ${order.id?.slice(-4)} is ready!`);
+          playNotificationSound(shopSettings?.notificationSoundUrl, shopSettings?.notificationVolume);
+        }
+        prevUserOrderStatuses.current.set(order.id || '', order.status);
+      });
+    }
+  }, [userOrders, user, shopSettings?.notificationSoundUrl, shopSettings?.notificationVolume]);
 
   const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'createdAt'>) => {
     const initialStatus: OrderStatus = orderData.status || 'unpaid';
@@ -872,6 +892,13 @@ export default function App() {
                       shopSettings={shopSettings}
                       onUpdateSplash={updateSplashScreen}
                       onUpdateShop={updateShopSettings}
+                    />
+                  )}
+                  {currentView === 'profile' && (
+                    <ProfilePage 
+                      user={user}
+                      vouchers={vouchers}
+                      orders={userOrders}
                     />
                   )}
                 </div>
