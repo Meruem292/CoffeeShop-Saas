@@ -7,7 +7,7 @@ import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
 import { useAuth } from '../lib/AuthContext';
-import { CustomerAuthModal } from './CustomerAuthModal';
+import { UnifiedAuthModal } from './UnifiedAuthModal';
 import { useToast } from '../lib/ToastContext';
 
 interface OrderingScreenProps {
@@ -1167,7 +1167,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       )}
 
       {showCustomerAuth && (
-        <CustomerAuthModal 
+        <UnifiedAuthModal 
           onClose={() => setShowCustomerAuth(false)} 
           onSuccess={(displayName) => {
             setCustomerName(displayName);

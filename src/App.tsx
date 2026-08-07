@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 import { ViewMode, Order, Product, OrderStatus } from './types';
 import { SplashScreen } from './components/SplashScreen';
-import { AdminLoginModal } from './components/AdminLoginModal';
+import { UnifiedAuthModal } from './components/UnifiedAuthModal';
 import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sparkles, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag, User } from 'lucide-react';
 import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
@@ -906,7 +906,7 @@ export default function App() {
             </div>
           )}
           {showAdminLogin && (
-            <AdminLoginModal onClose={() => setShowAdminLogin(false)} />
+            <UnifiedAuthModal onClose={() => setShowAdminLogin(false)} />
           )}
         </Suspense>
       </main>

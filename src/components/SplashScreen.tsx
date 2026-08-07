@@ -1,7 +1,6 @@
 import React from 'react';
-import { Coffee, ArrowRight, Instagram, Facebook, Twitter, ChefHat, CheckCircle2 } from 'lucide-react';
+import { Coffee, ArrowRight, Instagram, Facebook, Twitter, ChefHat, CheckCircle2, ShieldCheck, Zap, Star, Heart } from 'lucide-react';
 import { SplashScreen as SplashScreenType, ShopSettings, Order } from '../types';
-import ShapeGrid from './ShapeGrid';
 
 declare module 'react' {
   namespace JSX {
@@ -18,6 +17,18 @@ interface SplashScreenProps {
   onStart: () => void;
 }
 
+const FeatureCard = ({ icon: Icon, title, desc }: { icon: any, title: string, desc: string }) => (
+  <div className="flex items-start gap-4 p-4">
+    <div className="w-12 h-12 rounded-full border border-[#dcd8cf] dark:border-slate-700 flex items-center justify-center text-[#2d241d] dark:text-slate-200 bg-white/50 dark:bg-slate-800/80 shrink-0">
+      <Icon className="w-6 h-6" />
+    </div>
+    <div>
+      <h4 className="font-bold text-[#2d241d] dark:text-white uppercase tracking-wider text-sm">{title}</h4>
+      <p className="text-[#8c857f] dark:text-slate-400 text-xs leading-relaxed">{desc}</p>
+    </div>
+  </div>
+);
+
 export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScreenProps) {
   React.useEffect(() => {
     if (!data || !data.isActive) {
@@ -31,13 +42,13 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
 
   const preparingOrders = orders.filter(o => o.status === 'pending' || o.status === 'preparing').sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
   const readyOrders = orders.filter(o => o.status === 'ready').sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
-
-  const themeColor = shopSettings?.themeColor || '#4b2c20';
+  
+  const themeColor = shopSettings?.themeColor || '#e5a03e';
 
   return (
-    <div className="fixed inset-0 z-[200] bg-slate-50 dark:bg-[#020617] flex flex-col overflow-hidden font-sans text-slate-900 dark:text-white pointer-events-none">
-      {/* 3D Model Background Container - Positioned on the right for desktop */}
-      <div className="absolute inset-y-0 right-0 w-full lg:w-[55%] h-full z-0 pointer-events-auto flex items-center justify-center overflow-hidden">
+    <div className="fixed inset-0 z-[200] bg-[#f5f0e6] dark:bg-[#080d1a] flex flex-col font-sans text-[#2d241d] dark:text-slate-100 pointer-events-auto overflow-y-auto transition-colors duration-300">
+      {/* 3D Model Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-90 dark:opacity-60">
         {data.useGlb ? (
           <model-viewer
             src={data.glbUrl || "/coffee_cup_with_plate.glb"}
@@ -45,13 +56,7 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
             auto-rotate
             camera-controls
             ar
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              backgroundColor: 'transparent',
-              transform: 'perspective(1200px) rotateX(15deg) rotateY(-5deg) scale(1.12)',
-              transformOrigin: 'center center'
-            }}
+            style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
             camera-orbit="0deg 55deg 105%"
             shadow-intensity="2"
             exposure="1.2"
@@ -61,11 +66,7 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
           <iframe 
             title="Cup of cappuccino" 
             className="w-full h-full"
-            style={{ 
-              transform: 'perspective(1200px) rotateX(22deg) rotateY(-4deg) scale(1.28)', 
-              transformOrigin: 'center center',
-              border: 'none'
-            }}
+            style={{ border: 'none' }}
             frameBorder="0" 
             allowFullScreen 
             allow="autoplay; fullscreen; xr-spatial-tracking" 
@@ -74,155 +75,106 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
         )}
       </div>
 
-      {/* Solid Background Overlay */}
-      <div className="absolute inset-0 bg-black/30 dark:bg-black/50 pointer-events-none z-1" />
-
-      {/* Header / Nav */}
-      <header className="relative z-20 flex items-center justify-between px-8 md:px-12 py-10 max-w-7xl mx-auto w-full shrink-0 pointer-events-auto">
-        <div className="flex items-center gap-5 group cursor-pointer">
-          <div 
-            className="w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl border border-slate-200/20 bg-white p-0.5 transition-transform group-hover:scale-110 duration-500"
-          >
-            {shopSettings?.logoUrl ? (
-              <img src={shopSettings.logoUrl || undefined} className="w-full h-full object-cover rounded-xl" alt="Logo" />
-            ) : (
-              <span className="text-xl md:text-2xl font-black text-[#020617] italic tracking-tighter">{shopSettings?.initials || 'CH'}</span>
-            )}
-          </div>
-          <div className="flex flex-col">
-            <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white font-display uppercase tracking-tighter leading-none mb-1">{shopSettings?.name || 'Astro Coffee'}</span>
-            <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.4em] leading-none opacity-60">Sequence Initiated</span>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-6 md:gap-8 text-slate-600 dark:text-slate-400">
-          <Instagram className="w-5 h-5 cursor-pointer hover:text-amber-500 hover:scale-110 transition-all" />
-          <Facebook className="w-5 h-5 cursor-pointer hover:text-amber-500 hover:scale-110 transition-all" />
-          <Twitter className="w-5 h-5 cursor-pointer hover:text-amber-500 hover:scale-110 transition-all" />
-        </div>
-      </header>
-
-      {/* Hero Content & Queue Layout */}
-      <main className="flex-1 relative z-10 flex flex-col lg:flex-row px-4 md:px-8 lg:px-12 max-w-[1600px] mx-auto w-full py-6 md:py-8 lg:py-12 gap-8 md:gap-10 lg:gap-12 overflow-y-auto lg:overflow-hidden min-h-0 pointer-events-auto scrollbar-hide">
-        
-        {/* Left Column: Queuing Status */}
-        <div className="flex w-full md:w-[400px] lg:w-[450px] flex-col gap-4 md:gap-5 lg:gap-6 shrink-0 lg:h-full lg:overflow-hidden animate-in fade-in slide-in-from-bottom-5 lg:slide-in-from-left-5 duration-1000 z-10 relative order-2 lg:order-1 flex-1 lg:flex-none pointer-events-auto h-auto lg:min-h-0 mb-8 md:mb-10 lg:mb-0">
-          
-          <div className="absolute -inset-4 bg-amber-500/10 blur-3xl rounded-full z-0 pointer-events-none" />
-          <h2 className="relative text-lg md:text-xl lg:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2 flex items-center gap-3 shrink-0 bg-amber-500/20 dark:bg-amber-500/20 p-4 md:p-5 rounded-3xl backdrop-blur-xl border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.2)]">
-            <div className="w-2 h-6 md:h-8 bg-amber-500 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.8)] animate-pulse" />
-            Order Orbit
-          </h2>
-
-          <div className="flex-1 lg:overflow-y-auto pr-0 lg:pr-2 scrollbar-hide flex flex-col gap-6">
-            {/* Preparing Column */}
-            <div className="relative flex flex-col bg-white/50 dark:bg-black/50 backdrop-blur-3xl rounded-[2rem] border border-amber-500/30 overflow-hidden shrink-0 lg:flex-1 lg:min-h-0 shadow-[0_0_30px_rgba(245,158,11,0.15)]">
-              <div className="px-6 py-4 border-b border-black/10 dark:border-white/10 flex items-center gap-3 bg-black/5 dark:bg-white/5">
-                <ChefHat className="w-6 h-6 text-amber-500" />
-                <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Preparing</span>
-              </div>
-              <div className="p-4 lg:p-6 flex flex-col gap-3 lg:overflow-y-auto scrollbar-hide flex-1">
-                {preparingOrders.length > 0 ? (
-                  preparingOrders.map(order => (
-                    <div key={order.id} className="flex items-center justify-between bg-white/60 dark:bg-black/40 px-4 py-3 rounded-xl border border-black/5 dark:border-white/5 shrink-0 shadow-sm">
-                      <span className="font-black text-xl text-slate-900 dark:text-white tracking-tighter truncate max-w-[150px]">{order.customerName}</span>
-                      <span className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full">
-                        {order.id?.substring(0, 5)}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="flex-1 flex items-center justify-center min-h-[100px]">
-                    <span className="text-xs font-black text-slate-500 uppercase tracking-widest opacity-50">No orders preparing</span>
-                  </div>
-                )}
-              </div>
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col lg:flex-row gap-12 px-6 md:px-12 max-w-[1400px] mx-auto w-full pb-12 pt-12 z-10">
+        {/* Left Status */}
+        <div className="w-full lg:w-[350px] space-y-8 shrink-0">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+               <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: themeColor }} />
+               <h2 className="text-2xl font-black uppercase tracking-tighter text-[#2d241d] dark:text-white">Order Orbit</h2>
             </div>
+            <p className="text-xs font-bold uppercase tracking-widest text-[#8c857f] dark:text-slate-400">Real-time Order Status</p>
+          </div>
 
-            {/* Serving Column */}
-            <div className="relative flex flex-col bg-white/50 dark:bg-black/50 backdrop-blur-3xl rounded-[2rem] border border-green-500/30 overflow-hidden shrink-0 lg:flex-1 lg:min-h-0 shadow-[0_0_30px_rgba(34,197,94,0.15)]">
-              <div className="px-6 py-4 border-b border-black/10 dark:border-white/10 flex items-center gap-3 bg-black/5 dark:bg-white/5">
-                <CheckCircle2 className="w-6 h-6 text-green-500" />
-                <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Now Serving</span>
-              </div>
-              <div className="p-4 lg:p-6 flex flex-col gap-3 lg:overflow-y-auto scrollbar-hide flex-1">
-                {readyOrders.length > 0 ? (
-                  readyOrders.map(order => (
-                    <div key={order.id} className="flex items-center justify-between bg-white/60 dark:bg-black/40 px-4 py-3 rounded-xl border border-black/5 dark:border-white/5 animate-pulse shadow-[0_0_15px_rgba(34,197,94,0.2)] shrink-0">
-                      <span className="font-black text-xl text-slate-900 dark:text-white tracking-tighter truncate max-w-[150px]">{order.customerName}</span>
-                      <span className="text-xs font-black text-green-600 dark:text-green-400 uppercase tracking-widest bg-green-500/10 px-3 py-1 rounded-full">
-                        {order.id?.substring(0, 5)}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="flex-1 flex items-center justify-center min-h-[100px]">
-                    <span className="text-xs font-black text-slate-500 uppercase tracking-widest opacity-50">No orders serving</span>
-                  </div>
-                )}
-              </div>
+          <div className="space-y-4">
+            <div className="bg-[#fcfaf5] dark:bg-slate-900/80 p-6 rounded-2xl border border-[#ece9e2] dark:border-slate-800/80 shadow-sm">
+               <div className="flex items-center gap-3 mb-4">
+                 <ChefHat className="w-5 h-5" style={{ color: themeColor }} />
+                 <span className="font-black text-sm uppercase tracking-widest text-[#2d241d] dark:text-white">Preparing</span>
+               </div>
+               <div className="flex flex-col gap-2">
+                 {preparingOrders.length > 0 ? (
+                   preparingOrders.map(order => (
+                     <div key={order.id} className="flex items-center justify-between bg-white/80 dark:bg-slate-800/80 px-4 py-2.5 rounded-xl border border-black/5 dark:border-slate-700/60 shadow-sm">
+                       <span className="font-black text-sm text-[#2d241d] dark:text-white tracking-tighter truncate max-w-[140px]">{order.customerName}</span>
+                       <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full" style={{ color: themeColor, backgroundColor: `${themeColor}20` }}>
+                         #{order.id?.substring(0, 5)}
+                       </span>
+                     </div>
+                   ))
+                 ) : (
+                   <div className="text-xs text-[#b8a08d] dark:text-slate-500 text-center py-4 font-medium">No orders preparing</div>
+                 )}
+               </div>
+            </div>
+            <div className="bg-[#fcfaf5] dark:bg-slate-900/80 p-6 rounded-2xl border border-[#ece9e2] dark:border-slate-800/80 shadow-sm">
+               <div className="flex items-center gap-3 mb-4">
+                 <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                 <span className="font-black text-sm uppercase tracking-widest text-[#2d241d] dark:text-white">Now Serving</span>
+               </div>
+               <div className="flex flex-col gap-2">
+                 {readyOrders.length > 0 ? (
+                   readyOrders.map(order => (
+                     <div key={order.id} className="flex items-center justify-between bg-white/80 dark:bg-slate-800/80 px-4 py-2.5 rounded-xl border border-black/5 dark:border-slate-700/60 animate-pulse shadow-sm">
+                       <span className="font-black text-sm text-[#2d241d] dark:text-white tracking-tighter truncate max-w-[140px]">{order.customerName}</span>
+                       <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
+                         #{order.id?.substring(0, 5)}
+                       </span>
+                     </div>
+                   ))
+                 ) : (
+                   <div className="text-xs text-[#b8a08d] dark:text-slate-500 text-center py-4 font-medium">No orders serving</div>
+                 )}
+               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Hero Content */}
-        <div className="flex-1 flex items-center justify-center lg:justify-center animate-in fade-in slide-in-from-top-10 lg:slide-in-from-right-10 duration-1000 z-10 w-full lg:pl-12 order-1 lg:order-2 shrink-0 lg:shrink">
-          {/* Glassmorphic Panel: Floating Typography & CTA */}
-          <div className="w-full max-w-xl max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hide p-6 md:p-10 rounded-[3rem] bg-black/5 dark:bg-white/5 dark:bg-slate-900/20 backdrop-blur-2xl border border-black/10 dark:border-white/10 shadow-[0_40px_100px_rgba(0,0,0,0.4)] flex flex-col text-left pointer-events-auto my-auto">
-            <div className="mb-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-px w-8 bg-amber-500/60" />
-                <span className="text-amber-500 font-black uppercase tracking-[0.5em] text-[10px] md:text-xs">
-                  {data.title || "The Orbit Experience"}
-                </span>
-              </div>
-              <h1 className="text-5xl md:text-6xl lg:text-[6.5rem] font-black text-slate-900 dark:text-white font-display leading-[0.8] mb-4 uppercase italic tracking-tighter">
-                WE ARE <br /> 
-                <span className="text-slate-600 dark:text-slate-400 not-italic">OPEN!</span>
-              </h1>
-            </div>
-            <p
-              className="text-base lg:text-xl text-slate-700 dark:text-slate-300 mb-6 leading-tight font-black uppercase tracking-tighter opacity-95"
-            >
-              {data.subtitle || "Elevate your daily ritual in our galactic sanctuary."}
-            </p>
-            <button
-              onClick={onStart}
-              className="group relative inline-flex items-center justify-center w-full gap-6 bg-white text-[#020617] px-8 py-4 lg:py-5 rounded-[2rem] font-black text-lg lg:text-xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.5)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] transition-all active:scale-95 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#020617]/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-              <span className="relative uppercase tracking-[0.2em]">{data.buttonText || "Begin Mission"}</span>
-              <div className="relative w-9 h-9 bg-slate-50 dark:bg-[#020617] rounded-xl flex items-center justify-center group-hover:translate-x-3 transition-transform shrink-0 shadow-inner">
-                <ArrowRight className="w-5 h-5 text-slate-900 dark:text-white" />
-              </div>
-            </button>
-            
-            {/* QR Code Section */}
-            <div className="mt-5 flex flex-col sm:flex-row items-center gap-5 justify-center sm:justify-start bg-gradient-to-r from-amber-500/15 via-black/10 dark:via-white/5 to-transparent backdrop-blur-2xl p-4 sm:p-5 rounded-[2.2rem] border-2 border-amber-500/50 shadow-[0_0_30px_rgba(245,158,11,0.25)] animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 w-20 h-20 bg-amber-500/25 rounded-full blur-2xl pointer-events-none" />
-              <div className="w-32 h-32 sm:w-36 sm:h-36 bg-white p-2.5 rounded-2xl shrink-0 shadow-2xl border-2 border-amber-500/60 flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300">
-                {shopSettings?.qrCodeUrl ? (
-                  <img src={shopSettings.qrCodeUrl} alt="Order QR Code" className="w-full h-full object-contain rounded-xl" />
-                ) : (
-                  <div className="text-center flex flex-col items-center justify-center h-full w-full border-2 border-dashed border-amber-300 rounded-xl bg-amber-50/50">
-                     <span className="text-xs font-black text-amber-600 uppercase tracking-widest">Scan QR</span>
-                  </div>
-                )}
-              </div>
-              <div className="text-center sm:text-left flex flex-col justify-center">
-                <div className="inline-flex items-center gap-2 bg-amber-500 text-slate-950 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-1.5 w-max mx-auto sm:mx-0 shadow-sm">
-                  ⚡ Instant Ordering
+        {/* Right Open Card */}
+        <div className="flex-1 relative">
+           <div className="relative rounded-[2.5rem] overflow-hidden border border-white/50 dark:border-slate-700/60 shadow-2xl min-h-[500px] flex flex-col bg-white/30 dark:bg-slate-900/50 backdrop-blur-md">
+             
+             <div className="relative z-10 p-8 md:p-12 flex flex-col justify-between h-full flex-1">
+                <p className="text-xs font-black uppercase tracking-[0.3em] text-[#2d241d]/70 dark:text-slate-300">— Premium Coffee Experience</p>
+                <div className="space-y-4 my-6">
+                  <h1 className="text-5xl md:text-6xl font-black italic uppercase tracking-tighter text-[#1a1a1a] dark:text-white">WE ARE <br/> OPEN!</h1>
+                  <p className="text-base md:text-lg font-bold text-[#2d241d]/80 dark:text-slate-300 max-w-sm">Experience the finest coffee, crafted with passion and precision.</p>
                 </div>
-                <p className="text-slate-900 dark:text-white font-black uppercase tracking-wider text-sm sm:text-lg mb-0.5">Order From Your Phone</p>
-                <p className="text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest text-[10px] sm:text-xs">Scan QR Code to Start Mission</p>
-              </div>
-            </div>
-          </div>
+                
+                <div className="bg-white/80 dark:bg-slate-900/90 border border-white/30 dark:border-slate-800/80 backdrop-blur-md p-6 rounded-3xl flex flex-col md:flex-row items-center justify-between shadow-lg gap-6">
+                   <button onClick={onStart} className="px-8 py-4 text-white rounded-2xl font-black uppercase tracking-widest flex items-center gap-3 w-full md:w-auto justify-center shadow-md hover:brightness-110 active:scale-95 transition-all" style={{ backgroundColor: themeColor }}>
+                     Start Ordering <ArrowRight className="w-4 h-4"/>
+                   </button>
+                   <div className="flex items-center gap-4">
+                      {shopSettings?.qrCodeUrl ? (
+                          <img src={shopSettings.qrCodeUrl} alt="QR Code" className="w-24 h-24 md:w-28 md:h-28 rounded-xl object-contain bg-white dark:bg-slate-800 p-1 border border-black/5 dark:border-slate-700" />
+                      ) : (
+                          <div className="w-24 h-24 md:w-28 md:h-28 bg-[#2d241d] dark:bg-slate-800 rounded-xl flex items-center justify-center p-2 text-center text-[10px] font-bold text-amber-500 uppercase">
+                             Scan QR
+                          </div>
+                      )}
+                      <div>
+                        <div className="text-white text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full inline-block mb-1" style={{ backgroundColor: themeColor }}>Instant Ordering</div>
+                        <p className="font-black uppercase tracking-widest text-sm text-[#2d241d] dark:text-white">Order from your phone</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: themeColor }}>Scan QR Code to start mission</p>
+                      </div>
+                   </div>
+                </div>
+             </div>
+           </div>
         </div>
       </main>
 
-      {/* Footer Decoration */}
-      <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-white/5 to-transparent pointer-events-none z-1" />
+      {/* Footer Features */}
+      <footer className="bg-white/50 dark:bg-slate-900/70 border-t border-[#dcd8cf] dark:border-slate-800/80 px-6 md:px-12 py-8 mt-auto z-10 backdrop-blur-sm">
+        <div className="max-w-[1400px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <FeatureCard icon={Coffee} title="Premium Quality" desc="Finest beans, expertly roasted for perfection." />
+          <FeatureCard icon={Zap} title="Fast & Fresh" desc="Quick service with uncompromised quality." />
+          <FeatureCard icon={Star} title="Loyalty Rewards" desc="Earn points and enjoy exclusive benefits." />
+          <FeatureCard icon={Heart} title="Made with Love" desc="Every cup is crafted with passion." />
+        </div>
+      </footer>
     </div>
   );
 }

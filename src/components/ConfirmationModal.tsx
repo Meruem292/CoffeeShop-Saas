@@ -34,7 +34,7 @@ export function ConfirmationModal({ isOpen, onClose, onConfirm, title, message }
               onConfirm();
               onClose();
             }}
-            className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white rounded-xl font-bold uppercase text-xs tracking-wider transition-all"
+            className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold uppercase text-xs tracking-wider transition-all"
           >
             Confirm
           </button>
