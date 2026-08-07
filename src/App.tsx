@@ -903,6 +903,7 @@ export default function App() {
                       vouchers={vouchers}
                       userClaimedVouchers={userClaimedVouchers}
                       userProfile={userProfile}
+                      orders={orders}
                     />
                   )}
                   {currentView === 'kiosk' && (
@@ -917,6 +918,7 @@ export default function App() {
                       vouchers={vouchers}
                       userClaimedVouchers={userClaimedVouchers}
                       userProfile={userProfile}
+                      orders={orders}
                     />
                   )}
                   {currentView === 'mobile' && (
@@ -931,6 +933,7 @@ export default function App() {
                       vouchers={vouchers}
                       userClaimedVouchers={userClaimedVouchers}
                       userProfile={userProfile}
+                      orders={orders}
                     />
                   )}
                   {currentView === 'cashier' && (
