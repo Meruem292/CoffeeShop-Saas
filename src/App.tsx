@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'rea
 import { ViewMode, Order, Product, OrderStatus } from './types';
 import { SplashScreen } from './components/SplashScreen';
 import { UnifiedAuthModal } from './components/UnifiedAuthModal';
-import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sparkles, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag, User } from 'lucide-react';
+import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sparkles, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag, User, Coins } from 'lucide-react';
 import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
 import { useTheme } from './lib/ThemeProvider';
@@ -78,9 +78,11 @@ export default function App() {
     updateCategory,
     deleteCategory,
     vouchers,
+    userClaimedVouchers,
     addVoucher,
     updateVoucher,
-    deleteVoucher
+    deleteVoucher,
+    claimVoucher
   } = useFirebase(user?.uid, isAdmin);
 
   const [isStarted, setIsStarted] = useState(false);
@@ -248,6 +250,14 @@ export default function App() {
 
     return topIds;
   }, [orders, products]);
+
+  const totalCustomerPoints = useMemo(() => {
+    if (!user || !userOrders) return 0;
+    return userOrders.reduce((sum, order) => {
+      if (order.status === 'cancelled') return sum;
+      return sum + (order.pointsEarned || 0) - (order.pointsSpent || 0);
+    }, 0);
+  }, [user, userOrders]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -633,6 +643,23 @@ export default function App() {
         {/* Main Content Workspace Panel */}
         <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-20 min-w-0">
           
+          {/* Customer Earned Points Corner Badge */}
+          {user && !isAdmin && !isKioskModeActive && (
+            <button
+              onClick={() => setCurrentView('profile')}
+              className="fixed top-4 right-4 z-[55] bg-slate-900/90 dark:bg-[#0b1329]/95 hover:bg-slate-950 text-amber-400 border border-amber-500/40 backdrop-blur-2xl px-3.5 py-2 rounded-2xl flex items-center gap-2.5 shadow-2xl transition-all active:scale-95 group"
+              title="Click to view Points Balance & Purchase History"
+            >
+              <div className="w-6 h-6 rounded-xl bg-amber-500 text-slate-900 font-black text-xs flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
+                <Coins className="w-3.5 h-3.5 fill-slate-900 text-slate-900" />
+              </div>
+              <div className="flex flex-col items-start leading-none pr-1">
+                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Points Earned</span>
+                <span className="text-xs font-black tracking-tight text-white">{totalCustomerPoints.toLocaleString()} Pts</span>
+              </div>
+            </button>
+          )}
+
           {/* Top Bar - Mobile View Only (lg and below) */}
           {!isKioskModeActive && !(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
             <header className="lg:hidden flex items-center justify-between px-6 py-4 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-b border-black/10 dark:border-white/5 shrink-0 relative z-20">
@@ -891,6 +918,7 @@ export default function App() {
                   {currentView === 'admin-vouchers' && (
                     <AdminVouchers
                       vouchers={vouchers}
+                      categories={categories}
                       onAddVoucher={addVoucher}
                       onUpdateVoucher={updateVoucher}
                       onDeleteVoucher={deleteVoucher}
@@ -908,7 +936,9 @@ export default function App() {
                     <ProfilePage 
                       user={user}
                       vouchers={vouchers}
+                      userClaimedVouchers={userClaimedVouchers}
                       orders={userOrders}
+                      onClaimVoucher={claimVoucher}
                     />
                   )}
                 </div>

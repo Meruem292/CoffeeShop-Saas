@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher } from '../types';
 import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag } from 'lucide-react';
@@ -91,6 +91,86 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
+  const [showPersonalVoucherModal, setShowPersonalVoucherModal] = useState(false);
+  const [personalVoucherInput, setPersonalVoucherInput] = useState('');
+  const [showFreeItemModal, setShowFreeItemModal] = useState(false);
+  const [selectedFreeProduct, setSelectedFreeProduct] = useState<Product | null>(null);
+
+  const { isBuyXGetYEligible, buyCount, requiredQty } = useMemo(() => {
+    if (!appliedVoucher || appliedVoucher.type !== 'buy_x_get_y') return { isBuyXGetYEligible: false, buyCount: 0, requiredQty: 0 };
+    const buyQty = appliedVoucher.buyQuantity || 1;
+    const buyTerm = (appliedVoucher.buyCategoryOrName || '').toLowerCase().trim();
+    const buyCount = cart.reduce((sum, item) => {
+      const itemCat = (item.category || '').toLowerCase();
+      const itemName = (item.name || '').toLowerCase();
+      if (!buyTerm || itemCat.includes(buyTerm) || itemName.includes(buyTerm)) {
+        return sum + item.quantity;
+      }
+      return sum;
+    }, 0);
+    return { isBuyXGetYEligible: buyCount >= buyQty, buyCount, requiredQty: buyQty };
+  }, [appliedVoucher, cart]);
+
+  const eligibleFreeProducts = useMemo(() => {
+    if (!appliedVoucher || appliedVoucher.type !== 'buy_x_get_y') return [];
+    const getTerm = (appliedVoucher.getCategoryOrName || '').toLowerCase().trim();
+    return menu.filter(item => {
+      const itemCat = (item.category || '').toLowerCase();
+      const itemName = (item.name || '').toLowerCase();
+      if (!getTerm || itemCat.includes(getTerm) || itemName.includes(getTerm)) {
+        return true;
+      }
+      return false;
+    });
+  }, [appliedVoucher, menu]);
+
+  const handleLookupPersonalVoucher = async () => {
+    const code = personalVoucherInput.trim().toUpperCase();
+    if (!code) return;
+
+    try {
+      const foundAdmin = vouchers.find(v => v.code === code && v.isActive);
+      if (foundAdmin) {
+        if (foundAdmin.minSpend && subtotal < foundAdmin.minSpend) {
+          toast.error(`Minimum spend of ₱${foundAdmin.minSpend} required`);
+          return;
+        }
+        setAppliedVoucher(foundAdmin);
+        setShowPersonalVoucherModal(false);
+        setPersonalVoucherInput('');
+        toast.success(`Voucher "${foundAdmin.code}" applied!`);
+        return;
+      }
+
+      const q = query(collection(db, 'claimed_vouchers'), where('code', '==', code));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const cvData = snap.docs[0].data();
+        const vObj: Voucher = {
+          id: cvData.voucherId || snap.docs[0].id,
+          code: cvData.code,
+          type: cvData.type,
+          value: cvData.value,
+          minSpend: cvData.minSpend || 0,
+          isActive: true
+        };
+        if (vObj.minSpend && subtotal < vObj.minSpend) {
+          toast.error(`Minimum spend of ₱${vObj.minSpend} required`);
+          return;
+        }
+        setAppliedVoucher(vObj);
+        setShowPersonalVoucherModal(false);
+        setPersonalVoucherInput('');
+        toast.success(`Personal voucher "${vObj.code}" activated & applied!`);
+        return;
+      }
+
+      toast.error('Voucher code or Member QR not found');
+    } catch (e) {
+      console.error('Voucher lookup error:', e);
+      toast.error('Failed to verify voucher');
+    }
+  };
 
   // Real-time listener for the logged-in customer's orders to calculate favorites
   React.useEffect(() => {
@@ -101,7 +181,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
     const q = query(
       collection(db, 'orders'),
-      where('accountId', '==', user.uid)
+      where('customerId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -121,10 +201,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     const earnRate = shopSettings?.pointsEarnedPer100Pesos || 10;
     
     const totalEarned = customerOrders
-      .filter(o => o.status === 'completed')
+      .filter(o => o.status !== 'cancelled')
       .reduce((sum, o) => {
         if (o.pointsEarned !== undefined) return sum + o.pointsEarned;
-        // Backward compatibility
         return sum + Math.floor((o.total || 0) / 100) * earnRate;
       }, 0);
       
@@ -272,6 +351,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     
     const cartId = Math.random().toString(36).substr(2, 9);
     
+    let isExisting = false;
     setCart((prev) => {
       // Check for identical item (same size, sugar, and addons)
       const existingIndex = prev.findIndex(ci => 
@@ -281,12 +361,17 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
         JSON.stringify(ci.selectedAddons?.map(a => a.id).sort()) === JSON.stringify(selectedAddons?.map(a => a.id).sort())
       );
       if (existingIndex > -1) {
-        toast.success(`Increased ${product.name} quantity in cart`);
+        isExisting = true;
         return prev.map((ci, idx) => idx === existingIndex ? { ...ci, quantity: ci.quantity + 1 } : ci);
       }
-      toast.success(`${product.name} added to cart`);
       return [...prev, { ...product, cartId, quantity: 1, notes: '', selectedSize: size, price: finalPrice, sugarLevel, selectedAddons }];
     });
+
+    if (isExisting) {
+      toast.success(`Increased ${product.name} quantity in cart`);
+    } else {
+      toast.success(`${product.name} added to cart`);
+    }
   }, [toast]);
 
   // Product Click Handler
@@ -326,10 +411,11 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   };
 
   const updateQuantity = (cartId: string, delta: number) => {
+    let removedItemName: string | null = null;
     setCart((prev) => {
       const itemToUpdate = prev.find(item => item.cartId === cartId);
       if (itemToUpdate && itemToUpdate.quantity + delta <= 0) {
-        toast.info(`Removed ${itemToUpdate.name} from cart`);
+        removedItemName = itemToUpdate.name;
       }
       return prev.map((item) => {
         if (item.cartId === cartId) {
@@ -339,6 +425,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
         return item;
       }).filter((item) => item.quantity > 0);
     });
+
+    if (removedItemName) {
+      toast.info(`Removed ${removedItemName} from cart`);
+    }
   };
 
   const availableSubCategories = useMemo(() => {
@@ -414,11 +504,72 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   
-  const discountAmount = appliedVoucher 
-    ? (appliedVoucher.type === 'percentage' 
-        ? subtotal * (appliedVoucher.value / 100) 
-        : appliedVoucher.value)
-    : 0;
+  const discountAmount = useMemo(() => {
+    if (!appliedVoucher) return 0;
+    if (appliedVoucher.type === 'percentage') {
+      return subtotal * (appliedVoucher.value / 100);
+    }
+    if (appliedVoucher.type === 'fixed') {
+      return appliedVoucher.value;
+    }
+    if (appliedVoucher.type === 'buy_x_get_y') {
+      const buyQty = appliedVoucher.buyQuantity || 1;
+      const getQty = appliedVoucher.getQuantity || 1;
+      const selectedId = selectedFreeProduct?.id;
+      const buyTerm = (appliedVoucher.buyCategoryOrName || '').toLowerCase().trim();
+
+      const buyCount = cart.reduce((sum, item) => {
+        const itemCat = (item.category || '').toLowerCase();
+        const itemName = (item.name || '').toLowerCase();
+        if (!buyTerm || itemCat.includes(buyTerm) || itemName.includes(buyTerm)) {
+          return sum + item.quantity;
+        }
+        return sum;
+      }, 0);
+
+      if (buyCount >= buyQty) {
+        if (!selectedFreeProduct) return 0;
+        const sets = Math.floor(buyCount / buyQty);
+        const freeAllowed = sets * getQty;
+        let freeRemaining = freeAllowed;
+        let totalDiscount = 0;
+
+        const getItems = cart.filter(item => {
+          if (selectedId && item.id === selectedId) return true;
+          const getTerm = (appliedVoucher.getCategoryOrName || '').toLowerCase().trim();
+          const itemCat = (item.category || '').toLowerCase();
+          const itemName = (item.name || '').toLowerCase();
+          if (!getTerm || itemCat.includes(getTerm) || itemName.includes(getTerm)) {
+            return true;
+          }
+          return false;
+        });
+
+        if (selectedId) {
+          const foundTarget = getItems.find(i => i.id === selectedId);
+          if (foundTarget) {
+            const take = Math.min(foundTarget.quantity, freeRemaining);
+            totalDiscount += foundTarget.price * take;
+            freeRemaining -= take;
+          }
+        }
+
+        if (freeRemaining > 0) {
+          const sortedGetItems = [...getItems].sort((a, b) => a.price - b.price);
+          for (const item of sortedGetItems) {
+            const take = Math.min(item.quantity, freeRemaining);
+            totalDiscount += item.price * take;
+            freeRemaining -= take;
+            if (freeRemaining <= 0) break;
+          }
+        }
+
+        return totalDiscount;
+      }
+      return 0;
+    }
+    return 0;
+  }, [appliedVoucher, subtotal, cart]);
     
   const total = Math.max(0, subtotal - discountAmount);
 
@@ -666,33 +817,61 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
               </div>
             </div>
 
-            {/* Customer Favorites Section */}
+            {/* Customer Favorites / Most Purchased Section (Compact Row ~200px) */}
             {user && customerFavorites.length > 0 && (
-              <div className="mb-8 p-5 bg-rose-500/5 dark:bg-rose-500/5 rounded-3xl border border-rose-500/20 shadow-[0_4px_24px_rgba(244,63,94,0.05)] animate-in fade-in slide-in-from-top-4 duration-500">
-                <div className="flex items-center gap-2 mb-4">
-                  <Heart className="w-4 h-4 text-rose-500 fill-rose-500 animate-pulse" />
-                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                    Your Favorites
-                    <span className="text-[8px] text-rose-500 font-extrabold bg-rose-500/10 px-2 py-0.5 rounded-full uppercase border border-rose-500/10 tracking-widest">
-                      Most Purchased
-                    </span>
-                  </h3>
+              <div className="mb-6 p-4 bg-rose-500/5 dark:bg-rose-500/5 rounded-3xl border border-rose-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 max-h-[200px] overflow-hidden flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <Heart className="w-4 h-4 text-rose-500 fill-rose-500 animate-pulse" />
+                    <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                      Your Favorites
+                      <span className="text-[8px] text-rose-500 font-extrabold bg-rose-500/10 px-2 py-0.5 rounded-full uppercase border border-rose-500/10 tracking-widest">
+                        Most Purchased Suggestion
+                      </span>
+                    </h3>
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">
+                    Scroll →
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {customerFavorites.slice(0, 5).map(({ product, count }) => (
-                    <div key={`fav-${product.id}`} className="relative">
-                      <ProductCard
-                        item={product}
-                        mode={mode}
-                        cartCount={cart.filter(c => c.id === product.id).reduce((sum, item) => sum + item.quantity, 0)}
-                        onClick={handleProductClick}
-                        isFavorite={true}
-                      />
-                      <div className="absolute top-2.5 right-2.5 bg-rose-500 text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow-md z-20 flex items-center gap-1 border border-white/25">
-                        ❤️ {count}x
+
+                <div className="flex gap-3 overflow-x-auto scrollbar-hide py-1 h-[140px] items-center">
+                  {customerFavorites.slice(0, 8).map(({ product, count }) => {
+                    const cartCount = cart.filter(c => c.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
+                    return (
+                      <div
+                        key={`fav-${product.id}`}
+                        onClick={() => product.isActive !== false && handleProductClick(product)}
+                        className="shrink-0 w-60 h-[125px] bg-white dark:bg-[#0d121f] rounded-2xl border border-rose-500/30 p-2.5 flex gap-3 items-center cursor-pointer hover:border-rose-500 hover:shadow-md transition-all relative group"
+                      >
+                        <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
+                          <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <div className="absolute top-1 left-1 bg-rose-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow">
+                            ❤️ {count}x
+                          </div>
+                          {cartCount > 0 && (
+                            <div className="absolute bottom-1 right-1 bg-amber-500 text-slate-900 text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center border border-white">
+                              {cartCount}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
+                          <div>
+                            <span className="text-[8px] font-extrabold uppercase text-rose-500 tracking-wider block">Most Ordered</span>
+                            <h4 className="text-xs font-black text-slate-900 dark:text-white truncate mt-0.5">{product.name}</h4>
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block">{product.category}</span>
+                          </div>
+                          <div className="flex items-center justify-between mt-auto">
+                            <span className="text-xs font-black text-amber-500 italic">₱{product.price}</span>
+                            <button className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors">
+                              + Add
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -741,7 +920,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                     isMostPicked={mostPickedProductIds ? mostPickedProductIds.has(item.id) : false}
                   />
                 ))}
-            </div>
+              </div>
             )}
           </div>
         </div>
@@ -988,19 +1167,30 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
         {/* Vouchers & Promos */}
         <div className="space-y-4 pt-4 mt-4 border-t border-black/5 dark:border-white/5">
-          <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">Vouchers & Promos</label>
+          <div className="flex items-center justify-between">
+            <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">Apply Voucher or Promo Code</label>
+            {mode === 'kiosk' && (
+              <button
+                onClick={() => setShowPersonalVoucherModal(true)}
+                className="text-[10px] font-black text-amber-500 uppercase tracking-wider flex items-center gap-1 hover:underline"
+              >
+                <QrCode className="w-3.5 h-3.5" /> Scan Personal Voucher
+              </button>
+            )}
+          </div>
           <div className="flex gap-2">
             <input
               type="text"
               value={promoCodeInput}
               onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
               className="flex-1 p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-xs font-bold transition-all uppercase placeholder:text-slate-400 dark:placeholder:text-slate-500"
-              placeholder="Promo Code"
+              placeholder="Enter Promo Code"
             />
             <button
               onClick={() => {
                 if (!promoCodeInput) return;
-                const found = vouchers?.find(v => v.code === promoCodeInput && v.isActive);
+                const isCustomerMode = mode === 'kiosk' || mode === 'mobile';
+                const found = vouchers?.find(v => v.code === promoCodeInput && v.isActive && (isCustomerMode ? !v.isAdminOnly : true));
                 if (found) {
                   if (found.minSpend && subtotal < found.minSpend) {
                     toast.error(`Minimum spend of ₱${found.minSpend} required`);
@@ -1011,76 +1201,141 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                     return;
                   }
                   if (found.pointsCost && found.pointsCost > availablePoints) {
-                    toast.error(`Not enough points. Need ${found.pointsCost}`);
+                    toast.error(`Not enough points. Need ${found.pointsCost} Pts`);
                     return;
                   }
                   setAppliedVoucher(found);
                   setPromoCodeInput('');
-                  toast.success('Voucher applied!');
+                  toast.success(`Voucher "${found.code}" applied!`);
                 } else {
-                  toast.error('Invalid promo code');
+                  toast.error('Invalid or inactive promo code');
                 }
               }}
-              className="px-4 py-3 bg-slate-900 dark:bg-white text-white dark:text-black rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/10 dark:shadow-white/10"
+              className="px-4 py-3 bg-amber-500 text-slate-900 font-black uppercase text-[10px] tracking-widest hover:bg-amber-400 active:scale-95 transition-all shadow-md rounded-2xl"
             >
               Apply
             </button>
           </div>
           
           {appliedVoucher && (
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-between">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black uppercase text-emerald-500 tracking-wider flex items-center gap-1.5"><Check className="w-3 h-3" /> Voucher Applied</span>
-                <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mt-0.5">{appliedVoucher.code}</span>
+            <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex flex-col gap-2 shadow-sm animate-in fade-in">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black uppercase text-emerald-500 tracking-wider flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5" /> Voucher Applied
+                  </span>
+                  <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mt-0.5">
+                    {appliedVoucher.code} ({appliedVoucher.type === 'buy_x_get_y' ? `Buy ${appliedVoucher.buyQuantity} Get ${appliedVoucher.getQuantity} Free` : (appliedVoucher.type === 'percentage' ? `${appliedVoucher.value}% OFF` : `₱${appliedVoucher.value} OFF`)})
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setAppliedVoucher(null);
+                    setSelectedFreeProduct(null);
+                    toast.info('Voucher removed');
+                  }}
+                  className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors font-bold text-xs"
+                  title="Remove voucher"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={() => setAppliedVoucher(null)}
-                className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+              {appliedVoucher.type === 'buy_x_get_y' && (
+                <div className="pt-2 border-t border-emerald-500/25 flex items-center justify-between">
+                  <div className="text-[10px] uppercase font-bold text-slate-600 dark:text-slate-300">
+                    {isBuyXGetYEligible ? (
+                      selectedFreeProduct ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-black">Free Item: {selectedFreeProduct.name}</span>
+                      ) : (
+                        <span className="text-amber-500 font-black animate-pulse">Condition met! Please choose free item.</span>
+                      )
+                    ) : (
+                      <span className="text-amber-600 dark:text-amber-400 font-bold">
+                        Add {Math.max(0, requiredQty - buyCount)} more {appliedVoucher.buyCategoryOrName || 'items'} ({buyCount}/{requiredQty})
+                      </span>
+                    )}
+                  </div>
+                  {isBuyXGetYEligible && (
+                    <button
+                      onClick={() => setShowFreeItemModal(true)}
+                      className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all shadow-sm"
+                    >
+                      {selectedFreeProduct ? 'Change Free Item' : 'Choose Free Item'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {user && vouchers && vouchers.filter(v => v.pointsCost && v.pointsCost > 0 && v.isActive).length > 0 && (
-            <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/5 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">Claim Rewards</span>
-                <span className="text-[9px] font-black text-amber-500 uppercase tracking-wider">{availablePoints} Points</span>
+          {/* Quick Select Vouchers List */}
+          {(() => {
+            const isCustomerMode = mode === 'kiosk' || mode === 'mobile';
+            const filteredVouchers = vouchers ? vouchers.filter(v => v.isActive && (isCustomerMode ? (!v.pointsCost || v.pointsCost === 0) && !v.isAdminOnly : true)) : [];
+            if (filteredVouchers.length === 0) return null;
+            return (
+              <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">
+                    {mode === 'kiosk' ? 'Available Promo Vouchers' : 'Available Vouchers & Rewards'}
+                  </span>
+                  {mode !== 'kiosk' && user && (
+                    <span className="text-[9px] font-black text-amber-500 uppercase tracking-wider">Balance: {availablePoints} Pts</span>
+                  )}
+                </div>
+                
+                <div className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-hide">
+                  {filteredVouchers.map(v => {
+                    const isApplied = appliedVoucher?.id === v.id;
+                    const isPointsCostHigh = mode !== 'kiosk' && !!(v.pointsCost && v.pointsCost > availablePoints);
+                    const isBelowMinSpend = !!(v.minSpend && subtotal < v.minSpend);
+                    const isLimitReached = !!(v.usageLimit && (v.usedCount || 0) >= v.usageLimit);
+                    const isDisabled = isPointsCostHigh || isBelowMinSpend || isLimitReached;
+
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => {
+                          if (isBelowMinSpend) {
+                            toast.error(`Minimum spend of ₱${v.minSpend} required`);
+                            return;
+                          }
+                          if (isLimitReached) {
+                            toast.error('Voucher usage limit reached');
+                            return;
+                          }
+                          if (isPointsCostHigh) {
+                            toast.error(`Not enough points. Needs ${v.pointsCost} Pts`);
+                            return;
+                          }
+                          setAppliedVoucher(v);
+                          toast.success(`Voucher "${v.code}" applied!`);
+                        }}
+                        disabled={isDisabled}
+                        className={`shrink-0 p-3 rounded-2xl border flex flex-col gap-1.5 min-w-[150px] text-left transition-all ${
+                          isApplied 
+                            ? 'bg-amber-500/20 border-amber-500 shadow-md' 
+                            : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:border-amber-500/50'
+                        } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'}`}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <Tag className="w-3.5 h-3.5 text-amber-500" />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">
+                            {v.type === 'buy_x_get_y' ? 'Buy X Get Y' : (v.pointsCost ? `${v.pointsCost} Pts` : (v.type === 'percentage' ? `${v.value}% OFF` : `₱${v.value} OFF`))}
+                          </span>
+                        </div>
+                        <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{v.code}</span>
+                        <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                          {v.type === 'buy_x_get_y' ? `Buy ${v.buyQuantity} ${v.buyCategoryOrName || 'items'} get ${v.getQuantity} free` : (v.type === 'percentage' ? `${v.value}% discount` : `₱${v.value} off`)} {v.minSpend ? `(Min ₱${v.minSpend})` : ''}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex overflow-x-auto gap-3 pb-2 scrollbar-hide">
-                {vouchers.filter(v => v.pointsCost && v.pointsCost > 0 && v.isActive).map(v => (
-                  <button
-                    key={v.id}
-                    onClick={() => {
-                      if (v.minSpend && subtotal < v.minSpend) {
-                        toast.error(`Minimum spend of ₱${v.minSpend} required`);
-                        return;
-                      }
-                      if (v.usageLimit && (v.usedCount || 0) >= v.usageLimit) {
-                        toast.error('Reward usage limit reached');
-                        return;
-                      }
-                      if ((v.pointsCost || 0) > availablePoints) {
-                        toast.error('Not enough points');
-                        return;
-                      }
-                      setAppliedVoucher(v);
-                      toast.success('Reward applied!');
-                    }}
-                    disabled={(v.pointsCost || 0) > availablePoints}
-                    className="shrink-0 p-3 bg-white/40 dark:bg-slate-900/40 border border-amber-500/30 rounded-xl backdrop-blur-sm flex flex-col gap-2 min-w-[140px] text-left hover:border-amber-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <Tag className="w-4 h-4 text-amber-500" />
-                      <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">{v.pointsCost} Pts</span>
-                    </div>
-                    <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{v.code}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Verification & Payment Notice */}
@@ -1282,6 +1537,146 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                   className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-black rounded-2xl font-bold text-sm uppercase tracking-wider transition-all duration-200 shadow-[0_8px_30px_rgba(245,158,11,0.25)] active:scale-98 flex items-center justify-center gap-2"
                 >
                   Add to Order - ₱{((selectedSizeConfig ? selectedSizeConfig.price : selectedProductForConfig.price) + selectedAddonsConfig.reduce((sum, a) => sum + a.price, 0)).toLocaleString()}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showPersonalVoucherModal && (
+          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-[#0d1527] border border-black/10 dark:border-white/10 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
+                    <QrCode className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-wider text-slate-900 dark:text-white">Activate Personal Voucher</h3>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">Walk-in Kiosk Mode</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowPersonalVoucherModal(false)}
+                  className="p-2 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 text-slate-500 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Enter Voucher Code or Scan QR text</label>
+                  <input
+                    type="text"
+                    value={personalVoucherInput}
+                    onChange={(e) => setPersonalVoucherInput(e.target.value.toUpperCase())}
+                    placeholder="e.g. VOUCHER-ABCD"
+                    className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl font-bold uppercase text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                    autoFocus
+                  />
+                </div>
+
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Scan your personal voucher QR code from your customer account profile, or type your voucher code to redeem your points-claimed voucher right here at the kiosk without logging in!
+                </p>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setShowPersonalVoucherModal(false)}
+                    className="flex-1 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 rounded-2xl font-bold text-xs uppercase tracking-wider text-slate-600 dark:text-slate-300 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleLookupPersonalVoucher}
+                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-2xl font-black text-xs uppercase tracking-wider shadow-md transition-all active:scale-95"
+                  >
+                    Activate & Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showFreeItemModal && (
+          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-[#0d1527] border border-black/10 dark:border-white/10 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
+                    <Tag className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-wider text-slate-900 dark:text-white">Choose Your Free Item</h3>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">Category / Item: {appliedVoucher?.getCategoryOrName || 'Any'}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowFreeItemModal(false)}
+                  className="p-2 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 text-slate-500 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-1">
+                {eligibleFreeProducts.length > 0 ? (
+                  eligibleFreeProducts.map(prod => {
+                    const isSelected = selectedFreeProduct?.id === prod.id;
+                    return (
+                      <button
+                        key={prod.id}
+                        onClick={() => {
+                          setSelectedFreeProduct(prod);
+                          setShowFreeItemModal(false);
+                          const cartId = Math.random().toString(36).substr(2, 9);
+                          const existingIndex = cart.findIndex(i => i.id === prod.id);
+                          if (existingIndex === -1) {
+                            setCart(prev => [...prev, {
+                              ...prod,
+                              cartId,
+                              quantity: 1,
+                              notes: 'Free item from promo',
+                              sugarLevel: '100%',
+                              selectedSize: prod.sizes?.[0],
+                              selectedAddons: []
+                            }]);
+                          }
+                          toast.success(`Selected free item: ${prod.name}`);
+                        }}
+                        className={`p-3 rounded-2xl border text-left flex flex-col gap-2 transition-all ${
+                          isSelected 
+                            ? 'bg-amber-500/20 border-amber-500 shadow-md ring-2 ring-amber-500/40' 
+                            : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:border-amber-500/50'
+                        }`}
+                      >
+                        <div className="w-full h-24 rounded-xl overflow-hidden bg-black/10 relative">
+                          <img src={prod.image} alt={prod.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <div className="absolute top-2 right-2 px-2 py-0.5 bg-amber-500 text-slate-900 font-black text-[9px] rounded-md uppercase">
+                            FREE
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-900 dark:text-white uppercase truncate">{prod.name}</p>
+                          <p className="text-[10px] text-slate-400 font-bold line-through">₱{prod.price}</p>
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-2 py-8 text-center text-slate-400 text-xs uppercase tracking-widest font-bold">
+                    No products found in category "{appliedVoucher?.getCategoryOrName}"
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={() => setShowFreeItemModal(false)}
+                  className="px-6 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 rounded-2xl font-bold text-xs uppercase tracking-wider text-slate-600 dark:text-slate-300 transition-all"
+                >
+                  Done
                 </button>
               </div>
             </div>

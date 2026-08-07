@@ -91,13 +91,40 @@ export interface SplashScreen {
 export interface Voucher {
   id: string;
   code: string;
-  type: 'percentage' | 'fixed';
+  type: 'percentage' | 'fixed' | 'buy_x_get_y';
   value: number;
   minSpend?: number;
   isActive: boolean;
   pointsCost?: number;
   usageLimit?: number;
   usedCount?: number;
+  // Conditional promo fields (for 'buy_x_get_y' or custom conditions)
+  conditionType?: 'none' | 'buy_x_get_y' | 'min_spend';
+  buyQuantity?: number;
+  buyCategoryOrName?: string;
+  getQuantity?: number;
+  getCategoryOrName?: string;
+  isForSale?: boolean; // false = not for sale (for all / promo), true = can be bought with points
+  isAdminOnly?: boolean; // true = only visible/usable by admin / cashier
+}
+
+export interface ClaimedVoucher {
+  id?: string;
+  userId: string;
+  voucherId: string;
+  code: string;
+  type: 'percentage' | 'fixed' | 'buy_x_get_y';
+  value: number;
+  minSpend?: number;
+  pointsCost: number;
+  claimedAt: number;
+  isUsed?: boolean;
+  conditionType?: 'none' | 'buy_x_get_y' | 'min_spend';
+  buyQuantity?: number;
+  buyCategoryOrName?: string;
+  getQuantity?: number;
+  getCategoryOrName?: string;
+  isAdminOnly?: boolean;
 }
 
 export type OrderStatus = 'unpaid' | 'pending' | 'pending-verification' | 'preparing' | 'ready' | 'completed' | 'cancelled';

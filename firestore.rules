@@ -51,5 +51,12 @@ service cloud.firestore {
                   || (request.auth != null && (resource.data.accountId == request.auth.uid || resource.data.customerId == request.auth.uid));
       allow update, delete: if isAdmin();
     }
+
+    // Claimed Vouchers Collection
+    match /claimed_vouchers/{claimedVoucherId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+    }
   }
 }

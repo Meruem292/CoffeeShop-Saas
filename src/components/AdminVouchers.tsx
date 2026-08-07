@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { Tag, Plus, Edit2, Trash2, X, Check, Save } from 'lucide-react';
-import { Voucher } from '../types';
+import { Voucher, DynamicCategory } from '../types';
 import { useToast } from '../lib/ToastContext';
 import { ConfirmationModal } from './ConfirmationModal';
 
 interface AdminVouchersProps {
   vouchers: Voucher[];
+  categories?: DynamicCategory[];
   onAddVoucher: (voucher: Omit<Voucher, 'id'>) => Promise<void>;
   onUpdateVoucher: (id: string, voucher: Partial<Voucher>) => Promise<void>;
   onDeleteVoucher: (id: string) => Promise<void>;
 }
 
-export function AdminVouchers({ vouchers, onAddVoucher, onUpdateVoucher, onDeleteVoucher }: AdminVouchersProps) {
+export function AdminVouchers({ vouchers, categories = [], onAddVoucher, onUpdateVoucher, onDeleteVoucher }: AdminVouchersProps) {
   const { toast } = useToast();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -82,45 +83,104 @@ export function AdminVouchers({ vouchers, onAddVoucher, onUpdateVoucher, onDelet
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Discount Type</label>
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Voucher Category & Type</label>
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setFormData({ ...formData, type: 'percentage' })}
-              className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${formData.type === 'percentage' ? 'bg-amber-500 text-black' : 'bg-black/5 dark:bg-white/5 text-slate-500'}`}
+              onClick={() => setFormData({ ...formData, type: 'percentage', pointsCost: 0 })}
+              className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${formData.type === 'percentage' && !formData.pointsCost ? 'bg-amber-500 text-black' : 'bg-black/5 dark:bg-white/5 text-slate-500'}`}
             >
-              Percentage
+              Percentage %
             </button>
             <button
               type="button"
-              onClick={() => setFormData({ ...formData, type: 'fixed' })}
-              className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${formData.type === 'fixed' ? 'bg-amber-500 text-black' : 'bg-black/5 dark:bg-white/5 text-slate-500'}`}
+              onClick={() => setFormData({ ...formData, type: 'fixed', pointsCost: 0 })}
+              className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${formData.type === 'fixed' && !formData.pointsCost ? 'bg-amber-500 text-black' : 'bg-black/5 dark:bg-white/5 text-slate-500'}`}
             >
-              Fixed (₱)
+              Fixed ₱
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, type: 'buy_x_get_y', pointsCost: 0, conditionType: 'buy_x_get_y' })}
+              className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${formData.type === 'buy_x_get_y' ? 'bg-amber-500 text-black' : 'bg-black/5 dark:bg-white/5 text-slate-500'}`}
+            >
+              Buy X Get Y Promo
             </button>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Discount Value</label>
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black">
-              {formData.type === 'fixed' ? '₱' : ''}
-            </span>
-            <input
-              type="number"
-              required
-              value={formData.value || ''}
-              onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
-              className={`w-full px-4 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/50 ${formData.type === 'fixed' ? 'pl-8' : ''}`}
-              placeholder="0"
-              min="0"
-            />
-            {formData.type === 'percentage' && (
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-black">%</span>
-            )}
+        {formData.type === 'buy_x_get_y' ? (
+          <>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Buy Quantity & Category / Item</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={formData.buyQuantity || ''}
+                  onChange={(e) => setFormData({ ...formData, buyQuantity: parseInt(e.target.value) || 0 })}
+                  className="w-24 px-4 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl text-sm font-bold"
+                  placeholder="e.g. 3"
+                  min="1"
+                />
+                <select
+                  value={formData.buyCategoryOrName || ''}
+                  onChange={(e) => setFormData({ ...formData, buyCategoryOrName: e.target.value })}
+                  className="flex-1 px-4 py-3 bg-white dark:bg-[#1a1a24] text-slate-900 dark:text-white border border-black/10 dark:border-white/10 rounded-xl text-sm font-bold uppercase focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                >
+                  <option value="" className="bg-white dark:bg-[#1a1a24] text-slate-900 dark:text-white">Select Category / Item...</option>
+                  {(categories.length > 0 ? categories.map(c => c.name) : ['Hot Coffee', 'Cold Coffee', 'Tea', 'Food', 'Pastries']).map(cat => (
+                    <option key={cat} value={cat} className="bg-white dark:bg-[#1a1a24] text-slate-900 dark:text-white">{cat}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Get Free Quantity & Category / Item</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={formData.getQuantity || ''}
+                  onChange={(e) => setFormData({ ...formData, getQuantity: parseInt(e.target.value) || 0 })}
+                  className="w-24 px-4 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl text-sm font-bold"
+                  placeholder="e.g. 1"
+                  min="1"
+                />
+                <select
+                  value={formData.getCategoryOrName || ''}
+                  onChange={(e) => setFormData({ ...formData, getCategoryOrName: e.target.value })}
+                  className="flex-1 px-4 py-3 bg-white dark:bg-[#1a1a24] text-slate-900 dark:text-white border border-black/10 dark:border-white/10 rounded-xl text-sm font-bold uppercase focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+                >
+                  <option value="" className="bg-white dark:bg-[#1a1a24] text-slate-900 dark:text-white">Select Free Category / Item...</option>
+                  {(categories.length > 0 ? categories.map(c => c.name) : ['Hot Coffee', 'Cold Coffee', 'Tea', 'Food', 'Pastries']).map(cat => (
+                    <option key={cat} value={cat} className="bg-white dark:bg-[#1a1a24] text-slate-900 dark:text-white">{cat}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Discount Value</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black">
+                {formData.type === 'fixed' ? '₱' : ''}
+              </span>
+              <input
+                type="number"
+                required
+                value={formData.value || ''}
+                onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
+                className={`w-full px-4 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/50 ${formData.type === 'fixed' ? 'pl-8' : ''}`}
+                placeholder="0"
+                min="0"
+              />
+              {formData.type === 'percentage' && (
+                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-black">%</span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="space-y-2">
           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Minimum Spend (₱)</label>
@@ -135,7 +195,7 @@ export function AdminVouchers({ vouchers, onAddVoucher, onUpdateVoucher, onDelet
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Points Cost (Rewards)</label>
+          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Points Cost (Customer Reward Store)</label>
           <input
             type="number"
             value={formData.pointsCost || ''}
@@ -144,7 +204,7 @@ export function AdminVouchers({ vouchers, onAddVoucher, onUpdateVoucher, onDelet
             placeholder="0"
             min="0"
           />
-          <p className="text-[9px] font-medium text-slate-500 mt-1">Set to 0 for a regular promo code. If &gt; 0, it becomes a redeemable reward.</p>
+          <p className="text-[9px] font-medium text-slate-500 mt-1">Set to 0 for a <b>Promo Voucher (For All / Not for Sale)</b>. Set &gt; 0 for a <b>Points-Purchased Voucher</b> in the customer rewards store.</p>
         </div>
 
         <div className="space-y-2">
@@ -160,19 +220,26 @@ export function AdminVouchers({ vouchers, onAddVoucher, onUpdateVoucher, onDelet
         </div>
       </div>
 
-      <div className="flex items-center gap-3 pt-4 border-t border-black/5 dark:border-white/5">
-        <label className="flex items-center gap-3 cursor-pointer group">
-          <div className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${formData.isActive ? 'border-emerald-500 bg-emerald-500' : 'border-black/20 dark:border-white/20 bg-transparent group-hover:border-black/40'}`}>
+      <div className="flex items-center gap-6 pt-4 border-t border-black/5 dark:border-white/5">
+        <div 
+          onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+          className="flex items-center gap-3 cursor-pointer group select-none"
+        >
+          <div className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${formData.isActive ? 'border-emerald-500 bg-emerald-500 shadow-md' : 'border-black/20 dark:border-white/20 bg-transparent group-hover:border-black/40'}`}>
             {formData.isActive && <Check className="w-4 h-4 text-white" />}
           </div>
           <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Active</span>
-        </label>
-        <input
-          type="checkbox"
-          checked={formData.isActive}
-          onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-          className="hidden"
-        />
+        </div>
+
+        <div 
+          onClick={() => setFormData({ ...formData, isAdminOnly: !formData.isAdminOnly })}
+          className="flex items-center gap-3 cursor-pointer group select-none"
+        >
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${formData.isAdminOnly ? 'border-amber-500 bg-amber-500 shadow-md' : 'border-black/20 dark:border-white/20 bg-transparent group-hover:border-black/40'}`}>
+            {formData.isAdminOnly && <div className="w-2.5 h-2.5 rounded-full bg-slate-900" />}
+          </div>
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Admin Only (Hidden from Kiosk)</span>
+        </div>
       </div>
 
       <div className="flex justify-end gap-3 pt-4">
@@ -236,6 +303,9 @@ export function AdminVouchers({ vouchers, onAddVoucher, onUpdateVoucher, onDelet
                   {!voucher.isActive && (
                     <span className="px-2 py-0.5 bg-slate-500/10 text-slate-500 text-[9px] font-black uppercase tracking-widest rounded-full">Inactive</span>
                   )}
+                  {voucher.isAdminOnly && (
+                    <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[9px] font-black uppercase tracking-widest rounded-full border border-amber-500/20">Admin Only</span>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                   <span className="flex items-center gap-1">
@@ -255,6 +325,17 @@ export function AdminVouchers({ vouchers, onAddVoucher, onUpdateVoucher, onDelet
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                <button
+                  onClick={() => onUpdateVoucher(voucher.id, { isActive: !voucher.isActive })}
+                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                    voucher.isActive 
+                      ? 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20' 
+                      : 'bg-slate-500/10 text-slate-500 hover:bg-slate-500/20'
+                  }`}
+                  title="Toggle Active Status"
+                >
+                  {voucher.isActive ? 'Active' : 'Inactive'}
+                </button>
                 <button
                   onClick={() => {
                     setFormData(voucher);

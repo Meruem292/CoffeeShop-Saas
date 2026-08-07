@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher } from '../types';
+import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher, ClaimedVoucher } from '../types';
 import { handleFirestoreError } from './AuthContext';
 import { useToast } from './ToastContext';
 
@@ -22,6 +22,8 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [userOrders, setUserOrders] = useState<Order[]>([]);
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
+  const [userClaimedVouchers, setUserClaimedVouchers] = useState<ClaimedVoucher[]>([]);
+  const [claimedVouchers, setClaimedVouchers] = useState<ClaimedVoucher[]>([]);
   const [splashScreen, setSplashScreen] = useState<SplashScreen | null>(null);
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,6 +158,25 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       }, (err) => handleSnapshotError(err, OperationType.LIST, 'user-orders'));
     }
 
+    // Claimed Vouchers Listener
+    let unsubClaimed = () => {};
+    const qClaimed = isAdmin
+      ? query(collection(db, 'claimed_vouchers'))
+      : userUid
+        ? query(collection(db, 'claimed_vouchers'), where('userId', '==', userUid))
+        : null;
+
+    if (qClaimed) {
+      unsubClaimed = onSnapshot(qClaimed, (snapshot) => {
+        const cv = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClaimedVoucher));
+        if (isAdmin) {
+          setClaimedVouchers(cv);
+        } else {
+          setUserClaimedVouchers(cv);
+        }
+      }, (err) => handleSnapshotError(err, OperationType.LIST, 'claimed_vouchers'));
+    }
+
     return () => {
       unsubSettings();
       unsubSplash();
@@ -165,8 +186,46 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       unsubVouchers();
       unsubOrders();
       unsubUserOrders();
+      unsubClaimed();
     };
   }, [userUid, isAdmin]);
+
+  const claimVoucher = async (voucher: Voucher, availablePoints: number) => {
+    if (!userUid) {
+      toast.error('Please log in to redeem vouchers');
+      return false;
+    }
+    if ((voucher.pointsCost || 0) > availablePoints) {
+      toast.error(`Not enough points. Need ${voucher.pointsCost} Pts`);
+      return false;
+    }
+
+    try {
+      const claimedData: Omit<ClaimedVoucher, 'id'> = {
+        userId: userUid,
+        voucherId: voucher.id,
+        code: voucher.code,
+        type: voucher.type,
+        value: voucher.value,
+        minSpend: voucher.minSpend || 0,
+        pointsCost: voucher.pointsCost || 0,
+        claimedAt: Date.now(),
+        isUsed: false,
+        conditionType: voucher.conditionType || 'none',
+        buyQuantity: voucher.buyQuantity || 0,
+        buyCategoryOrName: voucher.buyCategoryOrName || '',
+        getQuantity: voucher.getQuantity || 0,
+        getCategoryOrName: voucher.getCategoryOrName || ''
+      };
+      await addDoc(collection(db, 'claimed_vouchers'), claimedData);
+      toast.success(`Successfully claimed voucher "${voucher.code}"!`);
+      return true;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'claimed_vouchers');
+      toast.error('Failed to claim voucher');
+      return false;
+    }
+  };
 
   // --- Shop Settings Operations ---
   const updateShopSettings = async (updates: Partial<ShopSettings>) => {
@@ -437,6 +496,8 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     orders,
     userOrders,
     vouchers,
+    userClaimedVouchers,
+    claimedVouchers,
     splashScreen,
     shopSettings,
     loading,
@@ -455,6 +516,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     addVoucher,
     updateVoucher,
     deleteVoucher,
+    claimVoucher,
     addOrder,
     updateOrderStatus,
     updateOrder,
