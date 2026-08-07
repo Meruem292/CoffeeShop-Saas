@@ -211,6 +211,48 @@ export default function App() {
     return () => clearInterval(interval);
   }, [successOrder]);
 
+  // Idle timeout of 1 minute (60,000 ms) back to splash screen
+  useEffect(() => {
+    // Only apply on customer ordering views ('mobile' and 'kiosk')
+    const isOrderingView = currentView === 'mobile' || currentView === 'kiosk';
+    if (!isStarted || !isOrderingView) return;
+
+    let timeoutId: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        setIsStarted(false);
+        toast.info('Session reset due to inactivity.');
+      }, 60000); // 1 minute
+    };
+
+    // Events to track user activity
+    const activityEvents = [
+      'mousedown',
+      'mousemove',
+      'keypress',
+      'scroll',
+      'touchstart',
+      'click'
+    ];
+
+    // Initialize timer
+    resetTimer();
+
+    // Add event listeners
+    activityEvents.forEach(event => {
+      window.addEventListener(event, resetTimer, { passive: true });
+    });
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [isStarted, currentView, toast]);
+
   // Notification for new orders on admin side
   const prevOrderIds = useRef<Set<string>>(new Set());
   const prevOrderStatuses = useRef<Map<string, string>>(new Map());
@@ -817,7 +859,7 @@ export default function App() {
                 </div>
               </div>
             }>
-          {!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk') && (
+          {!isStarted && (!isAdmin || isKioskModeActive) && (currentView === 'mobile' || currentView === 'kiosk') && (
             <SplashScreen 
               data={splashScreen} 
               shopSettings={shopSettings}
@@ -845,7 +887,7 @@ export default function App() {
           ) : (
             <div className="flex-1 overflow-hidden flex flex-col">
               <div
-                key={currentView}
+                key={`${currentView}_${isStarted}`}
                 className="flex-1 overflow-hidden flex"
               >
                 <div className="flex-1 relative z-10 flex flex-col overflow-hidden">
