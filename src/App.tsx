@@ -613,7 +613,7 @@ export default function App() {
                   className="w-full py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-slate-900 dark:text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
                 >
                   <Lock className="w-3.5 h-3.5 text-amber-500" />
-                  Admin Portal
+                  Login
                 </button>
               )}
             </div>
@@ -753,7 +753,7 @@ export default function App() {
                       className="w-full py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-slate-900 dark:text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
                     >
                       <Lock className="w-3 h-3 text-amber-500" />
-                      Admin Login
+                      Login
                     </button>
                   )}
                 </div>
