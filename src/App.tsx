@@ -7,6 +7,7 @@ import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
 import { useTheme } from './lib/ThemeProvider';
 import { useToast } from './lib/ToastContext';
+import { useBackButton } from './lib/useBackButton';
 import { playNotificationSound } from './lib/audio';
 import ShapeGrid from './components/ShapeGrid';
 import { Footer } from './components/Footer';
@@ -84,6 +85,15 @@ export default function App() {
 
   const [isStarted, setIsStarted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Natural Phone Back Button Navigation hooks
+  useBackButton(showAdminLogin, () => setShowAdminLogin(false), 'app_admin_login');
+  useBackButton(showExitKioskModal, () => setShowExitKioskModal(false), 'app_exit_kiosk');
+  useBackButton(isMobileMenuOpen, () => setIsMobileMenuOpen(false), 'app_mobile_menu');
+  useBackButton(isSearchOpen, () => setIsSearchOpen(false), 'app_search');
+  useBackButton(!!successOrder, () => setSuccessOrder(null), 'app_success_order');
+  useBackButton(currentView !== 'mobile' && !isKioskModeActive, () => setCurrentView('mobile'), 'app_view_' + currentView);
+  useBackButton(isStarted && !isAdmin, () => setIsStarted(false), 'app_started');
 
   useEffect(() => {
     if (shopSettings?.themeMode) {

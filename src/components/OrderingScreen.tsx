@@ -9,6 +9,7 @@ import { ProductCard } from './ProductCard';
 import { useAuth } from '../lib/AuthContext';
 import { UnifiedAuthModal } from './UnifiedAuthModal';
 import { useToast } from '../lib/ToastContext';
+import { useBackButton } from '../lib/useBackButton';
 
 interface OrderingScreenProps {
   mode: 'pos' | 'kiosk' | 'mobile';
@@ -228,6 +229,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   const [isPosCartDrawerOpen, setIsPosCartDrawerOpen] = useState(false);
   const [gridColumns, setGridColumns] = useState<number>(shopSettings?.gridColumns || 5);
   const [selectedProductForConfig, setSelectedProductForConfig] = useState<Product | null>(null);
+
+  // Natural Back Button hooks for modals/drawers in OrderingScreen
+  useBackButton(showCustomerAuth, () => setShowCustomerAuth(false), 'ord_customer_auth');
+  useBackButton(isMobileCartOpen, () => setIsMobileCartOpen(false), 'ord_mobile_cart');
+  useBackButton(isKioskCartOpen, () => setIsKioskCartOpen(false), 'ord_kiosk_cart');
+  useBackButton(isPosCartDrawerOpen, () => setIsPosCartDrawerOpen(false), 'ord_pos_cart');
+  useBackButton(!!selectedProductForConfig, () => setSelectedProductForConfig(null), 'ord_product_config');
 
   // Sync grid columns if shopSettings change
   React.useEffect(() => {
