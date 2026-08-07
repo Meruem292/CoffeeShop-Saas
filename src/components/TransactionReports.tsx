@@ -59,8 +59,7 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
       
       const matchesSearch = !searchTerm || 
                             order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            order.tableNumber?.toLowerCase().includes(searchTerm.toLowerCase());
+                            order.id?.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesCategory = selectedCategory === 'all' || 
                               order.items.some(item => (item.category || '').toLowerCase() === selectedCategory.toLowerCase());
@@ -496,7 +495,6 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                         <td className="p-3 sm:p-6">
                           <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors break-words line-clamp-2 max-w-[80px] xs:max-w-[120px] sm:max-w-none">{order.customerName}</div>
                           <div className="flex items-center gap-2 flex-wrap mt-1">
-                            {order.tableNumber && <div className="text-[9px] text-amber-500 font-black uppercase tracking-widest">Table {order.tableNumber}</div>}
                             <div className="sm:hidden text-[9px] font-black text-slate-900 dark:text-white bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-full border border-black/10 dark:border-white/10 uppercase tracking-widest">₱{order.total.toLocaleString()}</div>
                           </div>
                         </td>

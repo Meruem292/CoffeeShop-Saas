@@ -368,9 +368,6 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
       if (order.orderType) {
         data += padText("ORDER TYPE:", order.orderType.toUpperCase());
       }
-      if (order.tableNumber) {
-        data += padText("TABLE/STATION:", order.tableNumber.toUpperCase());
-      }
       data += padText("SOURCE:", (order.source || 'POS').toUpperCase());
       data += divider;
 
@@ -741,12 +738,7 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
                     <span className="font-bold uppercase">{printingOrder.orderType === 'dine-in' ? 'DINE-IN' : 'TAKE-OUT'}</span>
                   </div>
                 )}
-                {printingOrder.tableNumber && (
-                  <div className="flex justify-between">
-                    <span>STATION / TABLE:</span>
-                    <span className="font-bold">{printingOrder.tableNumber}</span>
-                  </div>
-                )}
+
                 <div className="flex justify-between">
                   <span>CHANNEL/SOURCE:</span>
                   <span className="font-bold uppercase">{printingOrder.source || 'POS'}</span>
@@ -1224,11 +1216,6 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
 
                           <div className="col-span-2 w-full md:w-auto flex items-center gap-2">
                             {getSourceBadge(order.source)}
-                            {order.tableNumber && (
-                              <span className="bg-amber-500/20 text-amber-500 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 uppercase tracking-widest">
-                                Table {order.tableNumber}
-                              </span>
-                            )}
                           </div>
 
                           <div className="col-span-2 w-full md:w-auto text-xs font-bold text-coffee-600">
@@ -1406,11 +1393,6 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
 
                           <div className="col-span-2 w-full md:w-auto flex items-center gap-2">
                             {getSourceBadge(order.source)}
-                            {order.tableNumber && (
-                              <span className="bg-amber-500/20 text-amber-500 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 uppercase tracking-widest">
-                                Table {order.tableNumber}
-                              </span>
-                            )}
                           </div>
 
                           <div className="col-span-2 w-full md:w-auto text-xs font-bold text-coffee-600">
@@ -1631,11 +1613,6 @@ export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrd
 
                           <div className="col-span-2 w-full md:w-auto flex items-center gap-2">
                             {getSourceBadge(order.source)}
-                            {order.tableNumber && (
-                              <span className="bg-amber-500/20 text-amber-500 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 uppercase tracking-widest">
-                                Table {order.tableNumber}
-                              </span>
-                            )}
                           </div>
 
                           <div className="col-span-2 w-full md:w-auto text-xs font-bold text-coffee-600">

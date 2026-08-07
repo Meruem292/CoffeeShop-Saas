@@ -306,7 +306,6 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   };
 
   const [customerName, setCustomerName] = useState('');
-  const [tableNumber, setTableNumber] = useState('');
   const [accountId, setAccountId] = useState('');
   const [orderType, setOrderType] = useState<'dine-in' | 'take-away' | null>('take-away');
   const [paymentMethod, setPaymentMethod] = useState<'counter' | 'gcash'>('counter');
@@ -637,7 +636,6 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       claimedVoucherId: (appliedVoucher as any)?.isPurchased ? appliedVoucher?.id : undefined,
       source: mode === 'kiosk' ? 'mobile' : mode,
       customerName: customerName.trim(),
-      tableNumber: finalOrderType === 'dine-in' ? (tableNumber || undefined) : undefined,
       orderType: finalOrderType,
       paymentMethod: paymentMethod,
       status: paymentMethod === 'gcash' ? 'pending-verification' : 'unpaid',
@@ -647,7 +645,6 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
     setCart([]);
     setCustomerName('');
-    setTableNumber('');
     setAccountId('');
     setReceiptBase64('');
     setOrderType('take-away');
@@ -1064,15 +1061,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                 placeholder="Account ID (Optional)"
               />
             )}
-            {orderType === 'dine-in' && (
-              <input
-                type="text"
-                value={tableNumber}
-                onChange={(e) => setTableNumber(e.target.value)}
-                className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-sm font-bold transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                placeholder="Table Number"
-              />
-            )}
+
           </div>
 
           {/* Payment Verification */}

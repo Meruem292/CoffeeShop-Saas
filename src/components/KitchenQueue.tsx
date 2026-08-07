@@ -175,11 +175,6 @@ export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder, onVoidOrde
 
                         <div className="col-span-2 w-full md:w-auto">
                           <div className="text-xs font-black text-slate-900 dark:text-white uppercase truncate">{order.customerName}</div>
-                          {order.tableNumber && (
-                            <span className="mt-1 inline-block bg-amber-500/20 text-amber-500 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 uppercase tracking-widest">
-                              Bay {order.tableNumber}
-                            </span>
-                          )}
                         </div>
 
                         <div className="col-span-2 w-full md:w-auto flex items-center gap-1.5">
@@ -311,11 +306,6 @@ export function KitchenQueue({ orders, onUpdateStatus, onDeleteOrder, onVoidOrde
                         <h3 className="font-black text-xl text-slate-900 dark:text-white uppercase italic tracking-tighter">#{order.id?.slice(-4)}</h3>
                         <div className="flex flex-wrap items-center gap-2 mt-2">
                           <p className="text-slate-500 dark:text-white/40 text-xs font-black uppercase tracking-tighter italic">{order.customerName}</p>
-                          {order.tableNumber && (
-                            <span className="bg-amber-500/20 text-amber-500 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 uppercase tracking-widest">
-                              Bay {order.tableNumber}
-                            </span>
-                          )}
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1.5">
