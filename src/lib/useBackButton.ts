@@ -40,6 +40,7 @@ if (typeof window !== 'undefined') {
 export function useBackButton(active: boolean, onBack: () => void, id: string) {
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
+  const pushedRef = useRef(false);
 
   useEffect(() => {
     if (!active) return;
@@ -47,11 +48,14 @@ export function useBackButton(active: boolean, onBack: () => void, id: string) {
     // Register handler and push history state if not already registered
     const existingIndex = handlerStack.findIndex(item => item.id === id);
     if (existingIndex === -1) {
+      let success = false;
       try {
         window.history.pushState({ backId: id }, '');
+        success = true;
       } catch (e) {
         // Ignore history errors if restricted environment
       }
+      pushedRef.current = success;
       handlerStack.push({
         id,
         onBack: () => onBackRef.current()
@@ -62,7 +66,7 @@ export function useBackButton(active: boolean, onBack: () => void, id: string) {
       const index = handlerStack.findIndex(item => item.id === id);
       if (index !== -1) {
         handlerStack.splice(index, 1);
-        if (!isPoppingState) {
+        if (!isPoppingState && pushedRef.current) {
           ignoreNextPopState = true;
           try {
             window.history.back();
@@ -70,6 +74,7 @@ export function useBackButton(active: boolean, onBack: () => void, id: string) {
             ignoreNextPopState = false;
           }
         }
+        pushedRef.current = false;
       }
     };
   }, [active, id]);

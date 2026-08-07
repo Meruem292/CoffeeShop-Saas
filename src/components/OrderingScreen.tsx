@@ -174,9 +174,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     }
   };
 
-  // Real-time listener for the logged-in customer's orders to calculate favorites
+  // Real-time listener for the logged-in customer's orders to calculate favorites (only in mobile mode)
   React.useEffect(() => {
-    if (!user) {
+    if (!user || mode === 'kiosk' || mode === 'pos') {
       setCustomerOrders([]);
       return;
     }
@@ -194,10 +194,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, mode]);
 
-  // Compute available points
+  // Compute available points (only in mobile mode)
   const availablePoints = useMemo(() => {
+    if (mode === 'kiosk' || mode === 'pos') {
+      return 0;
+    }
     // Priority 1: Use centralized userProfile points if available
     if (userProfile && userProfile.points !== undefined) {
       return userProfile.points;
@@ -219,11 +222,11 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       .reduce((sum, o) => sum + (o.pointsSpent || 0), 0);
       
     return Math.max(0, totalEarned - totalSpent);
-  }, [customerOrders, user, shopSettings?.pointsEarnedPer100Pesos, userProfile]);
+  }, [customerOrders, user, shopSettings?.pointsEarnedPer100Pesos, userProfile, mode]);
 
   // Compute customer's favorites: count item occurrences and sort descending
   const customerFavorites = useMemo(() => {
-    if (!user || customerOrders.length === 0) return [];
+    if (mode === 'kiosk' || mode === 'pos' || !user || customerOrders.length === 0) return [];
 
     const counts: Record<string, number> = {};
     customerOrders.forEach(order => {
@@ -245,15 +248,15 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       .filter((item): item is { product: Product; count: number } => item !== null);
 
     return sortedFavs;
-  }, [user, customerOrders, menu]);
+  }, [user, customerOrders, menu, mode]);
 
-  // Sync customer name if logged in
+  // Sync customer name if logged in (only on mobile view)
   React.useEffect(() => {
-    if (user && !user.email?.endsWith('@astro.local') && user.email !== 'newroskoto@gmail.com') { // exclude admin
+    if (mode === 'mobile' && user && !user.email?.endsWith('@astro.local') && user.email !== 'newroskoto@gmail.com') { // exclude admin
       setCustomerName(user.displayName || user.email.split('@')[0] || '');
       setAccountId(user.uid);
     }
-  }, [user]);
+  }, [user, mode]);
 
   const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1047,8 +1050,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
               type="text"
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              disabled={!!user}
-              className={`w-full p-4 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-bold transition-all ${user ? 'bg-black/10 dark:bg-white/10 text-slate-500 cursor-not-allowed' : 'bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500'}`}
+              disabled={mode === 'mobile' && !!user}
+              className={`w-full p-4 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-bold transition-all ${mode === 'mobile' && user ? 'bg-black/10 dark:bg-white/10 text-slate-500 cursor-not-allowed' : 'bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500'}`}
               placeholder="Reference Name"
             />
             {mode === 'kiosk' && (
@@ -1056,8 +1059,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                 type="text"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
-                disabled={!!user}
-                className={`w-full p-4 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-bold transition-all ${user ? 'bg-black/10 dark:bg-white/10 text-slate-500 cursor-not-allowed' : 'bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500'}`}
+                disabled={false}
+                className="w-full p-4 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-bold transition-all bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 placeholder="Account ID (Optional)"
               />
             )}
@@ -1188,8 +1191,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                 if (!promoCodeInput) return;
                 const isCustomerMode = mode === 'kiosk' || mode === 'mobile';
                 
-                // First check if user owns this voucher (claimed/purchased)
-                const foundInClaimed = userClaimedVouchers.find(cv => cv.code === promoCodeInput && !cv.isUsed);
+                // First check if user owns this voucher (claimed/purchased) (only in mobile mode)
+                const foundInClaimed = (mode === 'kiosk' || mode === 'pos') ? undefined : userClaimedVouchers.find(cv => cv.code === promoCodeInput && !cv.isUsed);
                 
                 // If not owned, check general active vouchers
                 const found = foundInClaimed 
@@ -1287,8 +1290,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
             // Get active general promos (no points cost)
             const promoVouchers = vouchers ? vouchers.filter(v => v.isActive && (isCustomerMode ? (!v.pointsCost || v.pointsCost === 0) && !v.isAdminOnly : true)) : [];
             
-            // Get user's purchased/claimed vouchers that are NOT yet used
-            const purchasedVouchers = userClaimedVouchers
+            // Get user's purchased/claimed vouchers that are NOT yet used (only in mobile customer view)
+            const purchasedVouchers = (mode === 'kiosk' || mode === 'pos') ? [] : userClaimedVouchers
               .filter(cv => !cv.isUsed)
               .map(cv => ({
                 id: cv.id || cv.voucherId,
@@ -1318,7 +1321,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                   <span className="text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">
                     {mode === 'kiosk' ? 'Available Promo Vouchers' : 'Available Vouchers & Rewards'}
                   </span>
-                  {mode !== 'kiosk' && user && (
+                  {mode === 'mobile' && user && (
                     <span className="text-[9px] font-black text-amber-500 uppercase tracking-wider">Balance: {availablePoints} Pts</span>
                   )}
                 </div>

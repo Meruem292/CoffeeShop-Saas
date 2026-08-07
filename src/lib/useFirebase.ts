@@ -452,11 +452,17 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
 
   const addOrder = async (order: Omit<Order, 'id' | 'createdAt'>) => {
     const user = auth.currentUser;
+    // If placing from kiosk, pos, or the logged-in user is an admin, the customer is either the specified accountId or a guest (null)
+    const isKioskOrPos = order.source === 'kiosk' || order.source === 'pos';
+    const finalCustomerId = (isKioskOrPos || isAdmin)
+      ? (order.accountId || null)
+      : (user?.uid || order.accountId || null);
+
     const orderData = {
       status: 'unpaid', // Default status
       ...order,
       createdAt: Date.now(), 
-      customerId: user?.uid || null,
+      customerId: finalCustomerId,
     };
 
     const cleanData = deepCleanUndefined(orderData);
@@ -466,9 +472,9 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       const newOrderRef = doc(collection(db, 'orders'));
       batch.set(newOrderRef, cleanData);
 
-      // Deduct points if spent
-      if (user?.uid && order.pointsSpent && order.pointsSpent > 0) {
-        const profileRef = doc(db, 'profiles', user.uid);
+      // Deduct points if spent from the actual customer account
+      if (finalCustomerId && order.pointsSpent && order.pointsSpent > 0) {
+        const profileRef = doc(db, 'profiles', finalCustomerId);
         const profileSnap = await getDoc(profileRef);
         const currentPoints = profileSnap.exists() ? (profileSnap.data().points || 0) : 0;
         batch.update(profileRef, {
