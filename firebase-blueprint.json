@@ -75,6 +75,23 @@
         "iconName": { "type": "string" }
       },
       "required": ["name", "iconName"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Customer profile and loyalty information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "points": { "type": "number" },
+        "isAdmin": { "type": "boolean" },
+        "phoneNumber": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "lastLoginAt": { "type": "number" }
+      },
+      "required": ["uid", "email", "displayName", "points", "createdAt"]
     }
   },
   "firestore": {
@@ -93,6 +110,10 @@
     "/categories/{categoryId}": {
       "schema": "Category",
       "description": "Collection of dynamic product categories"
+    },
+    "/profiles/{userId}": {
+      "schema": "UserProfile",
+      "description": "Collection of user profiles"
     },
     "/settings/shop": {
       "schema": "ShopSettings",

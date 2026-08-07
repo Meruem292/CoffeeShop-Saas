@@ -76,8 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const adminDocRef = doc(db, 'admins', currentUser.uid);
           const adminDoc = await getDoc(adminDocRef);
           
+          let isNowAdmin = false;
           if (adminDoc.exists()) {
-            setIsAdmin(true);
+            isNowAdmin = true;
           } else {
             // Check if user is the primary owner to auto-provision admin status
             const isOwner = currentUser.email === 'newroskoto@gmail.com';
@@ -87,10 +88,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 email: currentUser.email,
                 createdAt: Date.now()
               });
-              setIsAdmin(true);
-            } else {
-              setIsAdmin(false);
+              isNowAdmin = true;
             }
+          }
+          setIsAdmin(isNowAdmin);
+
+          // Create or update user profile
+          const profileDocRef = doc(db, 'profiles', currentUser.uid);
+          const profileDoc = await getDoc(profileDocRef);
+          const profileData = profileDoc.exists() ? profileDoc.data() : null;
+          const currentPoints = typeof profileData?.points === 'number' ? profileData.points : Number(profileData?.points ?? 0);
+          
+          if (!profileDoc.exists()) {
+            await setDoc(profileDocRef, {
+              uid: currentUser.uid,
+              email: currentUser.email,
+              displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Customer',
+              photoURL: currentUser.photoURL || '',
+              points: 0,
+              createdAt: Date.now(),
+              lastLoginAt: Date.now(),
+              isAdmin: isNowAdmin
+            });
+          } else {
+            await setDoc(profileDocRef, {
+              lastLoginAt: Date.now(),
+              displayName: currentUser.displayName || profileData?.displayName,
+              photoURL: currentUser.photoURL || profileData?.photoURL,
+              isAdmin: isNowAdmin,
+              points: currentPoints
+            }, { merge: true });
           }
         } catch (error: any) {
           if (error?.message?.includes('offline') || error?.code === 'unavailable') {

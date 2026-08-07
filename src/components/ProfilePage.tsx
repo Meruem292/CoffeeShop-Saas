@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { User, Copy, Tag, Sparkles, Clock, ShoppingBag, Award, ArrowUpRight, ArrowDownRight, ChevronDown, ChevronUp, CheckCircle2, Receipt, Coins, Check, QrCode } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Voucher, Order, ClaimedVoucher } from '../types';
+import { Voucher, Order, ClaimedVoucher, UserProfile } from '../types';
 import { useToast } from '../lib/ToastContext';
 
 interface ProfilePageProps {
   user: any;
+  userProfile?: UserProfile | null;
   vouchers: Voucher[];
   userClaimedVouchers?: ClaimedVoucher[];
   orders: Order[];
   onClaimVoucher?: (voucher: Voucher, currentBalance: number) => Promise<boolean>;
 }
 
-export function ProfilePage({ user, vouchers, userClaimedVouchers = [], orders, onClaimVoucher }: ProfilePageProps) {
+export function ProfilePage({ user, userProfile, vouchers, userClaimedVouchers = [], orders, onClaimVoucher }: ProfilePageProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'points' | 'orders' | 'vouchers'>('points');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -32,7 +33,12 @@ export function ProfilePage({ user, vouchers, userClaimedVouchers = [], orders, 
   const totalSpentClaimedPoints = userClaimedVouchers.reduce((sum, cv) => sum + (cv.pointsCost || 0), 0);
 
   const totalSpentPoints = totalSpentOrderPoints + totalSpentClaimedPoints;
-  const currentBalance = Math.max(0, totalEarnedPoints - totalSpentPoints);
+  
+  // Use userProfile.points as the centralized source of truth if available
+  const currentBalance = userProfile ? (Number(userProfile.points) || 0) : Math.max(0, totalEarnedPoints - totalSpentPoints);
+
+  const calculatedBalance = Math.max(0, totalEarnedPoints - totalSpentPoints);
+  const adjustment = currentBalance - calculatedBalance;
 
   // Generate Points Log
   const pointsLog = [
@@ -72,7 +78,16 @@ export function ProfilePage({ user, vouchers, userClaimedVouchers = [], orders, 
       description: `Purchased Voucher "${cv.code}" with points`,
       date: cv.claimedAt,
       amount: 0
-    }))
+    })),
+    ...(adjustment !== 0 ? [{
+      id: 'adjustment',
+      orderId: '',
+      type: adjustment > 0 ? 'earned' as const : 'spent' as const,
+      points: Math.abs(adjustment),
+      description: adjustment > 0 ? 'Admin Bonus Points' : 'Points Adjustment',
+      date: Date.now(),
+      amount: 0
+    }] : [])
   ].sort((a, b) => b.date - a.date);
 
   const copyToClipboard = (text: string, label: string = 'Text') => {
@@ -149,7 +164,7 @@ export function ProfilePage({ user, vouchers, userClaimedVouchers = [], orders, 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6">
           <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-center justify-between">
             <div>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400 block mb-1">Available Points</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400 block mb-1">Points Balance</span>
               <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight italic">{currentBalance.toLocaleString()} Pts</span>
             </div>
             <div className="w-10 h-10 bg-amber-500 text-slate-900 rounded-xl flex items-center justify-center font-black shadow-md">

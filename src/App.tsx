@@ -19,6 +19,7 @@ const InventoryManager = lazy(() => import('./components/InventoryManager').then
 const AdminProducts = lazy(() => import('./components/AdminProducts').then(m => ({ default: m.AdminProducts })));
 const AdminVouchers = lazy(() => import('./components/AdminVouchers').then(m => ({ default: m.AdminVouchers })));
 const AdminSettings = lazy(() => import('./components/AdminSettings').then(m => ({ default: m.AdminSettings })));
+const AdminCustomers = lazy(() => import('./components/AdminCustomers').then(m => ({ default: m.AdminCustomers })));
 const CashierView = lazy(() => import('./components/CashierView').then(m => ({ default: m.CashierView })));
 const TransactionReports = lazy(() => import('./components/TransactionReports').then(m => ({ default: m.TransactionReports })));
 const ProfilePage = lazy(() => import('./components/ProfilePage').then(m => ({ default: m.ProfilePage })));
@@ -79,10 +80,13 @@ export default function App() {
     deleteCategory,
     vouchers,
     userClaimedVouchers,
+    profiles,
+    userProfile,
     addVoucher,
     updateVoucher,
     deleteVoucher,
-    claimVoucher
+    claimVoucher,
+    updateUserProfile
   } = useFirebase(user?.uid, isAdmin);
 
   const [isStarted, setIsStarted] = useState(false);
@@ -115,6 +119,7 @@ export default function App() {
     { id: 'inventory', label: 'Inventory', icon: <Package className="w-4 h-4" />, adminOnly: true },
     { id: 'admin-products', label: 'Products', icon: <Package className="w-4 h-4" />, adminOnly: true },
     { id: 'admin-vouchers', label: 'Vouchers', icon: <Tag className="w-4 h-4" />, adminOnly: true },
+    { id: 'admin-customers', label: 'Customers', icon: <User className="w-4 h-4" />, adminOnly: true },
     { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" />, adminOnly: true },
     { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" />, adminOnly: true },
   ];
@@ -252,12 +257,17 @@ export default function App() {
   }, [orders, products]);
 
   const totalCustomerPoints = useMemo(() => {
+    // Priority 1: Use centralized userProfile points if available
+    if (userProfile && userProfile.points !== undefined) {
+      return Number(userProfile.points);
+    }
+    
     if (!user || !userOrders) return 0;
     return userOrders.reduce((sum, order) => {
       if (order.status === 'cancelled') return sum;
       return sum + (order.pointsEarned || 0) - (order.pointsSpent || 0);
     }, 0);
-  }, [user, userOrders]);
+  }, [user, userOrders, userProfile]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -654,7 +664,7 @@ export default function App() {
                 <Coins className="w-3.5 h-3.5 fill-slate-900 text-slate-900" />
               </div>
               <div className="flex flex-col items-start leading-none pr-1">
-                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Points Earned</span>
+                <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Points Balance</span>
                 <span className="text-xs font-black tracking-tight text-white">{totalCustomerPoints.toLocaleString()} Pts</span>
               </div>
             </button>
@@ -849,6 +859,7 @@ export default function App() {
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
                       vouchers={vouchers}
+                      userProfile={userProfile}
                     />
                   )}
                   {currentView === 'kiosk' && (
@@ -861,6 +872,7 @@ export default function App() {
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
                       vouchers={vouchers}
+                      userProfile={userProfile}
                     />
                   )}
                   {currentView === 'mobile' && (
@@ -873,6 +885,7 @@ export default function App() {
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
                       vouchers={vouchers}
+                      userProfile={userProfile}
                     />
                   )}
                   {currentView === 'cashier' && (
@@ -924,6 +937,12 @@ export default function App() {
                       onDeleteVoucher={deleteVoucher}
                     />
                   )}
+                  {currentView === 'admin-customers' && (
+                    <AdminCustomers 
+                      profiles={profiles}
+                      onUpdateProfile={updateUserProfile}
+                    />
+                  )}
                   {currentView === 'settings' && (
                     <AdminSettings 
                       splashScreen={splashScreen}
@@ -935,6 +954,7 @@ export default function App() {
                   {currentView === 'profile' && (
                     <ProfilePage 
                       user={user}
+                      userProfile={userProfile}
                       vouchers={vouchers}
                       userClaimedVouchers={userClaimedVouchers}
                       orders={userOrders}

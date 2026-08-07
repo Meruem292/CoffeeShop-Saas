@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher } from '../types';
+import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile } from '../types';
 import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
@@ -20,9 +20,10 @@ interface OrderingScreenProps {
   categoriesData?: DynamicCategory[];
   mostPickedProductIds?: Set<string>;
   vouchers?: Voucher[];
+  userProfile?: UserProfile | null;
 }
 
-export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSettings, categoriesData, mostPickedProductIds, vouchers = [] }: OrderingScreenProps) {
+export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSettings, categoriesData, mostPickedProductIds, vouchers = [], userProfile }: OrderingScreenProps) {
   const { toast } = useToast();
   const categories = useMemo(() => {
     let list: string[] = [];
@@ -196,6 +197,11 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
   // Compute available points
   const availablePoints = useMemo(() => {
+    // Priority 1: Use centralized userProfile points if available
+    if (userProfile && userProfile.points !== undefined) {
+      return userProfile.points;
+    }
+
     if (!user || customerOrders.length === 0) return 0;
     
     const earnRate = shopSettings?.pointsEarnedPer100Pesos || 10;
@@ -212,7 +218,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       .reduce((sum, o) => sum + (o.pointsSpent || 0), 0);
       
     return Math.max(0, totalEarned - totalSpent);
-  }, [customerOrders, user, shopSettings?.pointsEarnedPer100Pesos]);
+  }, [customerOrders, user, shopSettings?.pointsEarnedPer100Pesos, userProfile]);
 
   // Compute customer's favorites: count item occurrences and sort descending
   const customerFavorites = useMemo(() => {

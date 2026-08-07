@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc, writeBatch, getDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher, ClaimedVoucher } from '../types';
+import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher, ClaimedVoucher, UserProfile } from '../types';
 import { handleFirestoreError } from './AuthContext';
 import { useToast } from './ToastContext';
 
@@ -24,6 +24,8 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [userClaimedVouchers, setUserClaimedVouchers] = useState<ClaimedVoucher[]>([]);
   const [claimedVouchers, setClaimedVouchers] = useState<ClaimedVoucher[]>([]);
+  const [profiles, setProfiles] = useState<UserProfile[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [splashScreen, setSplashScreen] = useState<SplashScreen | null>(null);
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,6 +179,27 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       }, (err) => handleSnapshotError(err, OperationType.LIST, 'claimed_vouchers'));
     }
 
+    // Profiles Listener (Admin only)
+    let unsubProfiles = () => {};
+    if (isAdmin) {
+      const qProfiles = query(collection(db, 'profiles'));
+      unsubProfiles = onSnapshot(qProfiles, (snapshot) => {
+        const p = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+        setProfiles(p);
+      }, (err) => handleSnapshotError(err, OperationType.LIST, 'profiles'));
+    }
+
+    // Current User Profile Listener
+    let unsubUserProfile = () => {};
+    if (userUid) {
+      const qUserProfile = doc(db, 'profiles', userUid);
+      unsubUserProfile = onSnapshot(qUserProfile, (docSnap) => {
+        if (docSnap.exists()) {
+          setUserProfile({ uid: docSnap.id, ...docSnap.data() } as UserProfile);
+        }
+      }, (err) => handleSnapshotError(err, OperationType.GET, `profiles/${userUid}`));
+    }
+
     return () => {
       unsubSettings();
       unsubSplash();
@@ -187,6 +210,8 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       unsubOrders();
       unsubUserOrders();
       unsubClaimed();
+      unsubProfiles();
+      unsubUserProfile();
     };
   }, [userUid, isAdmin]);
 
@@ -201,6 +226,8 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     }
 
     try {
+      const batch = writeBatch(db);
+      
       const claimedData: Omit<ClaimedVoucher, 'id'> = {
         userId: userUid,
         voucherId: voucher.id,
@@ -217,7 +244,20 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
         getQuantity: voucher.getQuantity || 0,
         getCategoryOrName: voucher.getCategoryOrName || ''
       };
-      await addDoc(collection(db, 'claimed_vouchers'), claimedData);
+
+      const newClaimRef = doc(collection(db, 'claimed_vouchers'));
+      batch.set(newClaimRef, claimedData);
+
+      // Deduct points from profile
+      const profileRef = doc(db, 'profiles', userUid);
+      const pointsToDeduct = voucher.pointsCost || 0;
+      if (pointsToDeduct > 0) {
+        batch.update(profileRef, {
+          points: Math.max(0, availablePoints - pointsToDeduct)
+        });
+      }
+
+      await batch.commit();
       toast.success(`Successfully claimed voucher "${voucher.code}"!`);
       return true;
     } catch (err) {
@@ -422,7 +462,21 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     const cleanData = deepCleanUndefined(orderData);
 
     try {
-      await addDoc(collection(db, 'orders'), cleanData);
+      const batch = writeBatch(db);
+      const newOrderRef = doc(collection(db, 'orders'));
+      batch.set(newOrderRef, cleanData);
+
+      // Deduct points if spent
+      if (user?.uid && order.pointsSpent && order.pointsSpent > 0) {
+        const profileRef = doc(db, 'profiles', user.uid);
+        const profileSnap = await getDoc(profileRef);
+        const currentPoints = profileSnap.exists() ? (profileSnap.data().points || 0) : 0;
+        batch.update(profileRef, {
+          points: Math.max(0, currentPoints - order.pointsSpent)
+        });
+      }
+
+      await batch.commit();
     } catch (err) {
       console.error('Add Order Error:', err);
       handleFirestoreError(err, OperationType.CREATE, 'orders');
@@ -432,6 +486,28 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
 
   const updateOrderStatus = async (id: string, status: OrderStatus) => {
     try {
+      // If marking as completed, award points
+      if (status === 'completed') {
+        const orderRef = doc(db, 'orders', id);
+        const orderSnap = await getDoc(orderRef);
+        
+        if (orderSnap.exists()) {
+          const orderData = orderSnap.data() as Order;
+          if (orderData.status !== 'completed' && orderData.customerId) {
+            const profileRef = doc(db, 'profiles', orderData.customerId);
+            const profileSnap = await getDoc(profileRef);
+            
+            const profileData = profileSnap.exists() ? profileSnap.data() : null;
+            const currentPoints = typeof profileData?.points === 'number' ? profileData.points : Number(profileData?.points ?? 0);
+            const earned = typeof orderData.pointsEarned === 'number' ? orderData.pointsEarned : Number(orderData.pointsEarned || 0);
+            
+            await setDoc(profileRef, {
+              points: currentPoints + earned
+            }, { merge: true });
+          }
+        }
+      }
+
       await updateDoc(doc(db, 'orders', id), { status });
       toast.success(`Order status updated to ${status}!`);
     } catch (err) {
@@ -462,6 +538,21 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
         handleFirestoreError(err, OperationType.UPDATE, `products/${id}`);
         toast.error('Failed to update stock');
       }
+    }
+  };
+
+  const updateUserProfile = async (uid: string, updates: Partial<UserProfile>) => {
+    try {
+      const { uid: _, ...data } = updates;
+      // Ensure points is a number if it exists in updates
+      if (data.points !== undefined) {
+        data.points = Number(data.points);
+      }
+      await setDoc(doc(db, 'profiles', uid), data, { merge: true });
+      toast.success('User profile updated successfully!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `profiles/${uid}`);
+      toast.error('Failed to update user profile');
     }
   };
 
@@ -498,6 +589,8 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     vouchers,
     userClaimedVouchers,
     claimedVouchers,
+    profiles,
+    userProfile,
     splashScreen,
     shopSettings,
     loading,
@@ -521,6 +614,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     updateOrderStatus,
     updateOrder,
     updateStock,
+    updateUserProfile,
     deleteOrder,
     clearOrders
   };
