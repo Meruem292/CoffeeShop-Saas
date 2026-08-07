@@ -160,6 +160,7 @@ export interface Order {
   gcashReference?: string;
   receiptUrl?: string;
   customerId?: string;
+  claimedVoucherId?: string;
   accountId?: string;
   voidReason?: string;
 }

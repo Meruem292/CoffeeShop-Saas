@@ -859,6 +859,7 @@ export default function App() {
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
                       vouchers={vouchers}
+                      userClaimedVouchers={userClaimedVouchers}
                       userProfile={userProfile}
                     />
                   )}
@@ -872,6 +873,7 @@ export default function App() {
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
                       vouchers={vouchers}
+                      userClaimedVouchers={userClaimedVouchers}
                       userProfile={userProfile}
                     />
                   )}
@@ -885,6 +887,7 @@ export default function App() {
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
                       vouchers={vouchers}
+                      userClaimedVouchers={userClaimedVouchers}
                       userProfile={userProfile}
                     />
                   )}

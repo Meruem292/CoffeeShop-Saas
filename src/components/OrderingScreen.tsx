@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile } from '../types';
+import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher } from '../types';
 import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
@@ -20,10 +20,11 @@ interface OrderingScreenProps {
   categoriesData?: DynamicCategory[];
   mostPickedProductIds?: Set<string>;
   vouchers?: Voucher[];
+  userClaimedVouchers?: ClaimedVoucher[];
   userProfile?: UserProfile | null;
 }
 
-export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSettings, categoriesData, mostPickedProductIds, vouchers = [], userProfile }: OrderingScreenProps) {
+export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSettings, categoriesData, mostPickedProductIds, vouchers = [], userClaimedVouchers = [], userProfile }: OrderingScreenProps) {
   const { toast } = useToast();
   const categories = useMemo(() => {
     let list: string[] = [];
@@ -633,6 +634,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       voucherCode: appliedVoucher?.code,
       pointsSpent: appliedVoucher?.pointsCost || 0,
       pointsEarned,
+      claimedVoucherId: (appliedVoucher as any)?.isPurchased ? appliedVoucher?.id : undefined,
       source: mode === 'kiosk' ? 'mobile' : mode,
       customerName: customerName.trim(),
       tableNumber: finalOrderType === 'dine-in' ? (tableNumber || undefined) : undefined,
@@ -1196,25 +1198,39 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
               onClick={() => {
                 if (!promoCodeInput) return;
                 const isCustomerMode = mode === 'kiosk' || mode === 'mobile';
-                const found = vouchers?.find(v => v.code === promoCodeInput && v.isActive && (isCustomerMode ? !v.isAdminOnly : true));
+                
+                // First check if user owns this voucher (claimed/purchased)
+                const foundInClaimed = userClaimedVouchers.find(cv => cv.code === promoCodeInput && !cv.isUsed);
+                
+                // If not owned, check general active vouchers
+                const found = foundInClaimed 
+                  ? { ...foundInClaimed, pointsCost: 0, isPurchased: true } as any
+                  : vouchers?.find(v => v.code === promoCodeInput && v.isActive && (isCustomerMode ? !v.isAdminOnly : true));
+
                 if (found) {
                   if (found.minSpend && subtotal < found.minSpend) {
                     toast.error(`Minimum spend of ₱${found.minSpend} required`);
                     return;
                   }
-                  if (found.usageLimit && (found.usedCount || 0) >= found.usageLimit) {
-                    toast.error('Voucher usage limit reached');
-                    return;
+                  
+                  // Only check points if it's NOT a purchased voucher
+                  const isPurchased = found.isPurchased;
+                  if (!isPurchased) {
+                    if (found.usageLimit && (found.usedCount || 0) >= found.usageLimit) {
+                      toast.error('Voucher usage limit reached');
+                      return;
+                    }
+                    if (found.pointsCost && found.pointsCost > availablePoints) {
+                      toast.error(`Not enough points. Need ${found.pointsCost} Pts`);
+                      return;
+                    }
                   }
-                  if (found.pointsCost && found.pointsCost > availablePoints) {
-                    toast.error(`Not enough points. Need ${found.pointsCost} Pts`);
-                    return;
-                  }
+
                   setAppliedVoucher(found);
                   setPromoCodeInput('');
-                  toast.success(`Voucher "${found.code}" applied!`);
+                  toast.success(isPurchased ? `Purchased voucher "${found.code}" applied!` : `Voucher "${found.code}" applied!`);
                 } else {
-                  toast.error('Invalid or inactive promo code');
+                  toast.error('Invalid, inactive, or already used promo code');
                 }
               }}
               className="px-4 py-3 bg-amber-500 text-slate-900 font-black uppercase text-[10px] tracking-widest hover:bg-amber-400 active:scale-95 transition-all shadow-md rounded-2xl"
@@ -1278,8 +1294,24 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
           {/* Quick Select Vouchers List */}
           {(() => {
             const isCustomerMode = mode === 'kiosk' || mode === 'mobile';
-            const filteredVouchers = vouchers ? vouchers.filter(v => v.isActive && (isCustomerMode ? (!v.pointsCost || v.pointsCost === 0) && !v.isAdminOnly : true)) : [];
-            if (filteredVouchers.length === 0) return null;
+            
+            // Get active general promos (no points cost)
+            const promoVouchers = vouchers ? vouchers.filter(v => v.isActive && (isCustomerMode ? (!v.pointsCost || v.pointsCost === 0) && !v.isAdminOnly : true)) : [];
+            
+            // Get user's purchased/claimed vouchers that are NOT yet used
+            const purchasedVouchers = userClaimedVouchers
+              .filter(cv => !cv.isUsed)
+              .map(cv => ({
+                ...cv,
+                // Override pointsCost to 0 because it's already paid for
+                pointsCost: 0,
+                isPurchased: true
+              } as Voucher & { isPurchased: boolean }));
+
+            // Merge them, prioritizing purchased ones
+            const allAvailableVouchers = [...purchasedVouchers, ...promoVouchers.filter(pv => !purchasedVouchers.some(p => p.id === pv.id))];
+
+            if (allAvailableVouchers.length === 0) return null;
             return (
               <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/5 space-y-2">
                 <div className="flex items-center justify-between">
@@ -1292,9 +1324,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                 </div>
                 
                 <div className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-hide">
-                  {filteredVouchers.map(v => {
+                  {allAvailableVouchers.map(v => {
                     const isApplied = appliedVoucher?.id === v.id;
-                    const isPointsCostHigh = mode !== 'kiosk' && !!(v.pointsCost && v.pointsCost > availablePoints);
+                    const isPurchased = (v as any).isPurchased;
+                    const isPointsCostHigh = !isPurchased && mode !== 'kiosk' && !!(v.pointsCost && v.pointsCost > availablePoints);
                     const isBelowMinSpend = !!(v.minSpend && subtotal < v.minSpend);
                     const isLimitReached = !!(v.usageLimit && (v.usedCount || 0) >= v.usageLimit);
                     const isDisabled = isPointsCostHigh || isBelowMinSpend || isLimitReached;
@@ -1316,7 +1349,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                             return;
                           }
                           setAppliedVoucher(v);
-                          toast.success(`Voucher "${v.code}" applied!`);
+                          toast.success(isPurchased ? `Purchased voucher "${v.code}" applied!` : `Voucher "${v.code}" applied!`);
                         }}
                         disabled={isDisabled}
                         className={`shrink-0 p-3 rounded-2xl border flex flex-col gap-1.5 min-w-[150px] text-left transition-all ${
@@ -1326,9 +1359,12 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                         } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'}`}
                       >
                         <div className="flex items-center justify-between w-full">
-                          <Tag className="w-3.5 h-3.5 text-amber-500" />
+                          <div className="flex items-center gap-1">
+                            <Tag className="w-3.5 h-3.5 text-amber-500" />
+                            {isPurchased && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                          </div>
                           <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">
-                            {v.type === 'buy_x_get_y' ? 'Buy X Get Y' : (v.pointsCost ? `${v.pointsCost} Pts` : (v.type === 'percentage' ? `${v.value}% OFF` : `₱${v.value} OFF`))}
+                            {isPurchased ? 'OWNED' : (v.type === 'buy_x_get_y' ? 'Buy X Get Y' : (v.pointsCost ? `${v.pointsCost} Pts` : (v.type === 'percentage' ? `${v.value}% OFF` : `₱${v.value} OFF`)))}
                           </span>
                         </div>
                         <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{v.code}</span>

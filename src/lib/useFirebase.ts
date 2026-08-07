@@ -476,6 +476,12 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
         });
       }
 
+      // Mark claimed voucher as used if applicable
+      if (order.claimedVoucherId) {
+        const cvRef = doc(db, 'claimed_vouchers', order.claimedVoucherId);
+        batch.update(cvRef, { isUsed: true, usedAt: Date.now() });
+      }
+
       await batch.commit();
     } catch (err) {
       console.error('Add Order Error:', err);
