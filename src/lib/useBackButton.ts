@@ -26,7 +26,7 @@ if (typeof window !== 'undefined') {
       }
       setTimeout(() => {
         isPoppingState = false;
-      }, 50);
+      }, 100);
     }
   });
 }

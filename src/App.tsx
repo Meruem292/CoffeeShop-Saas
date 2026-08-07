@@ -94,7 +94,7 @@ export default function App() {
   useBackButton(isMobileMenuOpen, () => setIsMobileMenuOpen(false), 'app_mobile_menu');
   useBackButton(isSearchOpen, () => setIsSearchOpen(false), 'app_search');
   useBackButton(!!successOrder, () => setSuccessOrder(null), 'app_success_order');
-  useBackButton(currentView !== 'mobile' && !isKioskModeActive, () => setCurrentView('mobile'), 'app_view_' + currentView);
+  useBackButton(currentView !== 'mobile' && !isKioskModeActive, () => setCurrentView('mobile'), 'app_view');
   useBackButton(isStarted && !isAdmin, () => setIsStarted(false), 'app_started');
 
   useEffect(() => {
