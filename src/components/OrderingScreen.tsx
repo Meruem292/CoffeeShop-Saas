@@ -1562,115 +1562,118 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
         )}
 
         {checkoutStep === 3 && (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-6">
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-4">
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight italic mb-1">Payment Method</h3>
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-6">Choose how you want to pay</p>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Choose how you want to pay</p>
               
-              <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <button
                   onClick={() => setPaymentMethod('counter')}
-                  className={`w-full py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-between px-6 transition-all active:scale-95 border-2 ${paymentMethod === 'counter' ? 'bg-amber-500/10 text-amber-500 border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+                  className={`py-4 px-3 rounded-2xl font-black text-xs uppercase tracking-widest flex flex-col items-center justify-center gap-2 transition-all active:scale-95 border-2 ${paymentMethod === 'counter' ? 'bg-amber-500/10 text-amber-500 border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
                 >
-                  <span className="flex items-center gap-3"><Coffee className="w-5 h-5" /> Pay Over Counter</span>
-                  {paymentMethod === 'counter' && <CheckCircle2 className="w-5 h-5 text-amber-500" />}
+                  <Coffee className="w-5 h-5" /> Pay Over Counter
+                  {paymentMethod === 'counter' && <CheckCircle2 className="w-4 h-4 text-amber-500" />}
                 </button>
                 <button
                   onClick={() => setPaymentMethod('gcash')}
-                  className={`w-full py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-between px-6 transition-all active:scale-95 border-2 ${paymentMethod === 'gcash' ? 'bg-amber-500/10 text-amber-500 border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+                  className={`py-4 px-3 rounded-2xl font-black text-xs uppercase tracking-widest flex flex-col items-center justify-center gap-2 transition-all active:scale-95 border-2 ${paymentMethod === 'gcash' ? 'bg-amber-500/10 text-amber-500 border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
                 >
-                  <span className="flex items-center gap-3"><QrCode className="w-5 h-5" /> Pay Online (GCash)</span>
-                  {paymentMethod === 'gcash' && <CheckCircle2 className="w-5 h-5 text-amber-500" />}
+                  <QrCode className="w-5 h-5" /> Pay Online (GCash)
+                  {paymentMethod === 'gcash' && <CheckCircle2 className="w-4 h-4 text-amber-500" />}
                 </button>
               </div>
 
               {/* Payment Verification for GCash */}
               {paymentMethod === 'gcash' && (
-                <div className="mt-6 animate-in fade-in slide-in-from-top-4 duration-500 space-y-4 pt-4 border-t border-black/5 dark:border-white/5">
-                  <div className="p-5 bg-amber-500/10 border border-amber-500/20 rounded-3xl flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-amber-500 mb-2">
-                      <QrCode className="w-5 h-5" />
-                      <span className="text-xs font-black uppercase tracking-wider">GCash Details</span>
+                <div className="animate-in fade-in slide-in-from-top-4 duration-300 space-y-3 pt-3 border-t border-black/5 dark:border-white/5">
+                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-amber-500">
+                        <QrCode className="w-4 h-4" />
+                        <span className="text-[11px] font-black uppercase tracking-wider">GCash Details</span>
+                      </div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                        Send <span className="font-black text-amber-500">₱{total.toLocaleString()}</span>
+                      </span>
                     </div>
-                    {shopSettings?.gcashQrUrl && (
-                      <div className="flex justify-center my-3 relative">
-                        <div className="bg-white p-3 rounded-3xl border border-amber-500/20 shadow-md max-w-[200px] relative">
+
+                    <div className="grid grid-cols-2 gap-3 items-center">
+                      {shopSettings?.gcashQrUrl && (
+                        <div className="bg-white p-2 rounded-2xl border border-amber-500/20 shadow-sm flex flex-col items-center justify-center relative">
                           <img 
                             src={shopSettings.gcashQrUrl} 
                             alt="GCash Payment QR" 
-                            className="w-full h-auto object-contain rounded-2xl"
+                            className="w-24 h-24 object-contain rounded-xl"
                             referrerPolicy="no-referrer"
                           />
                           <button 
                             onClick={handleDownloadQR}
-                            className="absolute top-4 right-4 p-2 bg-black/50 backdrop-blur rounded-full text-white hover:bg-amber-500 transition-colors"
+                            className="absolute top-2 right-2 p-1.5 bg-black/50 backdrop-blur rounded-full text-white hover:bg-amber-500 transition-colors"
                             title="Download QR"
                           >
-                            <Download className="w-4 h-4" />
+                            <Download className="w-3 h-3" />
                           </button>
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider text-center mt-2">Scan to Pay</p>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col justify-center gap-2">
+                        <div className="text-[10px] font-black uppercase text-slate-400">Account Number:</div>
+                        <div className="flex items-center justify-between text-xs bg-black/10 dark:bg-white/5 px-3 py-2 rounded-xl">
+                          <span className="font-black tracking-wider text-slate-900 dark:text-white">{shopSettings?.gcashNumber || '0917-123-4567'}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(shopSettings?.gcashNumber || '0917-123-4567');
+                              toast.success('GCash number copied');
+                            }}
+                            className="p-1.5 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 rounded-lg transition-all"
+                            title="Copy number"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-300" />
+                          </button>
                         </div>
                       </div>
-                    )}
-                    <div className="text-sm font-bold text-slate-800 dark:text-slate-200 text-center mt-2">
-                      Send exactly <span className="font-black text-amber-500 text-lg">₱{total.toLocaleString()}</span> to:
-                    </div>
-                    <div className="flex items-center justify-between mt-2 text-sm bg-black/10 dark:bg-white/5 px-4 py-3 rounded-2xl">
-                      <span className="font-black tracking-wider text-slate-900 dark:text-white">{shopSettings?.gcashNumber || '0917-123-4567'}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigator.clipboard.writeText(shopSettings?.gcashNumber || '0917-123-4567');
-                          toast.success('GCash number copied to clipboard');
-                        }}
-                        className="p-2 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 rounded-xl transition-all flex items-center gap-2"
-                      >
-                        <Copy className="w-4 h-4 text-slate-500 dark:text-slate-300" />
-                        <span className="text-[10px] font-black uppercase text-slate-600 dark:text-slate-300">Copy</span>
-                      </button>
                     </div>
                   </div>
 
                   {/* Screenshot Upload */}
-                  <div className="space-y-3 mt-4">
-                    <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">
+                  <div className="space-y-2">
+                    <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.2em] ml-1">
                       Receipt Screenshot
                     </label>
                     {receiptBase64 ? (
-                      <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl flex items-center justify-between gap-3 animate-in zoom-in-95">
-                        <div className="flex items-center gap-4 overflow-hidden">
-                          <img src={receiptBase64} className="w-14 h-14 object-cover rounded-2xl border border-emerald-500/20" alt="Receipt Preview" referrerPolicy="no-referrer" />
+                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <img src={receiptBase64} className="w-10 h-10 object-cover rounded-xl border border-emerald-500/20" alt="Receipt Preview" referrerPolicy="no-referrer" />
                           <div className="flex flex-col overflow-hidden">
-                            <span className="text-xs font-black text-emerald-500 uppercase tracking-wider flex items-center gap-1.5">
-                              <CheckCircle2 className="w-4 h-4" /> Uploaded successfully
+                            <span className="text-[11px] font-black text-emerald-500 uppercase tracking-wider flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Uploaded successfully
                             </span>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase truncate mt-0.5">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase truncate">
                               payment_screenshot.jpg
                             </span>
                           </div>
                         </div>
                         <button
                           onClick={() => setReceiptBase64('')}
-                          className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
+                          className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
                           title="Remove receipt"
                         >
-                          <X className="w-5 h-5" />
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
                     ) : (
-                      <label className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-black/20 dark:border-white/10 hover:border-amber-500/50 bg-black/5 dark:bg-white/5 rounded-3xl cursor-pointer hover:bg-black/10 transition-all text-center group">
-                        <Upload className="w-8 h-8 text-slate-400 group-hover:text-amber-500 mb-3 transition-colors group-hover:scale-110" />
-                        <span className="text-sm font-black text-slate-800 dark:text-slate-300 uppercase tracking-wider">
-                          {compressingImage ? 'Processing Image...' : 'Choose Receipt File'}
-                        </span>
-                        <span className="text-[9px] font-bold text-slate-500 dark:text-white/30 uppercase tracking-widest mt-2">
-                          PNG or JPG
+                      <label className="flex items-center justify-center gap-3 p-4 border-2 border-dashed border-black/20 dark:border-white/10 hover:border-amber-500/50 bg-black/5 dark:bg-white/5 rounded-2xl cursor-pointer hover:bg-black/10 transition-all text-center group">
+                        <Upload className="w-5 h-5 text-slate-400 group-hover:text-amber-500 transition-colors" />
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-300 uppercase tracking-wider">
+                          {compressingImage ? 'Processing...' : 'Upload Receipt Screenshot'}
                         </span>
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={handleReceiptUpload}
                           className="hidden"
+                          onChange={handleReceiptUpload}
                           disabled={compressingImage}
                         />
                       </label>
@@ -1877,22 +1880,14 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
           {(isMobileCartOpen || isPosCartDrawerOpen) && (
               <div
-                className="fixed inset-0 z-[70] flex flex-col justify-end bg-slate-300 dark:bg-black/60 backdrop-blur-md transition-all animate-in fade-in duration-500"
+                className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 bg-slate-300 dark:bg-black/60 backdrop-blur-md transition-all animate-in fade-in duration-300"
                 onClick={() => {
                   setIsMobileCartOpen(false);
                   setIsPosCartDrawerOpen(false);
                 }}
               >
                 <div 
-                  className={`bg-black/90 w-full ${
-                    mode === 'mobile' || mode === 'kiosk' 
-                      ? 'h-[90vh] md:h-full md:max-w-md md:ml-auto' 
-                      : 'max-w-md ml-auto h-full'
-                  } rounded-t-[3rem] md:rounded-t-none md:rounded-l-[3rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] border-t border-black/10 dark:border-white/5 md:border-t-0 md:border-l border-black/10 dark:border-white/5 flex flex-col animate-in ${
-                    mode === 'mobile' || mode === 'kiosk' 
-                      ? 'slide-in-from-bottom md:slide-in-from-right' 
-                      : 'slide-in-from-right'
-                  } duration-700`}
+                  className={`bg-black/90 w-full max-w-xl mx-auto my-auto h-[90vh] md:max-h-[85vh] rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] border border-black/10 dark:border-white/10 flex flex-col animate-in zoom-in-95 duration-300`}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex-1 flex flex-col min-h-0">
