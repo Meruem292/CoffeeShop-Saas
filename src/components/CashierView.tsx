@@ -19,7 +19,7 @@ let activeSerialPort: any = null;
 let activeBleDevice: any = null;
 let activeBleCharacteristic: any = null;
 
-export function CashierView({ orders, onUpdateStatus, onUpdateOrder, onDeleteOrder, shopSettings, addons }: CashierViewProps) {
+export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDeleteOrder, shopSettings, addons = [] }: CashierViewProps) {
   // Filter orders by category
   const unpaidOrders = orders.filter((o) => o.status === 'unpaid');
   const pendingVerificationOrders = orders.filter((o) => o.status === 'pending-verification');

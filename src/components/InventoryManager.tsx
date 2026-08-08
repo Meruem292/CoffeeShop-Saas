@@ -7,7 +7,7 @@ interface InventoryManagerProps {
   onUpdateStock: (id: string, delta: number) => void;
 }
 
-export function InventoryManager({ products, onUpdateStock }: InventoryManagerProps) {
+export function InventoryManager({ products = [], onUpdateStock }: InventoryManagerProps) {
   const [search, setSearch] = useState('');
 
   const filteredInventory = products.filter(item => 

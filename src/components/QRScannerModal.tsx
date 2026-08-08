@@ -194,7 +194,7 @@ export function QRScannerModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
       <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 backdrop-blur-sm">
@@ -223,6 +223,9 @@ export function QRScannerModal({
           <video
             ref={videoRef}
             className="absolute inset-0 w-full h-full object-cover"
+            autoPlay
+            playsInline
+            muted
           />
           <canvas ref={canvasRef} className="hidden" />
 

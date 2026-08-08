@@ -7,7 +7,7 @@ interface OrderHistoryPageProps {
   onNavigate?: (view: ViewMode) => void;
 }
 
-export function OrderHistoryPage({ orders, onNavigate }: OrderHistoryPageProps) {
+export function OrderHistoryPage({ orders = [], onNavigate }: OrderHistoryPageProps) {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');

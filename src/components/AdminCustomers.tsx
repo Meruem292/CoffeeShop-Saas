@@ -8,7 +8,7 @@ interface AdminCustomersProps {
   onUpdateProfile: (uid: string, updates: Partial<UserProfile>) => Promise<void>;
 }
 
-export function AdminCustomers({ profiles, onUpdateProfile }: AdminCustomersProps) {
+export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomersProps) {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUid, setEditingUid] = useState<string | null>(null);

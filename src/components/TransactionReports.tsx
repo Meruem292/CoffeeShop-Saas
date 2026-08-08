@@ -21,7 +21,7 @@ interface TransactionReportsProps {
   onClearOrders: (ids: string[]) => Promise<void>;
 }
 
-export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: TransactionReportsProps) {
+export function TransactionReports({ orders = [], onDeleteOrder, onClearOrders }: TransactionReportsProps) {
   const getTodayString = () => {
     const today = new Date();
     const yyyy = today.getFullYear();

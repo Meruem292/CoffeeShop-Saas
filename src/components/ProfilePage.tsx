@@ -14,7 +14,7 @@ interface ProfilePageProps {
   onNavigate?: (view: ViewMode) => void;
 }
 
-export function ProfilePage({ user, userProfile, vouchers, userClaimedVouchers = [], orders, onClaimVoucher, onNavigate }: ProfilePageProps) {
+export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouchers = [], orders = [], onClaimVoucher, onNavigate }: ProfilePageProps) {
   const { toast } = useToast();
 
   if (!user) return <div className="p-8 text-center text-slate-500 font-bold">Please log in to view your profile.</div>;

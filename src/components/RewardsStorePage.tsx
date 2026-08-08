@@ -14,9 +14,9 @@ interface RewardsStorePageProps {
 }
 
 export function RewardsStorePage({
-  vouchers,
+  vouchers = [],
   userClaimedVouchers = [],
-  currentBalance,
+  currentBalance = 0,
   onClaimVoucher,
   onNavigate
 }: RewardsStorePageProps) {

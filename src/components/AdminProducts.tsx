@@ -51,8 +51,8 @@ const AVAILABLE_ICONS = [
 ];
 
 export function AdminProducts({ 
-  products, 
-  addons,
+  products = [], 
+  addons = [],
   categories = [],
   onAddProduct, 
   onUpdateProduct, 
