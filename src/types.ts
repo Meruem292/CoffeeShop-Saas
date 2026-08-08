@@ -62,6 +62,7 @@ export interface CartItem extends Product {
   notes: string;
   selectedSize?: ProductSize;
   sugarLevel?: SugarLevel;
+  iceLevel?: string;
   selectedAddons?: Addon[];
 }
 

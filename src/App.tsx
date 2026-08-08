@@ -1041,16 +1041,20 @@ export default function App() {
                     />
                   )}
                   {currentView === 'cashier' && (
-                    <CashierView 
-                      orders={orders} 
-                      onUpdateStatus={updateOrderStatus} 
-                      onUpdateOrder={updateOrder}
-                      onDeleteOrder={deleteOrder}
-                      shopSettings={shopSettings} 
-                      addons={addons}
-                    />
+                    dbLoading ? (
+                      <AdminPageSkeleton />
+                    ) : (
+                      <CashierView 
+                        orders={orders} 
+                        onUpdateStatus={updateOrderStatus} 
+                        onUpdateOrder={updateOrder}
+                        onDeleteOrder={deleteOrder}
+                        shopSettings={shopSettings} 
+                        addons={addons}
+                      />
+                    )
                   )}
-                  {['reports', 'queue', 'inventory', 'admin-products', 'admin-vouchers', 'admin-customers', 'settings'].includes(currentView) && dbLoading ? (
+                  {['reports', 'queue', 'inventory', 'admin-products', 'admin-vouchers', 'admin-customers', 'settings', 'profile', 'order-history', 'rewards-store'].includes(currentView) && dbLoading ? (
                     <AdminPageSkeleton />
                   ) : (
                     <>
@@ -1107,33 +1111,33 @@ export default function App() {
                           onUpdateShop={updateShopSettings}
                         />
                       )}
+                      {currentView === 'profile' && (
+                        <ProfilePage 
+                          user={user}
+                          userProfile={userProfile}
+                          vouchers={vouchers}
+                          userClaimedVouchers={userClaimedVouchers}
+                          orders={userOrders}
+                          onClaimVoucher={claimVoucher}
+                          onNavigate={(view) => setCurrentView(view)}
+                        />
+                      )}
+                      {currentView === 'order-history' && (
+                        <OrderHistoryPage 
+                          orders={userOrders}
+                          onNavigate={(view) => setCurrentView(view)}
+                        />
+                      )}
+                      {currentView === 'rewards-store' && (
+                        <RewardsStorePage 
+                          vouchers={vouchers}
+                          userClaimedVouchers={userClaimedVouchers}
+                          currentBalance={userProfile ? (Number(userProfile.points) || 0) : 0}
+                          onClaimVoucher={claimVoucher}
+                          onNavigate={(view) => setCurrentView(view)}
+                        />
+                      )}
                     </>
-                  )}
-                  {currentView === 'profile' && (
-                    <ProfilePage 
-                      user={user}
-                      userProfile={userProfile}
-                      vouchers={vouchers}
-                      userClaimedVouchers={userClaimedVouchers}
-                      orders={userOrders}
-                      onClaimVoucher={claimVoucher}
-                      onNavigate={(view) => setCurrentView(view)}
-                    />
-                  )}
-                  {currentView === 'order-history' && (
-                    <OrderHistoryPage 
-                      orders={userOrders}
-                      onNavigate={(view) => setCurrentView(view)}
-                    />
-                  )}
-                  {currentView === 'rewards-store' && (
-                    <RewardsStorePage 
-                      vouchers={vouchers}
-                      userClaimedVouchers={userClaimedVouchers}
-                      currentBalance={userProfile ? (Number(userProfile.points) || 0) : 0}
-                      onClaimVoucher={claimVoucher}
-                      onNavigate={(view) => setCurrentView(view)}
-                    />
                   )}
                 </div>
               </div>

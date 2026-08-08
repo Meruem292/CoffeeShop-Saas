@@ -366,6 +366,11 @@ export function KitchenQueue({ orders = [], onUpdateStatus, onDeleteOrder, onVoi
                                   Sugar: {item.sugarLevel}
                                 </span>
                               )}
+                              {item.iceLevel && (
+                                <span className="text-[9px] text-cyan-400 font-black px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 uppercase tracking-widest shrink-0">
+                                  Ice: {item.iceLevel}
+                                </span>
+                              )}
                               {item.selectedAddons && item.selectedAddons.length > 0 && item.selectedAddons.map((addon, aIdx) => (
                                 <span key={aIdx} className="text-[9px] text-green-400 font-black px-2 py-0.5 rounded bg-green-500/10 border border-green-500/20 uppercase tracking-widest shrink-0">
                                   + {addon.name}
