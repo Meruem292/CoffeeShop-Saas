@@ -146,12 +146,21 @@ export function ProfilePage({ user, userProfile, vouchers, userClaimedVouchers =
               </h3>
               <p className="text-xs text-slate-500 font-medium break-all">{user.email}</p>
               
-              <div className="flex items-center justify-center sm:justify-start gap-1.5 mt-2 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-xl w-fit mx-auto sm:mx-0 max-w-full">
-                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 shrink-0">ID:</span>
-                <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 truncate max-w-[180px] xs:max-w-[240px]">{user.uid}</span>
-                <button onClick={() => copyToClipboard(user.uid, 'Member Account ID')} className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg text-slate-400 hover:text-amber-500 transition-colors shrink-0">
-                  <Copy className="w-3.5 h-3.5" />
-                </button>
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
+                <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 shrink-0">Member ID:</span>
+                  <span className="text-xs font-mono font-black text-amber-500 tracking-wider">#{(user as any).shortId || user.uid.slice(0, 5).toUpperCase()}</span>
+                  <button onClick={() => copyToClipboard((user as any).shortId || user.uid.slice(0, 5).toUpperCase(), '5-Digit Member ID')} className="p-0.5 hover:bg-amber-500/20 rounded text-amber-500 transition-colors shrink-0" title="Copy Member ID">
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 px-2.5 py-1 rounded-xl">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 shrink-0">Full UID:</span>
+                  <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 truncate max-w-[100px]">{user.uid}</span>
+                  <button onClick={() => copyToClipboard(user.uid, 'Full UID')} className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded text-slate-400 hover:text-amber-500 transition-colors shrink-0">
+                    <Copy className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -163,6 +172,7 @@ export function ProfilePage({ user, userProfile, vouchers, userClaimedVouchers =
                 value={JSON.stringify({ 
                   type: 'member_pass', 
                   uid: user.uid, 
+                  shortId: (user as any).shortId || user.uid.slice(0, 5).toUpperCase(),
                   email: user.email, 
                   name: user.displayName || '' 
                 })} 

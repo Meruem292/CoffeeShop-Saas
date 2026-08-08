@@ -3,6 +3,7 @@ export type Category = 'Hot Coffee' | 'Cold Coffee' | 'Tea' | 'Food';
 
 export interface UserProfile {
   uid: string;
+  shortId?: string;
   email: string;
   displayName: string;
   photoURL?: string;

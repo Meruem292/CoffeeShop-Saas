@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc, writeBatch, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc, writeBatch, getDoc, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher, ClaimedVoucher, UserProfile } from '../types';
 import { handleFirestoreError } from './AuthContext';
@@ -184,7 +184,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     if (isAdmin) {
       const qProfiles = query(collection(db, 'profiles'));
       unsubProfiles = onSnapshot(qProfiles, (snapshot) => {
-        const p = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+        const p = snapshot.docs.map(doc => {
+          const d = doc.data();
+          return { uid: doc.id, shortId: d.shortId || doc.id.slice(0, 5).toUpperCase(), ...d } as UserProfile;
+        });
         setProfiles(p);
       }, (err) => handleSnapshotError(err, OperationType.LIST, 'profiles'));
     }
@@ -195,7 +198,8 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       const qUserProfile = doc(db, 'profiles', userUid);
       unsubUserProfile = onSnapshot(qUserProfile, (docSnap) => {
         if (docSnap.exists()) {
-          setUserProfile({ uid: docSnap.id, ...docSnap.data() } as UserProfile);
+          const d = docSnap.data();
+          setUserProfile({ uid: docSnap.id, shortId: d.shortId || docSnap.id.slice(0, 5).toUpperCase(), ...d } as UserProfile);
         }
       }, (err) => handleSnapshotError(err, OperationType.GET, `profiles/${userUid}`));
     }
@@ -454,9 +458,24 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     const user = auth.currentUser;
     // If placing from kiosk, pos, or the logged-in user is an admin, the customer is either the specified accountId or a guest (null)
     const isKioskOrPos = order.source === 'kiosk' || order.source === 'pos';
-    const finalCustomerId = (isKioskOrPos || isAdmin)
+    let finalCustomerId = (isKioskOrPos || isAdmin)
       ? (order.accountId || null)
       : (user?.uid || order.accountId || null);
+
+    if (finalCustomerId) {
+      try {
+        const directSnap = await getDoc(doc(db, 'profiles', finalCustomerId));
+        if (!directSnap.exists()) {
+          const qShort = query(collection(db, 'profiles'), where('shortId', '==', finalCustomerId.toUpperCase()));
+          const qSnap = await getDocs(qShort);
+          if (!qSnap.empty) {
+            finalCustomerId = qSnap.docs[0].id;
+          }
+        }
+      } catch (err) {
+        console.warn("Error resolving shortId customerId:", err);
+      }
+    }
 
     const orderData = {
       status: 'unpaid', // Default status

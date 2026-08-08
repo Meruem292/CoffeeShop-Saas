@@ -98,10 +98,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const profileDoc = await getDoc(profileDocRef);
           const profileData = profileDoc.exists() ? profileDoc.data() : null;
           const currentPoints = typeof profileData?.points === 'number' ? profileData.points : Number(profileData?.points ?? 0);
+          const userShortId = (profileData?.shortId || currentUser.uid.slice(0, 5)).toUpperCase();
           
           if (!profileDoc.exists()) {
             await setDoc(profileDocRef, {
               uid: currentUser.uid,
+              shortId: userShortId,
               email: currentUser.email,
               displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Customer',
               photoURL: currentUser.photoURL || '',
@@ -112,6 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
           } else {
             await setDoc(profileDocRef, {
+              shortId: userShortId,
               lastLoginAt: Date.now(),
               displayName: currentUser.displayName || profileData?.displayName,
               photoURL: currentUser.photoURL || profileData?.photoURL,

@@ -144,19 +144,41 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       return;
     }
 
+    let isSubscribed = true;
+
+    // Check direct doc first
     const profileRef = doc(db, 'profiles', cleanId);
-    const unsubscribe = onSnapshot(profileRef, (snap) => {
+    const unsubscribeDoc = onSnapshot(profileRef, async (snap) => {
       if (snap.exists()) {
-        setScannedAccountProfile({ id: snap.id, ...snap.data() } as unknown as UserProfile);
+        if (isSubscribed) {
+          const d = snap.data();
+          setScannedAccountProfile({ id: snap.id, uid: snap.id, shortId: d.shortId || snap.id.slice(0, 5).toUpperCase(), ...d } as unknown as UserProfile);
+        }
       } else {
-        setScannedAccountProfile(null);
+        // If direct doc doesn't exist, search by shortId
+        try {
+          const qShort = query(collection(db, 'profiles'), where('shortId', '==', cleanId.toUpperCase()));
+          const qSnap = await getDocs(qShort);
+          if (!qSnap.empty && isSubscribed) {
+            const firstDoc = qSnap.docs[0];
+            const d = firstDoc.data();
+            setScannedAccountProfile({ id: firstDoc.id, uid: firstDoc.id, shortId: d.shortId || firstDoc.id.slice(0, 5).toUpperCase(), ...d } as unknown as UserProfile);
+          } else if (isSubscribed) {
+            setScannedAccountProfile(null);
+          }
+        } catch (e) {
+          if (isSubscribed) setScannedAccountProfile(null);
+        }
       }
     }, (err) => {
       console.warn('Error listening to scanned customer profile:', err);
-      setScannedAccountProfile(null);
+      if (isSubscribed) setScannedAccountProfile(null);
     });
 
-    return () => unsubscribe();
+    return () => {
+      isSubscribed = false;
+      unsubscribeDoc();
+    };
   }, [accountId]);
 
   // Real-time listener for the logged-in customer's orders to calculate favorites (only in mobile mode)
@@ -1694,8 +1716,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                         type="text"
                         value={accountId}
                         onChange={(e) => setAccountId(e.target.value)}
-                        className="flex-1 p-4 border-2 border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-black transition-all bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 hover:border-black/20 dark:hover:border-white/20 min-w-0"
-                        placeholder="Enter ID / Scan Member QR"
+                        className="flex-1 p-4 border-2 border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-black transition-all bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 hover:border-black/20 dark:hover:border-white/20 min-w-0 uppercase font-mono"
+                        placeholder="Enter 5-char ID (e.g. A89XK) or Scan QR"
                       />
                       <button
                         type="button"

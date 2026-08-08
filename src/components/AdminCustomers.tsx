@@ -23,7 +23,8 @@ export function AdminCustomers({ profiles, onUpdateProfile }: AdminCustomersProp
     .filter(p => 
       p.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
       p.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.uid.toLowerCase().includes(searchTerm.toLowerCase())
+      p.uid.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.shortId || p.uid.slice(0, 5)).toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
       const valA = a[sortField] || 0;
@@ -197,9 +198,12 @@ export function AdminCustomers({ profiles, onUpdateProfile }: AdminCustomersProp
                               className="bg-transparent border-b border-amber-500 text-sm font-bold text-slate-900 dark:text-white focus:outline-none w-full"
                             />
                           ) : (
-                            <div className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                            <div className="text-sm font-bold text-slate-900 dark:text-white truncate flex items-center gap-1.5">
                               {profile.displayName || 'Unnamed Customer'}
-                              {profile.isAdmin && <span className="ml-2 text-[8px] bg-purple-500/10 text-purple-500 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">Admin</span>}
+                              <span className="text-[9px] font-mono font-black bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.2 rounded uppercase">
+                                #{profile.shortId || profile.uid.slice(0, 5).toUpperCase()}
+                              </span>
+                              {profile.isAdmin && <span className="text-[8px] bg-purple-500/10 text-purple-500 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">Admin</span>}
                             </div>
                           )}
                           <div className="text-[10px] text-slate-500 flex items-center gap-1.5 mt-0.5">
