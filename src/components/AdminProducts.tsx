@@ -113,11 +113,22 @@ export function AdminProducts({
   }, [categories, products]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter(product => {
+    const list = products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(productSearch.toLowerCase());
       const matchesCategory = productCategoryFilter === 'All' || product.category === productCategoryFilter;
       return matchesSearch && matchesCategory;
     });
+
+    list.sort((a, b) => {
+      const aAvailable = a.isActive !== false ? 1 : 0;
+      const bAvailable = b.isActive !== false ? 1 : 0;
+      if (aAvailable !== bAvailable) {
+        return bAvailable - aAvailable;
+      }
+      return a.name.localeCompare(b.name);
+    });
+
+    return list;
   }, [products, productSearch, productCategoryFilter]);
 
   const initialFormState = {

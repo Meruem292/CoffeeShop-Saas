@@ -720,20 +720,27 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       }
     }
 
-    // Apply sorting
-    if (sortBy === 'alphabetical') {
-      list.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === 'price-asc') {
-      list.sort((a, b) => a.price - b.price);
-    } else if (sortBy === 'price-desc') {
-      list.sort((a, b) => b.price - a.price);
-    } else if (sortBy === 'best-seller') {
-      list.sort((a, b) => {
+    // Apply sorting with availability prioritized on top
+    list.sort((a, b) => {
+      const aAvailable = a.isActive !== false ? 1 : 0;
+      const bAvailable = b.isActive !== false ? 1 : 0;
+      if (aAvailable !== bAvailable) {
+        return bAvailable - aAvailable; // Available (1) comes before Unavailable (0)
+      }
+
+      if (sortBy === 'alphabetical') {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === 'price-asc') {
+        return a.price - b.price;
+      } else if (sortBy === 'price-desc') {
+        return b.price - a.price;
+      } else if (sortBy === 'best-seller') {
         const aIsMost = mostPickedProductIds?.has(a.id) ? 1 : 0;
         const bIsMost = mostPickedProductIds?.has(b.id) ? 1 : 0;
         return bIsMost - aIsMost;
-      });
-    }
+      }
+      return 0;
+    });
 
     return list;
   }, [menu, localSearchQuery, activeCategory, activeSubCategory, sortBy, mostPickedProductIds]);
