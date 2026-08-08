@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Product, ProductSize, Addon, DynamicCategory } from '../types';
 import { 
   Plus, Edit2, Trash2, Package, Database, ShieldAlert, X, Coffee,
-  IceCream, CupSoda, Croissant, Utensils, Sparkles, Leaf,
+  IceCream, CupSoda, Croissant, Utensils, Award, Leaf,
   GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Layout, AlertTriangle,
   Upload, Info, Check, ChevronUp, ChevronDown, Search, Filter
 } from 'lucide-react';
@@ -25,7 +25,7 @@ interface AdminProductsProps {
 }
 
 const iconLookup: Record<string, React.ComponentType<any>> = {
-  Coffee, IceCream, CupSoda, Croissant, Utensils, Sparkles, Leaf,
+  Coffee, IceCream, CupSoda, Croissant, Utensils, Award, Leaf,
   GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Package, Layout
 };
 
@@ -46,7 +46,7 @@ const AVAILABLE_ICONS = [
   { name: 'Tag', label: 'Promos / Merch' },
   { name: 'Flame', label: 'Specials' },
   { name: 'Heart', label: 'Favorites' },
-  { name: 'Sparkles', label: 'Special creations' },
+  { name: 'Award', label: 'Special creations' },
   { name: 'Package', label: 'Merch / Retail' },
 ];
 

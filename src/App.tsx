@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'rea
 import { ViewMode, Order, Product, OrderStatus } from './types';
 import { SplashScreen } from './components/SplashScreen';
 import { UnifiedAuthModal } from './components/UnifiedAuthModal';
-import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sparkles, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag, User, Coins } from 'lucide-react';
+import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag, User, Coins, Download, ShoppingBag } from 'lucide-react';
+import { PWAInstallModal } from './components/PWAInstallModal';
 import { useFirebase } from './lib/useFirebase';
 import { useAuth } from './lib/AuthContext';
 import { useTheme } from './lib/ThemeProvider';
@@ -23,6 +24,8 @@ const AdminCustomers = lazy(() => import('./components/AdminCustomers').then(m =
 const CashierView = lazy(() => import('./components/CashierView').then(m => ({ default: m.CashierView })));
 const TransactionReports = lazy(() => import('./components/TransactionReports').then(m => ({ default: m.TransactionReports })));
 const ProfilePage = lazy(() => import('./components/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const OrderHistoryPage = lazy(() => import('./components/OrderHistoryPage').then(m => ({ default: m.OrderHistoryPage })));
+const RewardsStorePage = lazy(() => import('./components/RewardsStorePage').then(m => ({ default: m.RewardsStorePage })));
 
 export default function App() {
   const { toast } = useToast();
@@ -31,6 +34,41 @@ export default function App() {
   const [successTimer, setSuccessTimer] = useState<number>(10);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showPwaInstallModal, setShowPwaInstallModal] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const choiceResult = await deferredPrompt.userChoice;
+        if (choiceResult.outcome === 'accepted') {
+          toast.success('OrderOrbit installed as a native app!');
+          setDeferredPrompt(null);
+        } else {
+          toast.info('Installation cancelled');
+        }
+      } catch (err) {
+        console.error('PWA install error:', err);
+        setShowPwaInstallModal(true);
+      }
+    } else {
+      setShowPwaInstallModal(true);
+    }
+  };
 
   const [isKioskModeActive, setIsKioskModeActive] = useState(() => {
     return localStorage.getItem('astro_pos_kiosk_active') === 'true';
@@ -112,6 +150,8 @@ export default function App() {
   const navigationItems: { id: ViewMode; label: string; icon: React.ReactNode; adminOnly?: boolean; userOnly?: boolean }[] = [
     { id: 'mobile', label: 'App', icon: <Smartphone className="w-4 h-4" /> },
     { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" />, userOnly: true },
+    { id: 'order-history', label: 'History', icon: <ShoppingBag className="w-4 h-4" />, userOnly: true },
+    { id: 'rewards-store', label: 'Rewards', icon: <Tag className="w-4 h-4" />, userOnly: true },
     { id: 'kiosk', label: 'Kiosk', icon: <Tablet className="w-4 h-4" />, adminOnly: true },
     { id: 'pos', label: 'POS', icon: <MonitorSmartphone className="w-4 h-4" />, adminOnly: true },
     { id: 'cashier', label: 'Cashier', icon: <Banknote className="w-4 h-4" />, adminOnly: true },
@@ -448,7 +488,7 @@ export default function App() {
         </div>
         <div className="relative z-10 animate-in fade-in zoom-in duration-1000 flex flex-col items-center gap-6">
           <div className="w-16 h-16 bg-amber-500/10 backdrop-blur-2xl border border-amber-500/30 rounded-2xl flex items-center justify-center shadow-[0_0_50px_rgba(245,158,11,0.2)] animate-pulse">
-            <Sparkles className="w-8 h-8 text-amber-500" />
+            <Coffee className="w-8 h-8 text-amber-500" />
           </div>
           <div className="flex flex-col items-center gap-2">
             <span className="uppercase tracking-[0.5em] text-[8px] font-black text-amber-500/50">Initialising Orbit</span>
@@ -593,7 +633,7 @@ export default function App() {
                 {shopSettings?.logoUrl ? (
                   <img src={shopSettings.logoUrl || undefined} className="w-full h-full object-cover" alt="Logo" />
                 ) : (
-                  <Sparkles className="w-5 h-5 text-amber-500" />
+                  <Coffee className="w-5 h-5 text-amber-500" />
                 )}
               </div>
               <div className="flex flex-col min-w-0">
@@ -639,6 +679,21 @@ export default function App() {
                   </button>
                 );
               })}
+
+              <div className="pt-3 px-1">
+                <button
+                  onClick={handleInstallApp}
+                  className="w-full relative group overflow-hidden p-3 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-amber-600/15 hover:from-amber-500/20 hover:to-amber-500/10 border border-amber-500/30 hover:border-amber-400/70 shadow-[0_4px_20px_rgba(245,158,11,0.1)] hover:shadow-[0_6px_25px_rgba(245,158,11,0.25)] transition-all duration-300 active:scale-[0.98] flex items-center gap-3"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 shadow-inner group-hover:bg-amber-500 group-hover:text-slate-950 transition-all duration-300 shrink-0">
+                    <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-amber-100 group-hover:text-amber-500 transition-colors">
+                    Download App
+                  </span>
+                </button>
+              </div>
             </nav>
 
             {/* Bottom Profile / Admin Portal Widget */}
@@ -733,6 +788,18 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Top Header Download App Button */}
+              <button
+                onClick={handleInstallApp}
+                className="relative group overflow-hidden px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-500/20 border border-amber-500/40 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] active:scale-95 transition-all duration-300 flex items-center gap-2 backdrop-blur-md"
+              >
+                <div className="w-6 h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 group-hover:scale-110 transition-transform">
+                  <Download className="w-3.5 h-3.5 text-slate-950 group-hover:translate-y-0.5 transition-transform" />
+                </div>
+                <span className="text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 group-hover:text-amber-500 transition-colors leading-none pr-0.5">
+                  Install App
+                </span>
+              </button>
             </header>
           )}
 
@@ -751,7 +818,7 @@ export default function App() {
                       {shopSettings?.logoUrl ? (
                         <img src={shopSettings.logoUrl || undefined} className="w-full h-full object-cover" alt="Logo" />
                       ) : (
-                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        <Coffee className="w-4 h-4 text-amber-500" />
                       )}
                     </div>
                     <span className="text-xs font-black tracking-tight uppercase italic truncate max-w-[120px]">
@@ -796,6 +863,23 @@ export default function App() {
                       </button>
                     );
                   })}
+
+                  <div className="pt-3">
+                    <button
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        handleInstallApp();
+                      }}
+                      className="w-full relative group overflow-hidden p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-600/15 border border-amber-500/40 text-amber-500 font-black text-xs uppercase tracking-wider flex items-center gap-3 transition-all active:scale-95 shadow-lg shadow-amber-500/10"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
+                        <Download className="w-4 h-4 text-slate-950" />
+                      </div>
+                      <span className="text-xs font-black text-slate-900 dark:text-amber-100 uppercase tracking-wider">
+                        Download App
+                      </span>
+                    </button>
+                  </div>
                 </nav>
 
                 <div className="pt-4 border-t border-black/10 dark:border-white/5 shrink-0 space-y-2">
@@ -1007,6 +1091,22 @@ export default function App() {
                       userClaimedVouchers={userClaimedVouchers}
                       orders={userOrders}
                       onClaimVoucher={claimVoucher}
+                      onNavigate={(view) => setCurrentView(view)}
+                    />
+                  )}
+                  {currentView === 'order-history' && (
+                    <OrderHistoryPage 
+                      orders={userOrders}
+                      onNavigate={(view) => setCurrentView(view)}
+                    />
+                  )}
+                  {currentView === 'rewards-store' && (
+                    <RewardsStorePage 
+                      vouchers={vouchers}
+                      userClaimedVouchers={userClaimedVouchers}
+                      currentBalance={userProfile ? (Number(userProfile.points) || 0) : 0}
+                      onClaimVoucher={claimVoucher}
+                      onNavigate={(view) => setCurrentView(view)}
                     />
                   )}
                 </div>
@@ -1016,6 +1116,16 @@ export default function App() {
           {showAdminLogin && (
             <UnifiedAuthModal onClose={() => setShowAdminLogin(false)} />
           )}
+
+          <PWAInstallModal 
+            isOpen={showPwaInstallModal}
+            onClose={() => setShowPwaInstallModal(false)}
+            deferredPrompt={deferredPrompt}
+            onInstallSuccess={() => {
+              toast.success('App installed successfully!');
+              setDeferredPrompt(null);
+            }}
+          />
         </Suspense>
       </main>
         </div>

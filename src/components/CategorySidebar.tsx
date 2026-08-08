@@ -1,6 +1,6 @@
 import React from 'react';
 import { 
-  Layout, Coffee, IceCream, CupSoda, Croissant, Utensils, Sparkles, Leaf,
+  Layout, Coffee, IceCream, CupSoda, Croissant, Utensils, Leaf,
   GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Package
 } from 'lucide-react';
 import { DynamicCategory, ShopSettings } from '../types';
@@ -23,7 +23,6 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   CupSoda,
   Croissant,
   Utensils,
-  Sparkles,
   Leaf,
   Layout,
   GlassWater,
@@ -81,7 +80,7 @@ export const CategorySidebar = React.memo(({
             {shopSettings?.logoUrl ? (
               <img src={shopSettings.logoUrl || undefined} className="w-full h-full object-cover" alt="Logo" referrerPolicy="no-referrer" />
             ) : (
-              <Sparkles className="w-5 h-5 text-amber-500" />
+              <Coffee className="w-5 h-5 text-amber-500" />
             )}
           </div>
           <span className="text-[9px] text-amber-500 font-bold tracking-wider mt-2.5 uppercase truncate w-full px-1">

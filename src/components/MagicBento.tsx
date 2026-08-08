@@ -23,7 +23,7 @@ interface MagicBentoProps {
 export default function MagicBento({
   children,
   textAutoHide = true,
-  enableStars = true,
+  enableStars = false,
   enableSpotlight = true,
   enableBorderGlow = true,
   enableTilt = false,

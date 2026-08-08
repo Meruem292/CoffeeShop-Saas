@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Sparkles, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag } from 'lucide-react';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
@@ -10,6 +10,7 @@ import { useAuth } from '../lib/AuthContext';
 import { UnifiedAuthModal } from './UnifiedAuthModal';
 import { useToast } from '../lib/ToastContext';
 import { useBackButton } from '../lib/useBackButton';
+import { QRScannerModal } from './QRScannerModal';
 
 interface OrderingScreenProps {
   mode: 'pos' | 'kiosk' | 'mobile';
@@ -361,6 +362,126 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   const [isPosCartDrawerOpen, setIsPosCartDrawerOpen] = useState(false);
   const [gridColumns, setGridColumns] = useState<number>(shopSettings?.gridColumns || 5);
   const [selectedProductForConfig, setSelectedProductForConfig] = useState<Product | null>(null);
+
+  // QR Camera Scanner state
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerTarget, setScannerTarget] = useState<'voucher' | 'personal_voucher' | 'account_id'>('voucher');
+  const [scannerTitle, setScannerTitle] = useState('Scan QR Code');
+  const [scannerDescription, setScannerDescription] = useState('Position the QR code within the frame');
+
+  useBackButton(isScannerOpen, () => setIsScannerOpen(false), 'ord_qr_scanner');
+
+  const openQRScanner = (target: 'voucher' | 'personal_voucher' | 'account_id') => {
+    setScannerTarget(target);
+    if (target === 'account_id') {
+      setScannerTitle('Scan Member / Account QR');
+      setScannerDescription('Scan customer account QR code to receive loyalty points for this order');
+    } else if (target === 'personal_voucher') {
+      setScannerTitle('Scan Personal Voucher QR');
+      setScannerDescription('Scan your claimed voucher QR code from your account profile');
+    } else {
+      setScannerTitle('Scan Voucher / Promo QR');
+      setScannerDescription('Scan a voucher code or promo QR to apply discount');
+    }
+    setIsScannerOpen(true);
+  };
+
+  const handleQRScanResult = async (scannedText: string) => {
+    let cleanText = scannedText.trim();
+    try {
+      const parsed = JSON.parse(cleanText);
+      if (parsed.code) cleanText = parsed.code;
+      else if (parsed.uid) cleanText = parsed.uid;
+      else if (parsed.id) cleanText = parsed.id;
+    } catch (e) {
+      // plain text
+    }
+    cleanText = cleanText.trim();
+
+    if (scannerTarget === 'account_id') {
+      setAccountId(cleanText);
+      toast.success(`Account ID scanned: ${cleanText}`);
+    } else if (scannerTarget === 'personal_voucher') {
+      const code = cleanText.toUpperCase();
+      setPersonalVoucherInput(code);
+      const foundAdmin = vouchers.find(v => v.code === code && v.isActive);
+      if (foundAdmin) {
+        if (foundAdmin.minSpend && subtotal < foundAdmin.minSpend) {
+          toast.error(`Minimum spend of ₱${foundAdmin.minSpend} required`);
+          return;
+        }
+        setAppliedVoucher(foundAdmin);
+        setShowPersonalVoucherModal(false);
+        setPersonalVoucherInput('');
+        toast.success(`Voucher "${foundAdmin.code}" applied!`);
+        return;
+      }
+      try {
+        const q = query(collection(db, 'claimed_vouchers'), where('code', '==', code));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const cvData = snap.docs[0].data();
+          const vObj: Voucher = {
+            id: cvData.voucherId || snap.docs[0].id,
+            code: cvData.code,
+            type: cvData.type || 'percentage',
+            value: cvData.value || 10,
+            minSpend: cvData.minSpend || 0,
+            pointsCost: cvData.pointsCost || 0,
+            buyQuantity: cvData.buyQuantity,
+            getQuantity: cvData.getQuantity,
+            buyCategoryOrName: cvData.buyCategoryOrName,
+            getCategoryOrName: cvData.getCategoryOrName,
+            isActive: true,
+          };
+          if (vObj.minSpend && subtotal < vObj.minSpend) {
+            toast.error(`Minimum spend of ₱${vObj.minSpend} required`);
+            return;
+          }
+          setAppliedVoucher(vObj);
+          setShowPersonalVoucherModal(false);
+          setPersonalVoucherInput('');
+          toast.success(`Personal voucher "${vObj.code}" activated & applied!`);
+        } else {
+          toast.error('Voucher code or Member QR not found');
+        }
+      } catch (e) {
+        console.error('Voucher scan error:', e);
+        toast.error('Failed to verify scanned voucher');
+      }
+    } else if (scannerTarget === 'voucher') {
+      const code = cleanText.toUpperCase();
+      setPromoCodeInput(code);
+      const isCustomerMode = mode === 'kiosk' || mode === 'mobile';
+      const foundInClaimed = (mode === 'kiosk' || mode === 'pos') ? undefined : userClaimedVouchers.find(cv => cv.code === code && !cv.isUsed);
+      const found = foundInClaimed
+        ? { ...foundInClaimed, pointsCost: 0, isPurchased: true } as any
+        : vouchers?.find(v => v.code === code && v.isActive && (isCustomerMode ? !v.isAdminOnly : true));
+
+      if (found) {
+        if (found.minSpend && subtotal < found.minSpend) {
+          toast.error(`Minimum spend of ₱${found.minSpend} required`);
+          return;
+        }
+        const isPurchased = found.isPurchased;
+        if (!isPurchased) {
+          if (found.usageLimit && (found.usedCount || 0) >= found.usageLimit) {
+            toast.error('Voucher usage limit reached');
+            return;
+          }
+          if (found.pointsCost && found.pointsCost > availablePoints) {
+            toast.error(`Not enough points. Need ${found.pointsCost} Pts`);
+            return;
+          }
+        }
+        setAppliedVoucher(found);
+        setPromoCodeInput('');
+        toast.success(isPurchased ? `Purchased voucher "${found.code}" applied!` : `Voucher "${found.code}" applied!`);
+      } else {
+        toast.error(`Scanned code "${code}" is invalid or inactive`);
+      }
+    }
+  };
 
   // Natural Back Button hooks for modals/drawers in OrderingScreen
   useBackButton(showCustomerAuth, () => setShowCustomerAuth(false), 'ord_customer_auth');
@@ -935,7 +1056,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
               <div className="mb-6 p-4 bg-amber-500/5 dark:bg-amber-500/5 rounded-3xl border border-amber-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 max-h-[250px] overflow-hidden flex flex-col justify-between">
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500 animate-pulse" />
+                    <Flame className="w-4 h-4 text-amber-500 fill-amber-500 animate-pulse" />
                     <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
                       Overall Best Sellers
                       <span className="text-[8px] text-amber-500 font-extrabold bg-amber-500/10 px-2 py-0.5 rounded-full uppercase border border-amber-500/10 tracking-widest">
@@ -1172,9 +1293,17 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                     type="text"
                     value={promoCodeInput}
                     onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
-                    className="flex-1 p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-xs font-bold transition-all uppercase placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                    className="flex-1 p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-xs font-bold transition-all uppercase placeholder:text-slate-400 dark:placeholder:text-slate-500 min-w-0"
                     placeholder="Enter Promo Code"
                   />
+                  <button
+                    type="button"
+                    onClick={() => openQRScanner('voucher')}
+                    className="p-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-2xl flex items-center justify-center transition-all active:scale-95 shrink-0"
+                    title="Scan Voucher QR with Camera"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
                   <button
                     onClick={() => {
                       if (!promoCodeInput) return;
@@ -1533,16 +1662,36 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                 
                 {(mode === 'kiosk' || mode === 'pos') && (
                   <div className="space-y-2 mt-4 pt-4 border-t border-black/5 dark:border-white/5">
-                    <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1 flex items-center gap-1.5">
-                      <Sparkles className="w-3 h-3 text-amber-500" /> Account ID <span className="text-slate-400 font-bold lowercase tracking-normal">(Optional for points)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={accountId}
-                      onChange={(e) => setAccountId(e.target.value)}
-                      className="w-full p-4 border-2 border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-black transition-all bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 hover:border-black/20 dark:hover:border-white/20"
-                      placeholder="Enter ID / Scan QR"
-                    />
+                    <div className="flex items-center justify-between ml-1">
+                      <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] flex items-center gap-1.5">
+                        <UserIcon className="w-3 h-3 text-amber-500" /> Account ID <span className="text-slate-400 font-bold lowercase tracking-normal">(Optional for points)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => openQRScanner('account_id')}
+                        className="text-[10px] font-black text-amber-500 uppercase tracking-wider flex items-center gap-1 hover:underline"
+                      >
+                        <Camera className="w-3.5 h-3.5" /> Scan Member QR
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={accountId}
+                        onChange={(e) => setAccountId(e.target.value)}
+                        className="flex-1 p-4 border-2 border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-black transition-all bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 hover:border-black/20 dark:hover:border-white/20 min-w-0"
+                        placeholder="Enter ID / Scan Member QR"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => openQRScanner('account_id')}
+                        className="px-4 py-4 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-2xl flex items-center justify-center gap-2 font-black text-xs uppercase tracking-wider shrink-0 transition-all active:scale-95"
+                        title="Scan Member QR Code with Kiosk Camera"
+                      >
+                        <Camera className="w-4 h-4" />
+                        <span className="hidden sm:inline">Scan QR</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1826,14 +1975,25 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
               <div className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Enter Voucher Code or Scan QR text</label>
-                  <input
-                    type="text"
-                    value={personalVoucherInput}
-                    onChange={(e) => setPersonalVoucherInput(e.target.value.toUpperCase())}
-                    placeholder="e.g. VOUCHER-ABCD"
-                    className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl font-bold uppercase text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
-                    autoFocus
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={personalVoucherInput}
+                      onChange={(e) => setPersonalVoucherInput(e.target.value.toUpperCase())}
+                      placeholder="e.g. VOUCHER-ABCD"
+                      className="flex-1 p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl font-bold uppercase text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 min-w-0"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => openQRScanner('personal_voucher')}
+                      className="px-4 py-4 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-2xl flex items-center justify-center gap-2 font-black text-xs uppercase tracking-wider shrink-0 transition-all active:scale-95"
+                      title="Scan Personal Voucher QR with Kiosk Camera"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span className="hidden sm:inline">Camera</span>
+                    </button>
+                  </div>
                 </div>
 
                 <p className="text-xs text-slate-500 leading-relaxed">
@@ -1942,6 +2102,14 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
             </div>
           </div>
         )}
+
+        <QRScannerModal
+          isOpen={isScannerOpen}
+          onClose={() => setIsScannerOpen(false)}
+          onScan={handleQRScanResult}
+          title={scannerTitle}
+          description={scannerDescription}
+        />
     </div>
   );
 }

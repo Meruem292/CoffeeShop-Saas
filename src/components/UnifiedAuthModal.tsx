@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, User, X, Sparkles, Store } from 'lucide-react';
+import { Mail, Lock, User, X, Store } from 'lucide-react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useAuth } from '../lib/AuthContext';
@@ -77,7 +77,7 @@ export function UnifiedAuthModal({ onClose, onSuccess }: UnifiedAuthModalProps) 
 
         <div className="flex flex-col items-center mb-6">
           <div className="w-14 h-14 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center mb-4 border border-amber-500/20">
-            <Sparkles className="w-7 h-7" />
+            <Store className="w-7 h-7" />
           </div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white text-center uppercase italic tracking-tighter">
             {isSignUp ? 'Create' : 'Account'} <span className="text-amber-500">Login</span>

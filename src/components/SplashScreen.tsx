@@ -1,5 +1,5 @@
 import React from 'react';
-import { Coffee, ArrowRight, Instagram, Facebook, Twitter, ChefHat, CheckCircle2, ShieldCheck, Zap, Star, Heart } from 'lucide-react';
+import { Coffee, ArrowRight, Instagram, Facebook, Twitter, ChefHat, CheckCircle2, ShieldCheck, Zap, Award, Heart } from 'lucide-react';
 import { SplashScreen as SplashScreenType, ShopSettings, Order } from '../types';
 
 declare module 'react' {
@@ -171,7 +171,7 @@ export function SplashScreen({ data, shopSettings, orders, onStart }: SplashScre
         <div className="max-w-[1400px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <FeatureCard icon={Coffee} title="Premium Quality" desc="Finest beans, expertly roasted for perfection." />
           <FeatureCard icon={Zap} title="Fast & Fresh" desc="Quick service with uncompromised quality." />
-          <FeatureCard icon={Star} title="Loyalty Rewards" desc="Earn points and enjoy exclusive benefits." />
+          <FeatureCard icon={Award} title="Loyalty Rewards" desc="Earn points and enjoy exclusive benefits." />
           <FeatureCard icon={Heart} title="Made with Love" desc="Every cup is crafted with passion." />
         </div>
       </footer>

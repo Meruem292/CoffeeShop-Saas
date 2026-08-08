@@ -1,4 +1,4 @@
-export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'admin-vouchers' | 'admin-customers' | 'settings' | 'cashier' | 'reports' | 'profile';
+export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'admin-vouchers' | 'admin-customers' | 'settings' | 'cashier' | 'reports' | 'profile' | 'order-history' | 'rewards-store';
 export type Category = 'Hot Coffee' | 'Cold Coffee' | 'Tea' | 'Food';
 
 export interface UserProfile {
