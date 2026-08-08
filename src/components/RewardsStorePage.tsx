@@ -45,24 +45,24 @@ export function RewardsStorePage({
 
         {/* Sub-Nav Controls */}
         {onNavigate && (
-          <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 p-1 rounded-2xl border border-black/10 dark:border-white/10 w-full sm:w-auto justify-stretch sm:justify-start">
+          <div className="flex items-center gap-1 sm:gap-1.5 bg-black/5 dark:bg-white/5 p-1 rounded-2xl border border-black/10 dark:border-white/10 w-full sm:w-auto justify-stretch sm:justify-start">
             <button
               onClick={() => onNavigate('profile')}
-              className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1.5"
+              className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1 sm:gap-1.5 shrink-0"
             >
-              <User className="w-3.5 h-3.5" /> Profile
+              <User className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Profile
             </button>
             <button
               onClick={() => onNavigate('order-history')}
-              className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1.5"
+              className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1 sm:gap-1.5 shrink-0"
             >
-              <ShoppingBag className="w-3.5 h-3.5" /> Orders
+              <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Orders
             </button>
             <button
               onClick={() => onNavigate('rewards-store')}
-              className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider bg-amber-500 text-slate-900 shadow-md transition-all flex items-center justify-center gap-1.5"
+              className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider bg-amber-500 text-slate-900 shadow-md transition-all flex items-center justify-center gap-1 sm:gap-1.5 shrink-0"
             >
-              <Tag className="w-3.5 h-3.5" /> Rewards
+              <Tag className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Rewards
             </button>
           </div>
         )}
@@ -109,7 +109,15 @@ export function RewardsStorePage({
             {userClaimedVouchers.map((cv, idx) => (
               <div key={cv.id || idx} className="p-4 sm:p-5 bg-white dark:bg-[#0a0a0c] rounded-3xl border-2 border-amber-500/30 shadow-md flex flex-col xs:flex-row items-center xs:items-start gap-4 relative overflow-hidden group">
                 <div className="bg-white p-2 rounded-2xl shadow-sm shrink-0 border border-black/10">
-                  <QRCodeSVG value={cv.code} size={72} />
+                  <QRCodeSVG 
+                    value={JSON.stringify({ 
+                      type: 'claimed_voucher', 
+                      code: cv.code, 
+                      userId: cv.userId, 
+                      claimedVoucherId: cv.id || '' 
+                    })} 
+                    size={72} 
+                  />
                 </div>
                 <div className="flex-1 min-w-0 text-center xs:text-left w-full">
                   <div className="flex items-center justify-between gap-2 flex-wrap">

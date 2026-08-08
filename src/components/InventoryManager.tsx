@@ -55,7 +55,7 @@ export function InventoryManager({ products, onUpdateStock }: InventoryManagerPr
 
         <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl rounded-[2.5rem] shadow-2xl border border-black/10 dark:border-white/10 overflow-hidden">
           <div className="overflow-x-auto scrollbar-hide">
-            <table className="w-full text-left border-collapse min-w-[280px] sm:min-w-[500px]">
+            <table className="w-full text-left border-collapse min-w-[550px]">
               <thead>
                 <tr className="bg-black/10 dark:bg-white/10 text-slate-500 dark:text-white/40 uppercase text-[10px] font-black tracking-[0.2em]">
                   <th className="p-6">Item & Control</th>

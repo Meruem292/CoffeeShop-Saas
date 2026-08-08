@@ -717,11 +717,13 @@ export default function App() {
                 <div className="flex items-center justify-between p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-xs shrink-0">
-                      {user.email?.slice(0, 2).toUpperCase() || 'AD'}
+                      {(userProfile?.displayName || user.email)?.slice(0, 2).toUpperCase() || 'CU'}
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <span className="text-[11px] font-bold text-slate-900 dark:text-white truncate leading-none mb-1">{user.email}</span>
-                      <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest leading-none">Administrator</span>
+                      <span className="text-[11px] font-bold text-slate-900 dark:text-white truncate leading-none mb-1">{userProfile?.displayName || user.email}</span>
+                      <span className={`text-[8px] font-black uppercase tracking-widest leading-none ${isAdmin ? 'text-amber-500' : 'text-slate-400 dark:text-slate-400'}`}>
+                        {isAdmin ? 'Administrator' : 'Customer Account'}
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -750,11 +752,11 @@ export default function App() {
         {/* Main Content Workspace Panel */}
         <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-20 min-w-0">
           
-          {/* Customer Earned Points Corner Badge */}
+          {/* Customer Earned Points Corner Badge - Desktop Floating */}
           {user && !isAdmin && !isKioskModeActive && (
             <button
               onClick={() => setCurrentView('profile')}
-              className="fixed top-4 right-4 z-[55] bg-slate-900/90 dark:bg-[#0b1329]/95 hover:bg-slate-950 text-amber-400 border border-amber-500/40 backdrop-blur-2xl px-3.5 py-2 rounded-2xl flex items-center gap-2.5 shadow-2xl transition-all active:scale-95 group"
+              className="hidden lg:flex fixed top-4 right-4 z-[55] bg-slate-900/90 dark:bg-[#0b1329]/95 hover:bg-slate-950 text-amber-400 border border-amber-500/40 backdrop-blur-2xl px-3.5 py-2 rounded-2xl items-center gap-2.5 shadow-2xl transition-all active:scale-95 group"
               title="Click to view Points Balance & Purchase History"
             >
               <div className="w-6 h-6 rounded-xl bg-amber-500 text-slate-900 font-black text-xs flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
@@ -769,11 +771,11 @@ export default function App() {
 
           {/* Top Bar - Mobile View Only (lg and below) */}
           {!isKioskModeActive && !(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
-            <header className="lg:hidden flex items-center justify-between px-6 py-4 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-b border-black/10 dark:border-white/5 shrink-0 relative z-20">
-              <div className="flex items-center gap-3 min-w-0">
+            <header className="lg:hidden flex items-center justify-between px-3.5 sm:px-6 py-3 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-b border-black/10 dark:border-white/5 shrink-0 relative z-20 gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <button 
                   onClick={() => setIsMobileMenuOpen(true)}
-                  className="w-10 h-10 bg-black/5 dark:bg-white/5 rounded-xl border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95 shrink-0"
+                  className="w-9 h-9 bg-black/5 dark:bg-white/5 rounded-xl border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95 shrink-0"
                 >
                   <Menu className="w-5 h-5" />
                 </button>
@@ -788,18 +790,37 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Top Header Download App Button */}
-              <button
-                onClick={handleInstallApp}
-                className="relative group overflow-hidden px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-500/20 border border-amber-500/40 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] active:scale-95 transition-all duration-300 flex items-center gap-2 backdrop-blur-md"
-              >
-                <div className="w-6 h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 group-hover:scale-110 transition-transform">
-                  <Download className="w-3.5 h-3.5 text-slate-950 group-hover:translate-y-0.5 transition-transform" />
-                </div>
-                <span className="text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 group-hover:text-amber-500 transition-colors leading-none pr-0.5">
-                  Install App
-                </span>
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Customer Earned Points Badge inside Mobile Header */}
+                {user && !isAdmin && (
+                  <button
+                    onClick={() => setCurrentView('profile')}
+                    className="bg-slate-900/90 dark:bg-[#0b1329]/95 hover:bg-slate-950 text-amber-400 border border-amber-500/40 backdrop-blur-2xl px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-md transition-all active:scale-95 group shrink-0"
+                    title="Click to view Points Balance & Purchase History"
+                  >
+                    <div className="w-5 h-5 rounded-lg bg-amber-500 text-slate-900 font-black text-xs flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform shrink-0">
+                      <Coins className="w-3 h-3 fill-slate-900 text-slate-900" />
+                    </div>
+                    <div className="flex flex-col items-start leading-none pr-0.5">
+                      <span className="text-[7px] font-black uppercase tracking-wider text-slate-400 hidden sm:inline">Points</span>
+                      <span className="text-[11px] font-black tracking-tight text-white">{totalCustomerPoints.toLocaleString()} Pts</span>
+                    </div>
+                  </button>
+                )}
+
+                {/* Top Header Download App Button */}
+                <button
+                  onClick={handleInstallApp}
+                  className="relative group overflow-hidden px-2.5 sm:px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-500/20 border border-amber-500/40 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] active:scale-95 transition-all duration-300 flex items-center gap-1.5 backdrop-blur-md shrink-0"
+                >
+                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 group-hover:scale-110 transition-transform shrink-0">
+                    <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-950 group-hover:translate-y-0.5 transition-transform" />
+                  </div>
+                  <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 group-hover:text-amber-500 transition-colors leading-none pr-0.5 hidden xs:inline">
+                    Install App
+                  </span>
+                </button>
+              </div>
             </header>
           )}
 
@@ -902,10 +923,15 @@ export default function App() {
                   {user ? (
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-3 p-2 rounded-lg bg-black/5 dark:bg-white/5">
-                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-[10px]">
-                          AD
+                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-[10px] shrink-0">
+                          {(userProfile?.displayName || user.email)?.slice(0, 2).toUpperCase() || 'CU'}
                         </div>
-                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate flex-1">{user.email}</span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate">{userProfile?.displayName || user.email}</span>
+                          <span className={`text-[8px] font-black uppercase tracking-widest leading-none mt-0.5 ${isAdmin ? 'text-amber-500' : 'text-slate-400'}`}>
+                            {isAdmin ? 'Administrator' : 'Customer Account'}
+                          </span>
+                        </div>
                       </div>
                       <button 
                         onClick={() => {

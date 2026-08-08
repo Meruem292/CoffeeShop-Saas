@@ -460,18 +460,128 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
               className="bg-transparent border-none outline-none text-xs sm:text-sm w-full font-black text-slate-900 dark:text-white placeholder:text-white/10 uppercase tracking-tight"
             />
           </div>
-          <div className="overflow-x-auto scrollbar-hide">
-            <table className="w-full text-left border-collapse min-w-0">
+          {/* Mobile Collapsible List View (sm:hidden) */}
+          <div className="sm:hidden divide-y divide-black/10 dark:divide-white/5">
+            {filteredOrders.map((order) => {
+              const isExpanded = expandedOrderId === order.id;
+              return (
+                <div key={order.id} className="p-3.5 space-y-2.5">
+                  {/* Header summary row - clickable */}
+                  <div 
+                    onClick={() => setExpandedOrderId(isExpanded ? null : (order.id || null))}
+                    className="flex items-center justify-between cursor-pointer gap-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {isExpanded ? <ChevronDown className="w-4 h-4 text-amber-500 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-black text-slate-900 dark:text-white uppercase truncate">
+                          {order.customerName || 'Walk-in Customer'}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+                          <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${
+                        order.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 
+                        order.status === 'unpaid' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
+                        order.status === 'cancelled' ? 'bg-slate-500/10 text-slate-400 border border-slate-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                      }`}>
+                        {order.status}
+                      </span>
+                      <div className="text-xs font-black text-slate-900 dark:text-white">
+                        ₱{order.total.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick summary badges */}
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400 pt-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-md ${order.orderType === 'dine-in' ? 'bg-blue-500/10 text-blue-400' : 'bg-orange-500/10 text-orange-400'}`}>
+                        {order.orderType}
+                      </span>
+                      <span className="bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-md">
+                        {order.source}
+                      </span>
+                      <span className="bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-md">
+                        {order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)} Qty
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOrderToDelete(order.id || null);
+                      }}
+                      className="p-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-lg transition-all"
+                      title="Delete Transaction"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Collapsible Details */}
+                  {isExpanded && (
+                    <div className="pt-2 border-t border-black/10 dark:border-white/5 space-y-2 animate-in fade-in duration-200">
+                      <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                        Itemized Breakdown (ID: {order.id || 'N/A'})
+                      </div>
+                      <div className="space-y-2">
+                        {order.items.map((item, idx) => (
+                          <div key={idx} className="p-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-xs space-y-1">
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="font-bold text-slate-900 dark:text-white">
+                                <span className="text-amber-500 font-black mr-1">{item.quantity || 1}x</span>
+                                {item.name}
+                              </span>
+                              <span className="font-black text-slate-900 dark:text-white shrink-0">
+                                ₱{((item.selectedSize ? item.selectedSize.price : item.price) + (item.selectedAddons ? item.selectedAddons.reduce((s, a) => s + a.price, 0) : 0)) * (item.quantity || 1)}
+                              </span>
+                            </div>
+                            {(item.selectedSize || item.sugarLevel || (item.selectedAddons && item.selectedAddons.length > 0)) && (
+                              <div className="flex flex-wrap gap-1 text-[9px] font-bold">
+                                {item.selectedSize && <span className="bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">Size: {item.selectedSize.name}</span>}
+                                {item.sugarLevel && <span className="bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded">Sugar: {item.sugarLevel}</span>}
+                                {item.selectedAddons && item.selectedAddons.length > 0 && (
+                                  <span className="bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded">
+                                    + {item.selectedAddons.map(a => a.name).join(', ')}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {filteredOrders.length === 0 && (
+              <div className="p-8 text-center text-slate-400 font-bold text-xs uppercase">
+                No transactions found
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table View (hidden sm:block) */}
+          <div className="hidden sm:block overflow-x-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-black/10 dark:bg-white/10 text-slate-500 dark:text-white/40 uppercase text-[10px] font-black tracking-[0.2em]">
-                  <th className="p-3 sm:p-6">Date & Time</th>
-                  <th className="p-3 sm:p-6">Customer</th>
-                  <th className="hidden sm:table-cell p-3 sm:p-6 text-center">Type</th>
-                  <th className="hidden md:table-cell p-3 sm:p-6 text-center">Source</th>
-                  <th className="p-3 sm:p-6 text-center">Qty</th>
-                  <th className="p-3 sm:p-6 text-center whitespace-nowrap">Status</th>
-                  <th className="hidden sm:table-cell p-3 sm:p-6 text-right">Total</th>
-                  <th className="p-3 sm:p-6 text-center">Action</th>
+                  <th className="p-3 sm:p-5">Date & Time</th>
+                  <th className="p-3 sm:p-5">Customer</th>
+                  <th className="p-3 sm:p-5 text-center">Type</th>
+                  <th className="p-3 sm:p-5 text-center">Source</th>
+                  <th className="p-3 sm:p-5 text-center">Qty</th>
+                  <th className="p-3 sm:p-5 text-center whitespace-nowrap">Status</th>
+                  <th className="p-3 sm:p-5 text-right">Total</th>
+                  <th className="p-3 sm:p-5 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/10 dark:divide-white/5">
@@ -483,36 +593,33 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                         onClick={() => setExpandedOrderId(isExpanded ? null : (order.id || null))}
                         className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors group cursor-pointer"
                       >
-                        <td className="p-3 sm:p-6">
+                        <td className="p-3 sm:p-5 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             {isExpanded ? <ChevronDown className="w-4 h-4 text-amber-500 shrink-0" /> : <ChevronRight className="w-4 h-4 text-white/30 shrink-0" />}
                             <div>
                               <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors">{new Date(order.createdAt).toLocaleDateString()}</div>
-                              <div className="text-[10px] text-white/20 font-bold uppercase tracking-widest mt-1 opacity-50">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                              <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-0.5 opacity-70">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="p-3 sm:p-6">
-                          <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors break-words line-clamp-2 max-w-[80px] xs:max-w-[120px] sm:max-w-none">{order.customerName}</div>
-                          <div className="flex items-center gap-2 flex-wrap mt-1">
-                            <div className="sm:hidden text-[9px] font-black text-slate-900 dark:text-white bg-black/10 dark:bg-white/10 px-2 py-0.5 rounded-full border border-black/10 dark:border-white/10 uppercase tracking-widest">₱{order.total.toLocaleString()}</div>
-                          </div>
+                        <td className="p-3 sm:p-5">
+                          <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors break-words max-w-[120px] sm:max-w-none">{order.customerName}</div>
                         </td>
-                        <td className="hidden sm:table-cell p-3 sm:p-6 text-center">
-                          <span className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${order.orderType === 'dine-in' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'}`}>
+                        <td className="p-3 sm:p-5 text-center">
+                          <span className={`text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${order.orderType === 'dine-in' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'}`}>
                             {order.orderType}
                           </span>
                         </td>
-                        <td className="hidden md:table-cell p-3 sm:p-6 text-center">
-                          <span className="text-[10px] font-black text-white/30 uppercase tracking-widest whitespace-nowrap opacity-50">{order.source}</span>
+                        <td className="p-3 sm:p-5 text-center">
+                          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest whitespace-nowrap opacity-70">{order.source}</span>
                         </td>
-                        <td className="p-3 sm:p-6 text-center">
+                        <td className="p-3 sm:p-5 text-center">
                           <span className="text-xs font-black text-slate-900 dark:text-white bg-black/10 dark:bg-white/10 px-2.5 py-1 rounded-full border border-black/10 dark:border-white/10">
                             {order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}
                           </span>
                         </td>
-                        <td className="p-3 sm:p-6 text-center">
-                          <span className={`text-[9px] px-3 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${
+                        <td className="p-3 sm:p-5 text-center">
+                          <span className={`text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${
                             order.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 
                             order.status === 'unpaid' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
                             order.status === 'cancelled' ? 'bg-slate-500/10 text-slate-400 border border-slate-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
@@ -520,10 +627,10 @@ export function TransactionReports({ orders, onDeleteOrder, onClearOrders }: Tra
                             {order.status}
                           </span>
                         </td>
-                        <td className="hidden sm:table-cell p-3 sm:p-6 text-right">
+                        <td className="p-3 sm:p-5 text-right">
                           <div className="text-sm font-black text-slate-900 dark:text-white whitespace-nowrap">₱{order.total.toLocaleString()}</div>
                         </td>
-                        <td className="p-3 sm:p-6 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <td className="p-3 sm:p-5 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => setOrderToDelete(order.id || null)}
                             className="p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl transition-all hover:scale-105 active:scale-95"

@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera } from 'lucide-react';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
@@ -92,6 +92,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'best-seller' | 'alphabetical' | 'price-asc' | 'price-desc'>('best-seller');
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
+  const [accountId, setAccountId] = useState('');
   
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
@@ -129,52 +130,34 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   }, [appliedVoucher, menu]);
 
   const handleLookupPersonalVoucher = async () => {
-    const code = personalVoucherInput.trim().toUpperCase();
-    if (!code) return;
-
-    try {
-      const foundAdmin = vouchers.find(v => v.code === code && v.isActive);
-      if (foundAdmin) {
-        if (foundAdmin.minSpend && subtotal < foundAdmin.minSpend) {
-          toast.error(`Minimum spend of ₱${foundAdmin.minSpend} required`);
-          return;
-        }
-        setAppliedVoucher(foundAdmin);
-        setShowPersonalVoucherModal(false);
-        setPersonalVoucherInput('');
-        toast.success(`Voucher "${foundAdmin.code}" applied!`);
-        return;
-      }
-
-      const q = query(collection(db, 'claimed_vouchers'), where('code', '==', code));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        const cvData = snap.docs[0].data();
-        const vObj: Voucher = {
-          id: cvData.voucherId || snap.docs[0].id,
-          code: cvData.code,
-          type: cvData.type,
-          value: cvData.value,
-          minSpend: cvData.minSpend || 0,
-          isActive: true
-        };
-        if (vObj.minSpend && subtotal < vObj.minSpend) {
-          toast.error(`Minimum spend of ₱${vObj.minSpend} required`);
-          return;
-        }
-        setAppliedVoucher(vObj);
-        setShowPersonalVoucherModal(false);
-        setPersonalVoucherInput('');
-        toast.success(`Personal voucher "${vObj.code}" activated & applied!`);
-        return;
-      }
-
-      toast.error('Voucher code or Member QR not found');
-    } catch (e) {
-      console.error('Voucher lookup error:', e);
-      toast.error('Failed to verify voucher');
-    }
+    if (!personalVoucherInput.trim()) return;
+    await applyVoucherCode(personalVoucherInput);
   };
+
+  const [scannedAccountProfile, setScannedAccountProfile] = useState<UserProfile | null>(null);
+
+  // Real-time listener for scanned account profile in kiosk or POS mode
+  React.useEffect(() => {
+    const cleanId = accountId.trim();
+    if (!cleanId) {
+      setScannedAccountProfile(null);
+      return;
+    }
+
+    const profileRef = doc(db, 'profiles', cleanId);
+    const unsubscribe = onSnapshot(profileRef, (snap) => {
+      if (snap.exists()) {
+        setScannedAccountProfile({ id: snap.id, ...snap.data() } as unknown as UserProfile);
+      } else {
+        setScannedAccountProfile(null);
+      }
+    }, (err) => {
+      console.warn('Error listening to scanned customer profile:', err);
+      setScannedAccountProfile(null);
+    });
+
+    return () => unsubscribe();
+  }, [accountId]);
 
   // Real-time listener for the logged-in customer's orders to calculate favorites (only in mobile mode)
   React.useEffect(() => {
@@ -198,14 +181,21 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     return () => unsubscribe();
   }, [user, mode]);
 
-  // Compute available points (only in mobile mode)
+  // Compute available points (works in mobile, kiosk, and pos modes)
   const availablePoints = useMemo(() => {
     if (mode === 'kiosk' || mode === 'pos') {
+      if (accountId.trim() && scannedAccountProfile && scannedAccountProfile.points !== undefined) {
+        return Number(scannedAccountProfile.points) || 0;
+      }
+      if (userProfile && userProfile.points !== undefined) {
+        return Number(userProfile.points) || 0;
+      }
       return 0;
     }
-    // Priority 1: Use centralized userProfile points if available
+
+    // Mobile mode
     if (userProfile && userProfile.points !== undefined) {
-      return userProfile.points;
+      return Number(userProfile.points) || 0;
     }
 
     if (!user || customerOrders.length === 0) return 0;
@@ -224,7 +214,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       .reduce((sum, o) => sum + (o.pointsSpent || 0), 0);
       
     return Math.max(0, totalEarned - totalSpent);
-  }, [customerOrders, user, shopSettings?.pointsEarnedPer100Pesos, userProfile, mode]);
+  }, [customerOrders, user, shopSettings?.pointsEarnedPer100Pesos, userProfile, mode, accountId, scannedAccountProfile]);
 
   // Compute customer's favorites: count item occurrences and sort descending
   const customerFavorites = useMemo(() => {
@@ -353,7 +343,6 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   };
 
   const [customerName, setCustomerName] = useState('');
-  const [accountId, setAccountId] = useState('');
   const [orderType, setOrderType] = useState<'dine-in' | 'take-away' | null>('take-away');
   const [paymentMethod, setPaymentMethod] = useState<'counter' | 'gcash'>('counter');
   const [checkoutStep, setCheckoutStep] = useState<number>(1);
@@ -386,101 +375,152 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     setIsScannerOpen(true);
   };
 
+  const applyVoucherCode = async (inputCode: string, scannedUserIdFromQR?: string) => {
+    let cleanCode = inputCode.trim();
+    let userIdToLink = scannedUserIdFromQR || null;
+    let explicitClaimedId: string | null = null;
+
+    try {
+      const parsed = JSON.parse(cleanCode);
+      if (parsed.code) cleanCode = parsed.code;
+      if (parsed.userId) userIdToLink = parsed.userId;
+      if (parsed.uid) userIdToLink = parsed.uid;
+      if (parsed.claimedVoucherId || parsed.id) explicitClaimedId = parsed.claimedVoucherId || parsed.id;
+    } catch (e) {
+      // plain text string
+    }
+
+    const code = cleanCode.toUpperCase();
+    if (!code) return;
+
+    // Check if Member Pass QR code was scanned into voucher field
+    if (code.length > 20 && !explicitClaimedId && !code.startsWith('VOUCHER') && !code.startsWith('PROMO')) {
+      setAccountId(code);
+      toast.success(`Member Account ID linked: ${code}`);
+      return;
+    }
+
+    // 1. Check in claimed_vouchers collection in Firestore
+    try {
+      const q = explicitClaimedId 
+        ? query(collection(db, 'claimed_vouchers'), where('id', '==', explicitClaimedId))
+        : query(collection(db, 'claimed_vouchers'), where('code', '==', code));
+      
+      let snap = await getDocs(q);
+      if (snap.empty && explicitClaimedId) {
+        const qCode = query(collection(db, 'claimed_vouchers'), where('code', '==', code));
+        snap = await getDocs(qCode);
+      }
+
+      if (!snap.empty) {
+        const cvDoc = snap.docs[0];
+        const cvData = cvDoc.data() as ClaimedVoucher;
+
+        if (cvData.isUsed) {
+          toast.error('This claimed voucher has already been used!');
+          return;
+        }
+
+        const ownerUserId = cvData.userId || userIdToLink;
+        if (ownerUserId) {
+          setAccountId(ownerUserId);
+        }
+
+        const vObj: Voucher = {
+          id: cvDoc.id,
+          code: cvData.code,
+          type: cvData.type || 'percentage',
+          value: cvData.value || 10,
+          minSpend: cvData.minSpend || 0,
+          pointsCost: 0, // Already claimed & paid with points!
+          buyQuantity: cvData.buyQuantity,
+          getQuantity: cvData.getQuantity,
+          buyCategoryOrName: cvData.buyCategoryOrName,
+          getCategoryOrName: cvData.getCategoryOrName,
+          isActive: true,
+          isPurchased: true as any
+        };
+
+        if (vObj.minSpend && subtotal < vObj.minSpend) {
+          toast.error(`Minimum spend of ₱${vObj.minSpend} required`);
+          return;
+        }
+
+        setAppliedVoucher(vObj);
+        setPromoCodeInput('');
+        setPersonalVoucherInput('');
+        setShowPersonalVoucherModal(false);
+        toast.success(`Personal claimed voucher "${vObj.code}" applied! Customer account linked.`);
+        return;
+      }
+    } catch (err) {
+      console.error('Error verifying claimed voucher:', err);
+    }
+
+    // 2. Check store vouchers
+    const isCustomerMode = mode === 'kiosk' || mode === 'mobile';
+    const found = vouchers?.find(v => v.code === code && v.isActive && (isCustomerMode ? !v.isAdminOnly : true));
+
+    if (found) {
+      if (found.minSpend && subtotal < found.minSpend) {
+        toast.error(`Minimum spend of ₱${found.minSpend} required`);
+        return;
+      }
+
+      if (found.usageLimit && (found.usedCount || 0) >= found.usageLimit) {
+        toast.error('Voucher usage limit reached');
+        return;
+      }
+
+      if (found.pointsCost && found.pointsCost > 0) {
+        if (userIdToLink && !accountId) {
+          setAccountId(userIdToLink);
+        }
+
+        if (found.pointsCost > availablePoints) {
+          toast.error(`Not enough points for customer account. Has ${availablePoints} Pts, needs ${found.pointsCost} Pts.`);
+          return;
+        }
+      }
+
+      if (userIdToLink && !accountId) {
+        setAccountId(userIdToLink);
+      }
+
+      setAppliedVoucher(found);
+      setPromoCodeInput('');
+      setPersonalVoucherInput('');
+      setShowPersonalVoucherModal(false);
+      toast.success(`Voucher "${found.code}" applied!`);
+      return;
+    }
+
+    toast.error(`Scanned code "${code}" is invalid, inactive, or not found`);
+  };
+
   const handleQRScanResult = async (scannedText: string) => {
     let cleanText = scannedText.trim();
+    let scannedUserId: string | null = null;
     try {
       const parsed = JSON.parse(cleanText);
+      if (parsed.uid) scannedUserId = parsed.uid;
+      if (parsed.userId) scannedUserId = parsed.userId;
       if (parsed.code) cleanText = parsed.code;
       else if (parsed.uid) cleanText = parsed.uid;
-      else if (parsed.id) cleanText = parsed.id;
     } catch (e) {
       // plain text
     }
-    cleanText = cleanText.trim();
 
-    if (scannerTarget === 'account_id') {
-      setAccountId(cleanText);
-      toast.success(`Account ID scanned: ${cleanText}`);
-    } else if (scannerTarget === 'personal_voucher') {
-      const code = cleanText.toUpperCase();
-      setPersonalVoucherInput(code);
-      const foundAdmin = vouchers.find(v => v.code === code && v.isActive);
-      if (foundAdmin) {
-        if (foundAdmin.minSpend && subtotal < foundAdmin.minSpend) {
-          toast.error(`Minimum spend of ₱${foundAdmin.minSpend} required`);
-          return;
-        }
-        setAppliedVoucher(foundAdmin);
-        setShowPersonalVoucherModal(false);
-        setPersonalVoucherInput('');
-        toast.success(`Voucher "${foundAdmin.code}" applied!`);
+    if (scannerTarget === 'account_id' || (scannedUserId && !cleanText.startsWith('VOUCHER') && !cleanText.startsWith('PROMO'))) {
+      if (scannerTarget === 'account_id') {
+        const targetId = scannedUserId || cleanText;
+        setAccountId(targetId);
+        toast.success(`Customer Member Account ID linked: ${targetId}`);
         return;
       }
-      try {
-        const q = query(collection(db, 'claimed_vouchers'), where('code', '==', code));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const cvData = snap.docs[0].data();
-          const vObj: Voucher = {
-            id: cvData.voucherId || snap.docs[0].id,
-            code: cvData.code,
-            type: cvData.type || 'percentage',
-            value: cvData.value || 10,
-            minSpend: cvData.minSpend || 0,
-            pointsCost: cvData.pointsCost || 0,
-            buyQuantity: cvData.buyQuantity,
-            getQuantity: cvData.getQuantity,
-            buyCategoryOrName: cvData.buyCategoryOrName,
-            getCategoryOrName: cvData.getCategoryOrName,
-            isActive: true,
-          };
-          if (vObj.minSpend && subtotal < vObj.minSpend) {
-            toast.error(`Minimum spend of ₱${vObj.minSpend} required`);
-            return;
-          }
-          setAppliedVoucher(vObj);
-          setShowPersonalVoucherModal(false);
-          setPersonalVoucherInput('');
-          toast.success(`Personal voucher "${vObj.code}" activated & applied!`);
-        } else {
-          toast.error('Voucher code or Member QR not found');
-        }
-      } catch (e) {
-        console.error('Voucher scan error:', e);
-        toast.error('Failed to verify scanned voucher');
-      }
-    } else if (scannerTarget === 'voucher') {
-      const code = cleanText.toUpperCase();
-      setPromoCodeInput(code);
-      const isCustomerMode = mode === 'kiosk' || mode === 'mobile';
-      const foundInClaimed = (mode === 'kiosk' || mode === 'pos') ? undefined : userClaimedVouchers.find(cv => cv.code === code && !cv.isUsed);
-      const found = foundInClaimed
-        ? { ...foundInClaimed, pointsCost: 0, isPurchased: true } as any
-        : vouchers?.find(v => v.code === code && v.isActive && (isCustomerMode ? !v.isAdminOnly : true));
-
-      if (found) {
-        if (found.minSpend && subtotal < found.minSpend) {
-          toast.error(`Minimum spend of ₱${found.minSpend} required`);
-          return;
-        }
-        const isPurchased = found.isPurchased;
-        if (!isPurchased) {
-          if (found.usageLimit && (found.usedCount || 0) >= found.usageLimit) {
-            toast.error('Voucher usage limit reached');
-            return;
-          }
-          if (found.pointsCost && found.pointsCost > availablePoints) {
-            toast.error(`Not enough points. Need ${found.pointsCost} Pts`);
-            return;
-          }
-        }
-        setAppliedVoucher(found);
-        setPromoCodeInput('');
-        toast.success(isPurchased ? `Purchased voucher "${found.code}" applied!` : `Voucher "${found.code}" applied!`);
-      } else {
-        toast.error(`Scanned code "${code}" is invalid or inactive`);
-      }
     }
+
+    await applyVoucherCode(scannedText, scannedUserId || undefined);
   };
 
   // Natural Back Button hooks for modals/drawers in OrderingScreen
@@ -994,38 +1034,38 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
             {/* Customer Favorites Section (Mobile Only when logged in) */}
             {mode === 'mobile' && user && customerFavorites.length > 0 && (
-              <div className="mb-6 p-4 bg-rose-500/5 dark:bg-rose-500/5 rounded-3xl border border-rose-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 max-h-[250px] overflow-hidden flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <Heart className="w-4 h-4 text-rose-500 fill-rose-500 animate-pulse" />
-                    <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+              <div className="mb-3 sm:mb-6 p-2.5 sm:p-4 bg-rose-500/5 dark:bg-rose-500/5 rounded-2xl sm:rounded-3xl border border-rose-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-1 sm:mb-1.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 fill-rose-500 animate-pulse shrink-0" />
+                    <h3 className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-1.5 sm:gap-2">
                       Your Favorites
-                      <span className="text-[8px] text-rose-500 font-extrabold bg-rose-500/10 px-2 py-0.5 rounded-full uppercase border border-rose-500/10 tracking-widest">
-                        Most Purchased Suggestion
+                      <span className="text-[7px] sm:text-[8px] text-rose-500 font-extrabold bg-rose-500/10 px-1.5 sm:px-2 py-0.5 rounded-full uppercase border border-rose-500/10 tracking-widest hidden xs:inline-block">
+                        Most Purchased
                       </span>
                     </h3>
                   </div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">
+                  <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">
                     Scroll →
                   </span>
                 </div>
 
-                <div className="flex gap-3 overflow-x-auto scrollbar-hide py-1 h-[160px] items-center">
+                <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide py-0.5 sm:py-1 items-center">
                   {customerFavorites.slice(0, 8).map(({ product, count }) => {
                     const cartCount = cart.filter(c => c.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
                     return (
                       <div
                         key={`fav-${product.id}`}
                         onClick={() => product.isActive !== false && handleProductClick(product)}
-                        className="shrink-0 w-64 h-[145px] bg-white dark:bg-[#0d121f] rounded-2xl border border-rose-500/30 p-2.5 flex gap-3 items-center cursor-pointer hover:border-rose-500 hover:shadow-md transition-all relative group"
+                        className="shrink-0 w-48 sm:w-64 h-[84px] sm:h-[145px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-rose-500/30 p-2 sm:p-2.5 flex gap-2 sm:gap-3 items-center cursor-pointer hover:border-rose-500 hover:shadow-md transition-all relative group"
                       >
-                        <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
+                        <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
                           <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                          <div className="absolute top-1 left-1 bg-rose-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow">
+                          <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-rose-500 text-white text-[7px] sm:text-[8px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-full shadow">
                             ❤️ {count}x
                           </div>
                           {cartCount > 0 && (
-                            <div className="absolute bottom-1 right-1 bg-amber-500 text-slate-900 text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center border border-white">
+                            <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 bg-amber-500 text-slate-900 text-[8px] sm:text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-white">
                               {cartCount}
                             </div>
                           )}
@@ -1033,13 +1073,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                         
                         <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
                           <div>
-                            <span className="text-[8px] font-extrabold uppercase text-rose-500 tracking-wider block">Most Ordered</span>
-                            <h4 className="text-xs font-black text-slate-900 dark:text-white truncate mt-0.5">{product.name}</h4>
-                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block">{product.category}</span>
+                            <span className="text-[7px] sm:text-[8px] font-extrabold uppercase text-rose-500 tracking-wider block leading-none mb-0.5">Most Ordered</span>
+                            <h4 className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white truncate leading-snug">{product.name}</h4>
+                            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 block truncate leading-none mt-0.5">{product.category}</span>
                           </div>
-                          <div className="flex items-center justify-between mt-auto">
-                            <span className="text-xs font-black text-amber-500 italic">₱{product.price}</span>
-                            <button className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors">
+                          <div className="flex items-center justify-between mt-auto pt-0.5">
+                            <span className="text-[11px] sm:text-xs font-black text-amber-500 italic">₱{product.price}</span>
+                            <button className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-md sm:rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-colors">
                               + Add
                             </button>
                           </div>
@@ -1053,38 +1093,38 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
             {/* Overall Best Sellers Section */}
             {((mode === 'kiosk' || mode === 'pos') || (mode === 'mobile' && overallBestSellers.length > 0)) && (
-              <div className="mb-6 p-4 bg-amber-500/5 dark:bg-amber-500/5 rounded-3xl border border-amber-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 max-h-[250px] overflow-hidden flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <Flame className="w-4 h-4 text-amber-500 fill-amber-500 animate-pulse" />
-                    <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+              <div className="mb-3 sm:mb-6 p-2.5 sm:p-4 bg-amber-500/5 dark:bg-amber-500/5 rounded-2xl sm:rounded-3xl border border-amber-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 flex flex-col justify-between">
+                <div className="flex items-center justify-between mb-1 sm:mb-1.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 fill-amber-500 animate-pulse shrink-0" />
+                    <h3 className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-1.5 sm:gap-2">
                       Overall Best Sellers
-                      <span className="text-[8px] text-amber-500 font-extrabold bg-amber-500/10 px-2 py-0.5 rounded-full uppercase border border-amber-500/10 tracking-widest">
+                      <span className="text-[7px] sm:text-[8px] text-amber-500 font-extrabold bg-amber-500/10 px-1.5 sm:px-2 py-0.5 rounded-full uppercase border border-amber-500/10 tracking-widest hidden xs:inline-block">
                         Store Favorites
                       </span>
                     </h3>
                   </div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">
+                  <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">
                     Scroll →
                   </span>
                 </div>
 
-                <div className="flex gap-3 overflow-x-auto scrollbar-hide py-1 h-[160px] items-center">
+                <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide py-0.5 sm:py-1 items-center">
                   {overallBestSellers.slice(0, 8).map(({ product, count }) => {
                     const cartCount = cart.filter(c => c.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
                     return (
                       <div
                         key={`best-${product.id}`}
                         onClick={() => product.isActive !== false && handleProductClick(product)}
-                        className="shrink-0 w-64 h-[145px] bg-white dark:bg-[#0d121f] rounded-2xl border border-amber-500/30 p-2.5 flex gap-3 items-center cursor-pointer hover:border-amber-500 hover:shadow-md transition-all relative group"
+                        className="shrink-0 w-48 sm:w-64 h-[84px] sm:h-[145px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-amber-500/30 p-2 sm:p-2.5 flex gap-2 sm:gap-3 items-center cursor-pointer hover:border-amber-500 hover:shadow-md transition-all relative group"
                       >
-                        <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
+                        <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
                           <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                          <div className="absolute top-1 left-1 bg-amber-500 text-slate-950 text-[8px] font-black px-1.5 py-0.5 rounded-full shadow">
+                          <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-amber-500 text-slate-950 text-[7px] sm:text-[8px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-full shadow">
                             🔥 {count} sold
                           </div>
                           {cartCount > 0 && (
-                            <div className="absolute bottom-1 right-1 bg-amber-500 text-slate-900 text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center border border-white">
+                            <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 bg-amber-500 text-slate-900 text-[8px] sm:text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-white">
                               {cartCount}
                             </div>
                           )}
@@ -1092,13 +1132,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                         
                         <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
                           <div>
-                            <span className="text-[8px] font-extrabold uppercase text-amber-500 tracking-wider block">Best Seller</span>
-                            <h4 className="text-xs font-black text-slate-900 dark:text-white truncate mt-0.5">{product.name}</h4>
-                            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block">{product.category}</span>
+                            <span className="text-[7px] sm:text-[8px] font-extrabold uppercase text-amber-500 tracking-wider block leading-none mb-0.5">Best Seller</span>
+                            <h4 className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white truncate leading-snug">{product.name}</h4>
+                            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 block truncate leading-none mt-0.5">{product.category}</span>
                           </div>
-                          <div className="flex items-center justify-between mt-auto">
-                            <span className="text-xs font-black text-amber-500 italic">₱{product.price}</span>
-                            <button className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500 text-amber-600 hover:text-slate-950 rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors">
+                          <div className="flex items-center justify-between mt-auto pt-0.5">
+                            <span className="text-[11px] sm:text-xs font-black text-amber-500 italic">₱{product.price}</span>
+                            <button className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-amber-500/10 hover:bg-amber-500 text-amber-600 hover:text-slate-950 rounded-md sm:rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-colors">
                               + Add
                             </button>
                           </div>
@@ -1305,35 +1345,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                     <Camera className="w-4 h-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
-                      if (!promoCodeInput) return;
-                      const isCustomerMode = mode === 'kiosk' || mode === 'mobile';
-                      const foundInClaimed = (mode === 'kiosk' || mode === 'pos') ? undefined : userClaimedVouchers.find(cv => cv.code === promoCodeInput && !cv.isUsed);
-                      const found = foundInClaimed 
-                        ? { ...foundInClaimed, pointsCost: 0, isPurchased: true } as any
-                        : vouchers?.find(v => v.code === promoCodeInput && v.isActive && (isCustomerMode ? !v.isAdminOnly : true));
-
-                      if (found) {
-                        if (found.minSpend && subtotal < found.minSpend) {
-                          toast.error(`Minimum spend of ₱${found.minSpend} required`);
-                          return;
-                        }
-                        const isPurchased = found.isPurchased;
-                        if (!isPurchased) {
-                          if (found.usageLimit && (found.usedCount || 0) >= found.usageLimit) {
-                            toast.error('Voucher usage limit reached');
-                            return;
-                          }
-                          if (found.pointsCost && found.pointsCost > availablePoints) {
-                            toast.error(`Not enough points. Need ${found.pointsCost} Pts`);
-                            return;
-                          }
-                        }
-                        setAppliedVoucher(found);
-                        setPromoCodeInput('');
-                        toast.success(isPurchased ? `Purchased voucher "${found.code}" applied!` : `Voucher "${found.code}" applied!`);
-                      } else {
-                        toast.error('Invalid, inactive, or already used promo code');
+                      if (promoCodeInput.trim()) {
+                        applyVoucherCode(promoCodeInput);
                       }
                     }}
                     className="px-4 py-3 bg-amber-500 text-slate-900 font-black uppercase text-[10px] tracking-widest hover:bg-amber-400 active:scale-95 transition-all shadow-md rounded-2xl"
@@ -1664,7 +1679,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                   <div className="space-y-2 mt-4 pt-4 border-t border-black/5 dark:border-white/5">
                     <div className="flex items-center justify-between ml-1">
                       <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] flex items-center gap-1.5">
-                        <UserIcon className="w-3 h-3 text-amber-500" /> Account ID <span className="text-slate-400 font-bold lowercase tracking-normal">(Optional for points)</span>
+                        <UserIcon className="w-3 h-3 text-amber-500" /> Account ID <span className="text-slate-400 font-bold lowercase tracking-normal">(Scan or enter for points)</span>
                       </label>
                       <button
                         type="button"
@@ -1692,6 +1707,34 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                         <span className="hidden sm:inline">Scan QR</span>
                       </button>
                     </div>
+
+                    {accountId && (
+                      <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 mt-2 animate-in fade-in">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 bg-amber-500 text-slate-900 font-black rounded-xl flex items-center justify-center text-xs shrink-0 shadow-sm">
+                            <Coins className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0 flex flex-col">
+                            <span className="text-[10px] font-black uppercase text-amber-500 tracking-wider truncate">
+                              {scannedAccountProfile?.displayName || scannedAccountProfile?.email || `Account Linked`}
+                            </span>
+                            <span className="text-xs font-black text-slate-900 dark:text-white tracking-tight">
+                              ⚡ {availablePoints} Loyalty Pts Available
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAccountId('');
+                            setScannedAccountProfile(null);
+                          }}
+                          className="px-2 py-1 bg-black/5 dark:bg-white/10 hover:bg-red-500/20 hover:text-red-500 text-slate-400 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors shrink-0"
+                        >
+                          Unlink
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

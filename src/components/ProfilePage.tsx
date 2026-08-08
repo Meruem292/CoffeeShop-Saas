@@ -108,24 +108,24 @@ export function ProfilePage({ user, userProfile, vouchers, userClaimedVouchers =
 
         {/* Navigation Switcher Pills */}
         {onNavigate && (
-          <div className="flex items-center gap-1.5 bg-black/5 dark:bg-white/5 p-1 rounded-2xl border border-black/10 dark:border-white/10 w-full sm:w-auto justify-stretch sm:justify-start">
+          <div className="flex items-center gap-1 sm:gap-1.5 bg-black/5 dark:bg-white/5 p-1 rounded-2xl border border-black/10 dark:border-white/10 w-full sm:w-auto justify-stretch sm:justify-start">
             <button
               onClick={() => onNavigate('profile')}
-              className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider bg-amber-500 text-slate-900 shadow-md transition-all flex items-center justify-center gap-1.5"
+              className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider bg-amber-500 text-slate-900 shadow-md transition-all flex items-center justify-center gap-1 sm:gap-1.5 shrink-0"
             >
-              <User className="w-3.5 h-3.5" /> Profile
+              <User className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Profile
             </button>
             <button
               onClick={() => onNavigate('order-history')}
-              className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1.5"
+              className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1 sm:gap-1.5 shrink-0"
             >
-              <ShoppingBag className="w-3.5 h-3.5" /> Orders ({orders.length})
+              <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Orders
             </button>
             <button
               onClick={() => onNavigate('rewards-store')}
-              className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1.5"
+              className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1 sm:gap-1.5 shrink-0"
             >
-              <Tag className="w-3.5 h-3.5" /> Rewards ({userClaimedVouchers.length})
+              <Tag className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Rewards
             </button>
           </div>
         )}
@@ -159,7 +159,15 @@ export function ProfilePage({ user, userProfile, vouchers, userClaimedVouchers =
           {/* Member QR Pass */}
           <div className="flex items-center gap-3.5 bg-slate-50 dark:bg-white/5 p-3 sm:p-4 rounded-2xl border border-black/5 dark:border-white/5 shrink-0 w-full lg:w-auto justify-center">
             <div className="bg-white p-2 rounded-xl shadow-sm shrink-0">
-              <QRCodeSVG value={user.uid} size={76} />
+              <QRCodeSVG 
+                value={JSON.stringify({ 
+                  type: 'member_pass', 
+                  uid: user.uid, 
+                  email: user.email, 
+                  name: user.displayName || '' 
+                })} 
+                size={76} 
+              />
             </div>
             <div className="flex flex-col text-left">
               <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 flex items-center gap-1">

@@ -718,7 +718,7 @@ export function AdminProducts({
 
             <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-black/10 dark:border-white/10 overflow-hidden mb-12">
               <div className="overflow-x-auto scrollbar-hide">
-                <table className="w-full text-left border-collapse min-w-0">
+                <table className="w-full text-left border-collapse min-w-[550px]">
                   <thead>
                     <tr className="bg-black/10 dark:bg-white/10 text-slate-500 dark:text-white/40 uppercase text-[10px] font-black tracking-[0.2em]">
                       <th className="p-3 sm:p-6">Product & Actions</th>
@@ -820,7 +820,7 @@ export function AdminProducts({
 
             <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-black/10 dark:border-white/10 overflow-hidden mb-12">
               <div className="overflow-x-auto scrollbar-hide">
-                <table className="w-full text-left border-collapse min-w-0">
+                <table className="w-full text-left border-collapse min-w-[500px]">
                   <thead>
                     <tr className="bg-amber-600/20 text-amber-500 uppercase text-[10px] font-black tracking-[0.2em]">
                       <th className="p-3 sm:p-6">Add-on & Actions</th>

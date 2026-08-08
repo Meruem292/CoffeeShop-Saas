@@ -118,6 +118,7 @@ export interface Voucher {
   getCategoryOrName?: string;
   isForSale?: boolean; // false = not for sale (for all / promo), true = can be bought with points
   isAdminOnly?: boolean; // true = only visible/usable by admin / cashier
+  isPurchased?: boolean;
 }
 
 export interface ClaimedVoucher {

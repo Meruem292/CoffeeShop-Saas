@@ -130,8 +130,8 @@ export function AdminCustomers({ profiles, onUpdateProfile }: AdminCustomersProp
 
       {/* Table Container */}
       <div className="bg-white dark:bg-[#0a0a0c] rounded-3xl border border-black/10 dark:border-white/5 shadow-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto scrollbar-hide">
+          <table className="w-full text-left border-collapse min-w-[650px]">
             <thead>
               <tr className="bg-slate-50/50 dark:bg-white/5">
                 <th className="px-6 py-4">
