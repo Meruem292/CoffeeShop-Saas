@@ -544,7 +544,7 @@ export default function App() {
       </div>
 
       <div className="flex-1 flex min-h-screen overflow-hidden relative z-10 w-full">
-        {isKioskModeActive && (
+        {isKioskModeActive && (isStarted || !splashScreen?.isActive) && (
           <div className="absolute top-4 right-4 z-[300]">
             <button
               onClick={() => setShowExitKioskModal(true)}
@@ -969,6 +969,8 @@ export default function App() {
               shopSettings={shopSettings}
               orders={orders}
               onStart={() => setIsStarted(true)} 
+              isKioskModeActive={isKioskModeActive}
+              onExitKiosk={() => setShowExitKioskModal(true)}
             />
           )}
           

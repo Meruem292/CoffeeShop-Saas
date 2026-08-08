@@ -623,15 +623,46 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                   </button>
                 </div>
                 {splashData.useGlb && (
-                  <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                    <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">3D Model File Path</label>
-                    <input 
-                      type="text" 
-                      value={splashData.glbUrl}
-                      onChange={e => setSplashData({ ...splashData, glbUrl: e.target.value })}
-                      className="w-full px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
-                      placeholder="e.g. /coffee.glb"
-                    />
+                  <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-2">
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] ml-1">3D Model File Path</label>
+                      <button
+                        type="button"
+                        onClick={() => setSplashData({ ...splashData, glbUrl: '/coffee_cup_with_plate.glb' })}
+                        className="text-[10px] font-black uppercase text-amber-500 hover:underline"
+                      >
+                        Reset Default
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={splashData.glbUrl || ''}
+                        onChange={e => setSplashData({ ...splashData, glbUrl: e.target.value })}
+                        className="flex-1 px-5 py-3.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                        placeholder="e.g. /coffee_cup_with_plate.glb"
+                      />
+                      <label className="px-4 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl cursor-pointer flex items-center justify-center shrink-0 transition-all">
+                        Upload .GLB
+                        <input 
+                          type="file" 
+                          accept=".glb,.gltf" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                if (typeof reader.result === 'string') {
+                                  setSplashData(prev => ({ ...prev, glbUrl: reader.result as string }));
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
                   </div>
                 )}
               </div>
