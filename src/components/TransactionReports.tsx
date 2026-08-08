@@ -1,12 +1,32 @@
 import React, { useState, useMemo } from 'react';
 import { Order } from '../types';
-import { Calendar, FileText, Download, Table as TableIcon, File as FileWord, Search, Filter, ArrowLeft, Trash2, X, AlertTriangle, ChevronDown, ChevronRight, BarChart3, TrendingUp } from 'lucide-react';
+import { 
+  Calendar, FileText, Download, Table as TableIcon, File as FileWord, Search, Filter, 
+  ArrowLeft, Trash2, X, AlertTriangle, ChevronDown, ChevronRight, BarChart3, TrendingUp,
+  PieChart as PieChartIcon, LineChart as LineChartIcon, Award, Clock, ShoppingBag, Zap, Layers, DollarSign, Activity, Flame
+} from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } from 'docx';
 import { saveAs } from 'file-saver';
-import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area, 
+  BarChart, 
+  Bar, 
+  LineChart, 
+  Line, 
+  PieChart, 
+  Pie, 
+  Cell, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  CartesianGrid, 
+  Legend 
+} from 'recharts';
 
 // Extend jsPDF with autotable types for TypeScript
 declare module 'jspdf' {
@@ -123,6 +143,114 @@ export function TransactionReports({ orders = [], onDeleteOrder, onClearOrders }
       });
     });
     return Object.values(map);
+  }, [filteredOrders]);
+
+  const avgOrderValue = useMemo(() => {
+    const validOrders = filteredOrders.filter(o => o.status !== 'cancelled');
+    if (validOrders.length === 0) return 0;
+    return Math.round(totalRevenue / validOrders.length);
+  }, [filteredOrders, totalRevenue]);
+
+  const topSellingItems = useMemo(() => {
+    const map: Record<string, { name: string; quantity: number; revenue: number }> = {};
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      order.items.forEach(item => {
+        const name = item.name || 'Unknown Item';
+        const qty = item.quantity || 1;
+        const itemPrice = item.selectedSize ? item.selectedSize.price : (item.price || 0);
+        const addonPrice = item.selectedAddons ? item.selectedAddons.reduce((acc, a) => acc + (a.price || 0), 0) : 0;
+        const totalItemCost = (itemPrice + addonPrice) * qty;
+
+        if (!map[name]) {
+          map[name] = { name, quantity: 0, revenue: 0 };
+        }
+        map[name].quantity += qty;
+        map[name].revenue += totalItemCost;
+      });
+    });
+    return Object.values(map)
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 7);
+  }, [filteredOrders]);
+
+  const orderTypePieData = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      const type = (order.orderType || 'dine-in').toUpperCase();
+      map[type] = (map[type] || 0) + 1;
+    });
+    const colors: Record<string, string> = {
+      'DINE-IN': '#3b82f6',
+      'TAKE-AWAY': '#f97316',
+      'DELIVERY': '#10b981',
+      'PICKUP': '#8b5cf6'
+    };
+    return Object.entries(map).map(([name, value]) => ({
+      name,
+      value,
+      color: colors[name] || '#f59e0b'
+    }));
+  }, [filteredOrders]);
+
+  const orderSourcePieData = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      const src = (order.source || 'pos').toUpperCase();
+      map[src] = (map[src] || 0) + 1;
+    });
+    const colors: Record<string, string> = {
+      'POS': '#06b6d4',
+      'KIOSK': '#f59e0b',
+      'ONLINE': '#ec4899',
+      'MOBILE': '#10b981'
+    };
+    return Object.entries(map).map(([name, value]) => ({
+      name,
+      value,
+      color: colors[name] || '#8b5cf6'
+    }));
+  }, [filteredOrders]);
+
+  const hourlyTrafficData = useMemo(() => {
+    const hours = Array.from({ length: 24 }, (_, i) => ({
+      hour: `${i.toString().padStart(2, '0')}:00`,
+      orders: 0,
+      revenue: 0
+    }));
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      const d = new Date(order.createdAt);
+      const h = d.getHours();
+      if (hours[h]) {
+        hours[h].orders += 1;
+        hours[h].revenue += order.total;
+      }
+    });
+    return hours.slice(6, 23);
+  }, [filteredOrders]);
+
+  const orderStatusPieData = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredOrders.forEach(order => {
+      const st = (order.status || 'pending').toUpperCase();
+      map[st] = (map[st] || 0) + 1;
+    });
+    const colors: Record<string, string> = {
+      'COMPLETED': '#22c55e',
+      'READY': '#3b82f6',
+      'PREPARING': '#f59e0b',
+      'PENDING': '#eab308',
+      'UNPAID': '#ef4444',
+      'CANCELLED': '#64748b'
+    };
+    return Object.entries(map).map(([name, value]) => ({
+      name,
+      value,
+      color: colors[name] || '#a855f7'
+    }));
   }, [filteredOrders]);
 
   const handleDeleteConfirm = async () => {
@@ -294,24 +422,50 @@ export function TransactionReports({ orders = [], onDeleteOrder, onClearOrders }
           </div>
         </header>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 md:mb-12">
-          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
-            <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-1.5 sm:mb-2 opacity-50">Launch Count</span>
+        {/* Summary Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5 mb-8 md:mb-12">
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest opacity-50">Total Launch Count</span>
+              <ShoppingBag className="w-4 h-4 text-amber-500/60" />
+            </div>
             <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{filteredOrders.length}</span>
           </div>
-          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
-            <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-1.5 sm:mb-2 opacity-50">Total Drinks Qty</span>
+
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest opacity-50">Avg Order Value</span>
+              <DollarSign className="w-4 h-4 text-indigo-400/60" />
+            </div>
+            <span className="text-2xl sm:text-3xl font-black text-indigo-500 dark:text-indigo-400">₱{avgOrderValue.toLocaleString()}</span>
+          </div>
+
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest opacity-50">Total Drinks Qty</span>
+              <Zap className="w-4 h-4 text-cyan-400/60" />
+            </div>
             <span className="text-2xl sm:text-3xl font-black text-cyan-500 dark:text-cyan-400">{totalDrinksQuantity}</span>
           </div>
-          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
-            <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-1.5 sm:mb-2 opacity-50">Total Pastry Qty</span>
+
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest opacity-50">Total Pastry Qty</span>
+              <Award className="w-4 h-4 text-amber-400/60" />
+            </div>
             <span className="text-2xl sm:text-3xl font-black text-amber-500 dark:text-amber-400">{totalPastryQuantity}</span>
           </div>
-          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
-            <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest mb-1.5 sm:mb-2 opacity-50">Total Fuel</span>
+
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest opacity-50">Total Revenue</span>
+              <TrendingUp className="w-4 h-4 text-emerald-400/60" />
+            </div>
             <span className="text-2xl sm:text-3xl font-black text-emerald-500">₱{totalRevenue.toLocaleString()}</span>
           </div>
         </div>
+
+        {/* Date and Category Filters */}
         <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4 mb-8">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="flex-1">
@@ -378,75 +532,294 @@ export function TransactionReports({ orders = [], onDeleteOrder, onClearOrders }
             </div>
           </div>
 
-        {/* Charts & Graphs Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 md:mb-12">
-          {/* Sales Trend Chart */}
-          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-amber-500" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Sales Trend (Revenue over Time)</h3>
-              </div>
-              <span className="text-[10px] font-bold text-amber-500/60 uppercase">₱ Revenue</span>
-            </div>
-            <div className="h-64 w-full">
-              {salesTrendData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={salesTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="date" stroke="#888888" fontSize={10} tickLine={false} />
-                    <YAxis stroke="#888888" fontSize={10} tickLine={false} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#09090b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px' }}
-                      formatter={(val: any) => [`₱${Number(val).toLocaleString()}`, 'Revenue']}
-                    />
-                    <Area type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
-                  No data available for selected filter
+        {/* Analytics Visual Charts Section */}
+        <div className="space-y-6 mb-8 md:mb-12">
+          
+          {/* Row 1: Line Graph (Sales & Volume Trend) + Bar Chart (Category Breakdown) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Dual Line & Area Chart for Revenue and Orders */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <LineChartIcon className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Revenue & Order Volume Trend</h3>
                 </div>
-              )}
+                <div className="flex items-center gap-3 text-[9px] font-bold uppercase">
+                  <span className="flex items-center gap-1 text-amber-500"><span className="w-2 h-2 rounded-full bg-amber-500" /> Revenue (₱)</span>
+                  <span className="flex items-center gap-1 text-indigo-400"><span className="w-2 h-2 rounded-full bg-indigo-400" /> Orders</span>
+                </div>
+              </div>
+              <div className="h-64 w-full">
+                {salesTrendData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={salesTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="date" stroke="#888888" fontSize={10} tickLine={false} />
+                      <YAxis yAxisId="left" stroke="#f59e0b" fontSize={10} tickLine={false} />
+                      <YAxis yAxisId="right" orientation="right" stroke="#818cf8" fontSize={10} tickLine={false} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any, name: any) => [
+                          name === 'revenue' ? `₱${Number(val).toLocaleString()}` : val, 
+                          name === 'revenue' ? 'Revenue' : 'Orders'
+                        ]}
+                      />
+                      <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevenue)" />
+                      <Line yAxisId="right" type="monotone" dataKey="orders" stroke="#818cf8" strokeWidth={2} dot={{ r: 4, fill: '#818cf8' }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No transaction data available for selected filter
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Bar Chart: Category Revenue Breakdown */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-cyan-500" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Category Performance</h3>
+                </div>
+                <span className="text-[10px] font-bold text-cyan-500/60 uppercase">₱ Sales by Category</span>
+              </div>
+              <div className="h-64 w-full">
+                {categoryChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={categoryChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="category" stroke="#888888" fontSize={10} tickLine={false} />
+                      <YAxis stroke="#888888" fontSize={10} tickLine={false} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any) => [`₱${Number(val).toLocaleString()}`, 'Revenue']}
+                      />
+                      <Bar dataKey="revenue" fill="#06b6d4" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No data available for selected filter
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
 
-          {/* Category Performance Chart */}
-          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-cyan-500" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Category Revenue Breakdown</h3>
-              </div>
-              <span className="text-[10px] font-bold text-cyan-500/60 uppercase">₱ by Category</span>
-            </div>
-            <div className="h-64 w-full">
-              {categoryChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={categoryChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="category" stroke="#888888" fontSize={10} tickLine={false} />
-                    <YAxis stroke="#888888" fontSize={10} tickLine={false} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#09090b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px' }}
-                      formatter={(val: any) => [`₱${Number(val).toLocaleString()}`, 'Revenue']}
-                    />
-                    <Bar dataKey="revenue" fill="#06b6d4" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
-                  No data available for selected filter
+          {/* Row 2: Top Selling Items (Bar Chart) + Peak Store Hours (Bar Chart) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Top Best Selling Products */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Top 7 Best Selling Items</h3>
                 </div>
-              )}
+                <span className="text-[10px] font-bold text-orange-500/60 uppercase">Units Sold</span>
+              </div>
+              <div className="h-64 w-full">
+                {topSellingItems.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topSellingItems} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis type="number" stroke="#888888" fontSize={10} tickLine={false} />
+                      <YAxis dataKey="name" type="category" stroke="#888888" fontSize={9} tickLine={false} width={100} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any, name: any) => [
+                          name === 'quantity' ? `${val} units` : `₱${Number(val).toLocaleString()}`,
+                          name === 'quantity' ? 'Quantity' : 'Revenue'
+                        ]}
+                      />
+                      <Bar dataKey="quantity" fill="#f97316" radius={[0, 8, 8, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No items sold in selected period
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Peak Store Traffic Hours */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Peak Hours (Store Traffic)</h3>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-400/60 uppercase">Orders per Hour</span>
+              </div>
+              <div className="h-64 w-full">
+                {hourlyTrafficData.some(h => h.orders > 0) ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={hourlyTrafficData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="hour" stroke="#888888" fontSize={9} tickLine={false} />
+                      <YAxis stroke="#888888" fontSize={10} tickLine={false} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any, name: any) => [
+                          name === 'orders' ? `${val} orders` : `₱${Number(val).toLocaleString()}`,
+                          name === 'orders' ? 'Orders' : 'Revenue'
+                        ]}
+                      />
+                      <Bar dataKey="orders" fill="#10b981" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No hourly traffic data for selected filter
+                  </div>
+                )}
+              </div>
+            </div>
+
           </div>
+
+          {/* Row 3: Pie & Donut Charts for Order Types, Channels, and Status */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Order Type Donut Chart */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col items-center">
+              <div className="w-full flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <PieChartIcon className="w-4 h-4 text-blue-400" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Order Type</h3>
+                </div>
+              </div>
+              <div className="h-56 w-full">
+                {orderTypePieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={orderTypePieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={75}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {orderTypePieData.map((entry, index) => (
+                          <Cell key={`cell-type-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any) => [`${val} orders`, 'Count']}
+                      />
+                      <Legend 
+                        formatter={(value) => <span className="text-[10px] font-bold text-white/70 uppercase">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No data
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Order Source / Channel Donut Chart */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col items-center">
+              <div className="w-full flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <PieChartIcon className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Ordering Channel</h3>
+                </div>
+              </div>
+              <div className="h-56 w-full">
+                {orderSourcePieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={orderSourcePieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={75}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {orderSourcePieData.map((entry, index) => (
+                          <Cell key={`cell-src-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any) => [`${val} orders`, 'Count']}
+                      />
+                      <Legend 
+                        formatter={(value) => <span className="text-[10px] font-bold text-white/70 uppercase">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No data
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Order Status Distribution Pie Chart */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col items-center">
+              <div className="w-full flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <PieChartIcon className="w-4 h-4 text-purple-400" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Order Status</h3>
+                </div>
+              </div>
+              <div className="h-56 w-full">
+                {orderStatusPieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={orderStatusPieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={75}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {orderStatusPieData.map((entry, index) => (
+                          <Cell key={`cell-status-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any) => [`${val} orders`, 'Count']}
+                      />
+                      <Legend 
+                        formatter={(value) => <span className="text-[10px] font-bold text-white/70 uppercase">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No data
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+
         </div>
 
         <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-black/10 dark:border-white/10 overflow-hidden mb-8 md:mb-12">
