@@ -132,11 +132,11 @@ export function KitchenQueue({ orders = [], onUpdateStatus, onDeleteOrder, onVoi
 
         {viewMode === 'table' && activeOrders.length > 0 && (
           <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-coffee-600 mb-2">
-            <div className="col-span-1">Order #</div>
+            <div className="col-span-2">Order #</div>
             <div className="col-span-2">Customer</div>
             <div className="col-span-2">Time</div>
             <div className="col-span-2">Channel / Type</div>
-            <div className="col-span-3">Items Summary</div>
+            <div className="col-span-2">Items Summary</div>
             <div className="col-span-2 text-center">Status</div>
           </div>
         )}
@@ -164,49 +164,49 @@ export function KitchenQueue({ orders = [], onUpdateStatus, onDeleteOrder, onVoi
                         onClick={toggleExpand}
                         className="p-4 md:px-6 md:py-4 flex flex-col md:grid md:grid-cols-12 gap-4 items-center cursor-pointer select-none"
                       >
-                        <div className="col-span-1 flex items-center gap-3 w-full md:w-auto">
-                          <span className="p-1 rounded bg-black/5 dark:bg-white/5 text-amber-500">
+                        <div className="col-span-2 flex items-center gap-2 min-w-0">
+                          <span className="p-1 rounded bg-black/5 dark:bg-white/5 text-amber-500 shrink-0">
                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                           </span>
-                          <span className="text-lg font-black text-slate-900 dark:text-white font-display">
+                          <span className="text-base font-black text-slate-900 dark:text-white font-display truncate">
                             #{order.id?.slice(-4)}
                           </span>
                         </div>
 
-                        <div className="col-span-2 w-full md:w-auto">
+                        <div className="col-span-2 min-w-0">
                           <div className="text-xs font-black text-slate-900 dark:text-white uppercase truncate">{order.customerName}</div>
-                          <div className="flex items-center gap-1.5 mt-1">
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
                             {order.orderType && (
-                              <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                              <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
                                 {order.orderType}
                               </span>
                             )}
                             {order.tableNumber && (
-                              <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                              <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
                                 Table: {order.tableNumber}
                               </span>
                             )}
                           </div>
                         </div>
 
-                        <div className="col-span-2 w-full md:w-auto flex items-center gap-1.5">
+                        <div className="col-span-2 min-w-0 flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-coffee-500 shrink-0" />
-                          <span className="text-xs font-bold text-coffee-500">
+                          <span className="text-xs font-bold text-coffee-500 truncate">
                             {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
 
-                        <div className="col-span-2 w-full md:w-auto flex items-center gap-2">
-                          <span className="flex items-center gap-1.5 text-[10px] text-white/50 font-black uppercase tracking-widest">
+                        <div className="col-span-2 min-w-0 flex items-center gap-2">
+                          <span className="flex items-center gap-1.5 text-[10px] text-white/50 font-black uppercase tracking-widest truncate">
                             {getSourceIcon(order.source)} {order.source}
                           </span>
                         </div>
 
-                        <div className="col-span-3 w-full md:w-auto text-xs font-bold text-coffee-600">
+                        <div className="col-span-2 min-w-0 text-xs font-bold text-coffee-600 truncate">
                           {order.items.length} {order.items.length === 1 ? 'item' : 'items'} ({order.items.reduce((acc, item) => acc + item.quantity, 0)} qty)
                         </div>
 
-                        <div className="col-span-2 w-full md:w-auto flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+                        <div className="col-span-2 min-w-0 flex items-center justify-between md:justify-center gap-3">
                           <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${getStatusColor(order.status)}`}>
                             {order.status}
                           </span>
