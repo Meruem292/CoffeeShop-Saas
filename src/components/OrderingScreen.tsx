@@ -1233,9 +1233,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
   const renderCart = () => (
     <div className="flex flex-col h-full w-full bg-white/95 dark:bg-[#0D0F14]/95 backdrop-blur-2xl text-slate-900 dark:text-white">
-      <div className="p-4 md:p-5 border-b border-black/10 dark:border-white/5 bg-slate-50/80 dark:bg-[#131722]/80 flex justify-between items-center shrink-0">
-        <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-3 uppercase tracking-tighter italic">
-          <ShoppingBag className="w-5 h-5 text-amber-500" />
+      <div className="px-4 py-2.5 border-b border-black/10 dark:border-white/5 bg-slate-50/80 dark:bg-[#131722]/80 flex justify-between items-center shrink-0">
+        <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-tighter italic">
+          <ShoppingBag className="w-4 h-4 text-amber-500" />
           Order Orbit
         </h2>
         {(mode === 'mobile' || mode === 'kiosk' || isPosCartDrawerOpen) && (
@@ -1244,34 +1244,33 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
             setIsKioskCartOpen(false);
             setIsPosCartDrawerOpen(false);
             setTimeout(() => setCheckoutStep(1), 500);
-          }} className="p-2 text-slate-500 dark:text-white/40 bg-black/5 dark:bg-white/5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all">
-            <X className="w-5 h-5" />
+          }} className="p-1.5 text-slate-500 dark:text-white/40 bg-black/5 dark:bg-white/5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all">
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      {/* Modern Stepper Progress Bar */}
-      <div className="px-5 py-3 md:py-4 bg-[#0D0F14] border-b border-white/5 shrink-0">
-        <div className="flex items-center justify-between w-full max-w-sm mx-auto relative">
+      {/* Modern Compact Stepper Progress Bar */}
+      <div className="px-4 py-2 bg-[#0D0F14] border-b border-white/5 shrink-0">
+        <div className="flex items-center justify-between w-full max-w-xs mx-auto relative">
           {[1, 2, 3, 4].map((step, index) => {
             const isCompleted = step < checkoutStep;
             const isActive = step === checkoutStep;
-            const isUpcoming = step > checkoutStep;
             
             return (
               <React.Fragment key={step}>
                 {/* Step Circle */}
-                <div className={`relative z-10 w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
+                <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
                   isCompleted || isActive 
-                    ? 'bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)]' 
+                    ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)] text-slate-950 font-black' 
                     : 'bg-[#1A1D27] text-white/40'
                 }`}>
                   {isCompleted ? (
-                    <Check className="w-5 h-5 text-white" />
+                    <Check className="w-3.5 h-3.5 text-slate-950 stroke-[3]" />
                   ) : isActive ? (
-                    <div className="w-3 h-3 rounded-full bg-slate-200" />
+                    <div className="w-2 h-2 rounded-full bg-slate-950" />
                   ) : (
-                    <span className="text-sm font-black">{step}</span>
+                    <span className="text-[11px] font-black">{step}</span>
                   )}
                 </div>
                 
@@ -1287,7 +1286,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-5 flex flex-col gap-3 md:gap-4 scrollbar-hide">
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 md:p-4 flex flex-col gap-3 scrollbar-hide">
         {checkoutStep === 1 && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-4">
             {cart.length === 0 ? (
@@ -1562,54 +1561,68 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
         )}
 
         {checkoutStep === 3 && (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-4">
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-3">
             <div>
-              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight italic mb-1">Payment Method</h3>
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Choose how you want to pay</p>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight italic">Payment Method</h3>
+                <span className="text-xs font-black text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                  Total: ₱{total.toLocaleString()}
+                </span>
+              </div>
               
-              <div className="grid grid-cols-2 gap-3 mb-4">
+              {/* Sleek Segmented Payment Selector */}
+              <div className="grid grid-cols-2 gap-2 p-1 bg-black/10 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 mb-3">
                 <button
+                  type="button"
                   onClick={() => setPaymentMethod('counter')}
-                  className={`py-4 px-3 rounded-2xl font-black text-xs uppercase tracking-widest flex flex-col items-center justify-center gap-2 transition-all active:scale-95 border-2 ${paymentMethod === 'counter' ? 'bg-amber-500/10 text-amber-500 border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+                  className={`py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                    paymentMethod === 'counter' 
+                      ? 'bg-amber-500 text-slate-950 shadow-md' 
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
                 >
-                  <Coffee className="w-5 h-5" /> Pay Over Counter
-                  {paymentMethod === 'counter' && <CheckCircle2 className="w-4 h-4 text-amber-500" />}
+                  <Coffee className="w-4 h-4" /> Over Counter
                 </button>
                 <button
+                  type="button"
                   onClick={() => setPaymentMethod('gcash')}
-                  className={`py-4 px-3 rounded-2xl font-black text-xs uppercase tracking-widest flex flex-col items-center justify-center gap-2 transition-all active:scale-95 border-2 ${paymentMethod === 'gcash' ? 'bg-amber-500/10 text-amber-500 border-amber-500 shadow-lg shadow-amber-500/10' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+                  className={`py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                    paymentMethod === 'gcash' 
+                      ? 'bg-amber-500 text-slate-950 shadow-md' 
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
                 >
-                  <QrCode className="w-5 h-5" /> Pay Online (GCash)
-                  {paymentMethod === 'gcash' && <CheckCircle2 className="w-4 h-4 text-amber-500" />}
+                  <QrCode className="w-4 h-4" /> Online (GCash)
                 </button>
               </div>
 
               {/* Payment Verification for GCash */}
               {paymentMethod === 'gcash' && (
-                <div className="animate-in fade-in slide-in-from-top-4 duration-300 space-y-3 pt-3 border-t border-black/5 dark:border-white/5">
-                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-amber-500">
+                <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-3">
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-2">
+                    <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+                      <div className="flex items-center gap-1.5 text-amber-500 font-black text-xs uppercase tracking-wider">
                         <QrCode className="w-4 h-4" />
-                        <span className="text-[11px] font-black uppercase tracking-wider">GCash Details</span>
+                        <span>GCash Payment Details</span>
                       </div>
-                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                        Send <span className="font-black text-amber-500">₱{total.toLocaleString()}</span>
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        Amount: <span className="font-black text-amber-500">₱{total.toLocaleString()}</span>
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 items-center">
+                    <div className="flex items-center gap-3 pt-1">
                       {shopSettings?.gcashQrUrl && (
-                        <div className="bg-white p-2 rounded-2xl border border-amber-500/20 shadow-sm flex flex-col items-center justify-center relative">
+                        <div className="bg-white p-1.5 rounded-xl border border-amber-500/20 shadow-sm shrink-0 relative group">
                           <img 
                             src={shopSettings.gcashQrUrl} 
                             alt="GCash Payment QR" 
-                            className="w-24 h-24 object-contain rounded-xl"
+                            className="w-20 h-20 object-contain rounded-lg"
                             referrerPolicy="no-referrer"
                           />
                           <button 
+                            type="button"
                             onClick={handleDownloadQR}
-                            className="absolute top-2 right-2 p-1.5 bg-black/50 backdrop-blur rounded-full text-white hover:bg-amber-500 transition-colors"
+                            className="absolute top-1 right-1 p-1 bg-black/60 backdrop-blur rounded-full text-white hover:bg-amber-500 transition-colors"
                             title="Download QR"
                           >
                             <Download className="w-3 h-3" />
@@ -1617,57 +1630,60 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                         </div>
                       )}
 
-                      <div className="flex flex-col justify-center gap-2">
-                        <div className="text-[10px] font-black uppercase text-slate-400">Account Number:</div>
-                        <div className="flex items-center justify-between text-xs bg-black/10 dark:bg-white/5 px-3 py-2 rounded-xl">
-                          <span className="font-black tracking-wider text-slate-900 dark:text-white">{shopSettings?.gcashNumber || '0917-123-4567'}</span>
+                      <div className="flex-1 flex flex-col justify-center gap-1.5 min-w-0">
+                        <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Send GCash Payment To:</div>
+                        <div className="flex items-center justify-between text-xs bg-black/10 dark:bg-white/5 px-2.5 py-1.5 rounded-xl border border-black/5 dark:border-white/5">
+                          <span className="font-black tracking-wider text-slate-900 dark:text-white text-xs truncate">{shopSettings?.gcashNumber || '0917-123-4567'}</span>
                           <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               navigator.clipboard.writeText(shopSettings?.gcashNumber || '0917-123-4567');
                               toast.success('GCash number copied');
                             }}
-                            className="p-1.5 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 rounded-lg transition-all"
+                            className="p-1 bg-black/5 dark:bg-white/10 hover:bg-amber-500 hover:text-slate-950 rounded-md transition-all shrink-0 ml-1"
                             title="Copy number"
                           >
-                            <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-300" />
+                            <Copy className="w-3.5 h-3.5" />
                           </button>
                         </div>
+                        <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400">Scan QR or copy number to pay, then upload receipt screenshot below.</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Screenshot Upload */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.2em] ml-1">
-                      Receipt Screenshot
+                      Payment Receipt Screenshot
                     </label>
                     {receiptBase64 ? (
-                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          <img src={receiptBase64} className="w-10 h-10 object-cover rounded-xl border border-emerald-500/20" alt="Receipt Preview" referrerPolicy="no-referrer" />
+                      <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 overflow-hidden">
+                          <img src={receiptBase64} className="w-9 h-9 object-cover rounded-lg border border-emerald-500/20" alt="Receipt Preview" referrerPolicy="no-referrer" />
                           <div className="flex flex-col overflow-hidden">
-                            <span className="text-[11px] font-black text-emerald-500 uppercase tracking-wider flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Uploaded successfully
+                            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-wider flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Receipt Attached
                             </span>
                             <span className="text-[9px] font-bold text-slate-500 uppercase truncate">
-                              payment_screenshot.jpg
+                              Ready for verification
                             </span>
                           </div>
                         </div>
                         <button
+                          type="button"
                           onClick={() => setReceiptBase64('')}
-                          className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
+                          className="p-1 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
                           title="Remove receipt"
                         >
                           <X className="w-4 h-4" />
                         </button>
                       </div>
                     ) : (
-                      <label className="flex items-center justify-center gap-3 p-4 border-2 border-dashed border-black/20 dark:border-white/10 hover:border-amber-500/50 bg-black/5 dark:bg-white/5 rounded-2xl cursor-pointer hover:bg-black/10 transition-all text-center group">
-                        <Upload className="w-5 h-5 text-slate-400 group-hover:text-amber-500 transition-colors" />
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-300 uppercase tracking-wider">
-                          {compressingImage ? 'Processing...' : 'Upload Receipt Screenshot'}
+                      <label className="flex items-center justify-center gap-2.5 p-3 border-2 border-dashed border-amber-500/30 hover:border-amber-500 bg-amber-500/5 rounded-2xl cursor-pointer hover:bg-amber-500/10 transition-all text-center group">
+                        <Upload className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+                        <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                          {compressingImage ? 'Compressing Image...' : 'Upload Receipt Screenshot'}
                         </span>
                         <input
                           type="file"
@@ -1679,6 +1695,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                       </label>
                     )}
                   </div>
+                </div>
+              )}
+
+              {paymentMethod === 'counter' && (
+                <div className="p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center space-y-1 my-2">
+                  <p className="text-xs font-black uppercase text-slate-800 dark:text-white tracking-wider">Pay Over Counter Selected</p>
+                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Please present your order reference to the cashier for payment upon ordering.</p>
                 </div>
               )}
             </div>
@@ -1787,39 +1810,48 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       </div>
 
       {/* Navigation Footer */}
-      <div className="p-4 md:p-5 bg-slate-50/80 dark:bg-[#131722]/80 backdrop-blur-xl border-t border-black/10 dark:border-white/5 shrink-0">
+      <div className="p-3 md:p-4 bg-slate-50/80 dark:bg-[#131722]/80 backdrop-blur-xl border-t border-black/10 dark:border-white/5 shrink-0">
         
         {/* Total Summary */}
-        <div className="space-y-2 mb-4 px-2">
-          <div className="flex justify-between items-center text-xs font-black uppercase tracking-widest text-slate-500">
-            <span>Subtotal</span>
-            <span>₱{subtotal.toLocaleString()}</span>
-          </div>
-          {discountAmount > 0 && (
-            <div className="flex justify-between items-center text-xs font-black uppercase tracking-widest text-emerald-500">
-              <span>Discount</span>
-              <span>-₱{discountAmount.toLocaleString()}</span>
+        {checkoutStep === 1 ? (
+          <div className="space-y-1.5 mb-3 px-1">
+            <div className="flex justify-between items-center text-xs font-black uppercase tracking-widest text-slate-500">
+              <span>Subtotal</span>
+              <span>₱{subtotal.toLocaleString()}</span>
             </div>
-          )}
-          <div className="flex justify-between items-center pt-3 border-t-2 border-black/5 dark:border-white/5">
-            <span className="text-slate-500 dark:text-white/40 font-black uppercase tracking-[0.2em] text-[11px]">Total Fuel</span>
-            <span className="text-4xl font-black text-slate-900 dark:text-white italic">₱{total.toLocaleString()}</span>
+            {discountAmount > 0 && (
+              <div className="flex justify-between items-center text-xs font-black uppercase tracking-widest text-emerald-500">
+                <span>Discount</span>
+                <span>-₱{discountAmount.toLocaleString()}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-2 border-t border-black/5 dark:border-white/5">
+              <span className="text-slate-500 dark:text-white/40 font-black uppercase tracking-[0.2em] text-[10px]">Total Fuel</span>
+              <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white italic">₱{total.toLocaleString()}</span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex justify-between items-center mb-2.5 px-1 text-xs font-black uppercase tracking-wider">
+            <span className="text-slate-500 dark:text-white/50 text-[10px] tracking-widest">Total Fuel:</span>
+            <span className="text-xl font-black text-amber-500 italic">₱{total.toLocaleString()}</span>
+          </div>
+        )}
 
-        <div className="flex gap-3">
+        <div className="flex gap-2.5">
           {checkoutStep > 1 && (
             <button 
+              type="button"
               onClick={() => setCheckoutStep(prev => prev - 1)} 
-              className="px-5 py-4 rounded-[2rem] border-2 border-black/10 dark:border-white/10 font-black text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95 flex items-center justify-center shrink-0"
+              className="px-4 py-3 rounded-2xl border-2 border-black/10 dark:border-white/10 font-black text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95 flex items-center justify-center shrink-0"
               aria-label="Previous Step"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-5 h-5" />
             </button>
           )}
           
           {checkoutStep < 4 ? (
             <button 
+              type="button"
               onClick={() => {
                 if (checkoutStep === 3 && paymentMethod === 'gcash' && !receiptBase64) {
                    toast.error('Please upload a screenshot of your payment receipt');
@@ -1828,23 +1860,24 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                 setCheckoutStep(prev => prev + 1);
               }}
               disabled={cart.length === 0}
-              className="flex-1 bg-amber-500 disabled:opacity-50 hover:bg-amber-400 text-white py-4 rounded-[2rem] font-black text-base md:text-lg uppercase tracking-widest shadow-xl shadow-amber-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+              className="flex-1 bg-amber-500 disabled:opacity-50 hover:bg-amber-400 text-slate-950 py-3 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              Next <ArrowRight className="w-5 h-5" />
+              Next <ArrowRight className="w-4 h-4" />
             </button>
           ) : (
             <button
+              type="button"
               onClick={handleCheckout}
               disabled={cart.length === 0 || (!customerName.trim() && mode !== 'mobile')}
-              className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-black/5 dark:disabled:bg-white/10 disabled:text-black/30 dark:disabled:text-white/50 text-white py-4 rounded-[2rem] font-black text-base md:text-lg uppercase tracking-widest shadow-xl shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+              className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-black/5 dark:disabled:bg-white/10 disabled:text-black/30 dark:disabled:text-white/50 text-slate-950 py-3 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              {mode === 'mobile' ? 'Launch Order' : 'Checkout'} <Check className="w-6 h-6" />
+              Confirm Order <Check className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
     </div>
-  );;
+  );
 
   return (
     <div className={containerClasses[mode]}>
