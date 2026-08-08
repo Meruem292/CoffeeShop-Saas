@@ -13,19 +13,19 @@ import { playNotificationSound } from './lib/audio';
 import ShapeGrid from './components/ShapeGrid';
 import { Footer } from './components/Footer';
 
-// Lazy loaded components
-const OrderingScreen = lazy(() => import('./components/OrderingScreen').then(m => ({ default: m.OrderingScreen })));
-const KitchenQueue = lazy(() => import('./components/KitchenQueue').then(m => ({ default: m.KitchenQueue })));
-const InventoryManager = lazy(() => import('./components/InventoryManager').then(m => ({ default: m.InventoryManager })));
-const AdminProducts = lazy(() => import('./components/AdminProducts').then(m => ({ default: m.AdminProducts })));
-const AdminVouchers = lazy(() => import('./components/AdminVouchers').then(m => ({ default: m.AdminVouchers })));
-const AdminSettings = lazy(() => import('./components/AdminSettings').then(m => ({ default: m.AdminSettings })));
-const AdminCustomers = lazy(() => import('./components/AdminCustomers').then(m => ({ default: m.AdminCustomers })));
-const CashierView = lazy(() => import('./components/CashierView').then(m => ({ default: m.CashierView })));
-const TransactionReports = lazy(() => import('./components/TransactionReports').then(m => ({ default: m.TransactionReports })));
-const ProfilePage = lazy(() => import('./components/ProfilePage').then(m => ({ default: m.ProfilePage })));
-const OrderHistoryPage = lazy(() => import('./components/OrderHistoryPage').then(m => ({ default: m.OrderHistoryPage })));
-const RewardsStorePage = lazy(() => import('./components/RewardsStorePage').then(m => ({ default: m.RewardsStorePage })));
+// Direct component imports to ensure all pages load reliably without dynamic chunk 404 errors
+import { OrderingScreen } from './components/OrderingScreen';
+import { KitchenQueue } from './components/KitchenQueue';
+import { InventoryManager } from './components/InventoryManager';
+import { AdminProducts } from './components/AdminProducts';
+import { AdminVouchers } from './components/AdminVouchers';
+import { AdminSettings } from './components/AdminSettings';
+import { AdminCustomers } from './components/AdminCustomers';
+import { CashierView } from './components/CashierView';
+import { TransactionReports } from './components/TransactionReports';
+import { ProfilePage } from './components/ProfilePage';
+import { OrderHistoryPage } from './components/OrderHistoryPage';
+import { RewardsStorePage } from './components/RewardsStorePage';
 
 export default function App() {
   const { toast } = useToast();
