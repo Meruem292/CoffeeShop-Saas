@@ -26,6 +26,7 @@ import { TransactionReports } from './components/TransactionReports';
 import { ProfilePage } from './components/ProfilePage';
 import { OrderHistoryPage } from './components/OrderHistoryPage';
 import { RewardsStorePage } from './components/RewardsStorePage';
+import { AdminPageSkeleton } from './components/AdminPageSkeleton';
 
 export default function App() {
   const { toast } = useToast();
@@ -961,14 +962,7 @@ export default function App() {
           )}
 
           <main className="flex-1 relative overflow-hidden flex flex-col">
-            <Suspense fallback={
-              <div className="flex-1 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                  <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest animate-pulse">Initializing Sequence...</span>
-                </div>
-              </div>
-            }>
+            <Suspense fallback={<AdminPageSkeleton />}>
           {!isStarted && (!isAdmin || isKioskModeActive) && (currentView === 'mobile' || currentView === 'kiosk') && (
             <SplashScreen 
               data={splashScreen} 
@@ -1056,58 +1050,64 @@ export default function App() {
                       addons={addons}
                     />
                   )}
-                  {currentView === 'reports' && (
-                    <TransactionReports orders={orders} onDeleteOrder={deleteOrder} onClearOrders={clearOrders} />
-                  )}
-                  {currentView === 'queue' && (
-                    <KitchenQueue 
-                      orders={orders} 
-                      onUpdateStatus={updateOrderStatus} 
-                      onDeleteOrder={deleteOrder}
-                      onVoidOrder={voidOrder}
-                    />
-                  )}
-                  {currentView === 'inventory' && (
-                    <InventoryManager products={products} onUpdateStock={updateStock} />
-                  )}
-                  {currentView === 'admin-products' && (
-                    <AdminProducts 
-                      products={products}
-                      addons={addons}
-                      categories={categories}
-                      onAddProduct={addProduct}
-                      onUpdateProduct={updateProduct}
-                      onDeleteProduct={deleteProduct}
-                      onAddAddon={addAddon}
-                      onUpdateAddon={updateAddon}
-                      onDeleteAddon={deleteAddon}
-                      onAddCategory={addCategory}
-                      onUpdateCategory={updateCategory}
-                      onDeleteCategory={deleteCategory}
-                    />
-                  )}
-                  {currentView === 'admin-vouchers' && (
-                    <AdminVouchers
-                      vouchers={vouchers}
-                      categories={categories}
-                      onAddVoucher={addVoucher}
-                      onUpdateVoucher={updateVoucher}
-                      onDeleteVoucher={deleteVoucher}
-                    />
-                  )}
-                  {currentView === 'admin-customers' && (
-                    <AdminCustomers 
-                      profiles={profiles}
-                      onUpdateProfile={updateUserProfile}
-                    />
-                  )}
-                  {currentView === 'settings' && (
-                    <AdminSettings 
-                      splashScreen={splashScreen}
-                      shopSettings={shopSettings}
-                      onUpdateSplash={updateSplashScreen}
-                      onUpdateShop={updateShopSettings}
-                    />
+                  {['reports', 'queue', 'inventory', 'admin-products', 'admin-vouchers', 'admin-customers', 'settings'].includes(currentView) && dbLoading ? (
+                    <AdminPageSkeleton />
+                  ) : (
+                    <>
+                      {currentView === 'reports' && (
+                        <TransactionReports orders={orders} onDeleteOrder={deleteOrder} onClearOrders={clearOrders} />
+                      )}
+                      {currentView === 'queue' && (
+                        <KitchenQueue 
+                          orders={orders} 
+                          onUpdateStatus={updateOrderStatus} 
+                          onDeleteOrder={deleteOrder}
+                          onVoidOrder={voidOrder}
+                        />
+                      )}
+                      {currentView === 'inventory' && (
+                        <InventoryManager products={products} onUpdateStock={updateStock} />
+                      )}
+                      {currentView === 'admin-products' && (
+                        <AdminProducts 
+                          products={products}
+                          addons={addons}
+                          categories={categories}
+                          onAddProduct={addProduct}
+                          onUpdateProduct={updateProduct}
+                          onDeleteProduct={deleteProduct}
+                          onAddAddon={addAddon}
+                          onUpdateAddon={updateAddon}
+                          onDeleteAddon={deleteAddon}
+                          onAddCategory={addCategory}
+                          onUpdateCategory={updateCategory}
+                          onDeleteCategory={deleteCategory}
+                        />
+                      )}
+                      {currentView === 'admin-vouchers' && (
+                        <AdminVouchers
+                          vouchers={vouchers}
+                          categories={categories}
+                          onAddVoucher={addVoucher}
+                          onUpdateVoucher={updateVoucher}
+                          onDeleteVoucher={deleteVoucher}
+                        />
+                      )}
+                      {currentView === 'admin-customers' && (
+                        <AdminCustomers 
+                          profiles={profiles}
+                          onUpdateProfile={updateUserProfile}
+                        />
+                      )}
+                      {currentView === 'settings' && (
+                        <AdminSettings 
+                          splashScreen={splashScreen}
+                          shopSettings={shopSettings}
+                          onUpdateSplash={updateSplashScreen}
+                          onUpdateShop={updateShopSettings}
+                        />
+                      )}
+                    </>
                   )}
                   {currentView === 'profile' && (
                     <ProfilePage 
