@@ -19,7 +19,7 @@ export function OrderHistoryPage({ orders = [], onNavigate }: OrderHistoryPagePr
       order.items?.some(i => i.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
       order.voucherCode?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
-  });
+  }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
   const getStatusColor = (status: Order['status']) => {
     switch (status) {

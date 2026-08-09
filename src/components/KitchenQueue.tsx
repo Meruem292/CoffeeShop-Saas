@@ -18,10 +18,10 @@ export function KitchenQueue({ orders = [], onUpdateStatus, onDeleteOrder, onVoi
   const [expandedOrders, setExpandedOrders] = React.useState<Record<string, boolean>>({});
   const prevOrderCountRef = useRef(0);
   
-  // Sort by created time (FIFO) - oldest first
+  // Sort by created time - most recent first
   const activeOrders = orders
-    .filter((o) => o.status !== 'completed' && o.status !== 'unpaid' && o.status !== 'cancelled')
-    .sort((a, b) => a.createdAt - b.createdAt);
+    .filter((o) => o.status !== 'completed' && o.status !== 'unpaid' && o.status !== 'cancelled' && o.status !== 'pending-verification')
+    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
   useEffect(() => {
     if (activeOrders.length > prevOrderCountRef.current) {

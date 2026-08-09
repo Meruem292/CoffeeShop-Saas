@@ -21,9 +21,9 @@ let activeBleCharacteristic: any = null;
 
 export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDeleteOrder, shopSettings, addons = [] }: CashierViewProps) {
   // Filter orders by category
-  const unpaidOrders = orders.filter((o) => o.status === 'unpaid');
-  const pendingVerificationOrders = orders.filter((o) => o.status === 'pending-verification');
-  const pendingOrders = orders.filter((o) => o.status === 'pending' || o.status === 'preparing' || o.status === 'ready' || o.status === 'completed');
+  const unpaidOrders = orders.filter((o) => o.status === 'unpaid').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const pendingVerificationOrders = orders.filter((o) => o.status === 'pending-verification').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const pendingOrders = orders.filter((o) => o.status === 'pending' || o.status === 'preparing' || o.status === 'ready' || o.status === 'completed').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
   const [activeTab, setActiveTab] = useState<'unpaid' | 'pending-verification' | 'history'>('unpaid');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
