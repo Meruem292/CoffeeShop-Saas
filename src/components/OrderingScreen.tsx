@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins } from 'lucide-react';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
@@ -11,6 +11,7 @@ import { UnifiedAuthModal } from './UnifiedAuthModal';
 import { useToast } from '../lib/ToastContext';
 import { useBackButton } from '../lib/useBackButton';
 import { QRScannerModal } from './QRScannerModal';
+import { OrderStatusModal } from './OrderStatusModal';
 
 interface OrderingScreenProps {
   mode: 'pos' | 'kiosk' | 'mobile';
@@ -24,9 +25,10 @@ interface OrderingScreenProps {
   userClaimedVouchers?: ClaimedVoucher[];
   userProfile?: UserProfile | null;
   orders?: Order[];
+  onNavigateToHistory?: () => void;
 }
 
-export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSettings, categoriesData, mostPickedProductIds, vouchers = [], userClaimedVouchers = [], userProfile, orders = [] }: OrderingScreenProps) {
+export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSettings, categoriesData, mostPickedProductIds, vouchers = [], userClaimedVouchers = [], userProfile, orders = [], onNavigateToHistory }: OrderingScreenProps) {
   const { toast } = useToast();
   const categories = useMemo(() => {
     let list: string[] = [];
@@ -92,6 +94,18 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'best-seller' | 'alphabetical' | 'price-asc' | 'price-desc'>('best-seller');
   const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
+  const [showOrderStatusModal, setShowOrderStatusModal] = useState(false);
+  const [selectedStatusOrderId, setSelectedStatusOrderId] = useState<string | null>(null);
+
+  useBackButton(showOrderStatusModal, () => setShowOrderStatusModal(false), 'ord_status_modal');
+
+  const activeUserOrders = useMemo(() => {
+    if (mode !== 'mobile' || !user) return [];
+    const source = customerOrders.length > 0 ? customerOrders : (orders || []);
+    return source
+      .filter(o => o.status !== 'completed' && o.status !== 'cancelled')
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }, [mode, user, customerOrders, orders]);
   const [accountId, setAccountId] = useState('');
   
   const [promoCodeInput, setPromoCodeInput] = useState('');
@@ -890,6 +904,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     setIsMobileCartOpen(false);
     setIsKioskCartOpen(false);
     setIsPosCartDrawerOpen(false);
+
+    if (mode === 'mobile') {
+      setShowOrderStatusModal(true);
+    }
   };
 
   const containerClasses = {
@@ -965,7 +983,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
         <div className={`flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 lg:p-12 ${mode === 'mobile' ? 'scrollbar-hide pb-32' : 'pb-24'}`}>
           <div className="w-full max-w-[1600px] mx-auto">
-            <header className={`${mode === 'mobile' ? 'mb-4 flex items-center px-1' : 'mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6'}`}>
+            <header className={`${mode === 'mobile' ? 'mb-4 flex items-center justify-between px-1' : 'mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6'}`}>
               <div className={`${mode === 'mobile' ? 'flex items-center gap-2' : 'flex flex-col'}`}>
                 {mode === 'mobile' ? (
                   <>
@@ -997,6 +1015,16 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                   </>
                 )}
               </div>
+
+              {mode === 'mobile' && user && activeUserOrders.length > 0 && (
+                <button
+                  onClick={() => setShowOrderStatusModal(true)}
+                  className="px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-slate-900 transition-all rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 shadow-sm"
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                  <span>Track Order (#{activeUserOrders[0].id?.slice(-4)})</span>
+                </button>
+              )}
 
               <div className={`${mode === 'mobile' ? 'hidden' : 'flex items-center gap-4'}`}>
                 {/* Column Toggle - POS/Kiosk Only */}
@@ -2209,6 +2237,67 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
           onScan={handleQRScanResult}
           title={scannerTitle}
           description={scannerDescription}
+        />
+
+        {/* Active Order Tracker Floating Banner for Logged-in Mobile Users */}
+        {mode === 'mobile' && user && activeUserOrders.length > 0 && !isMobileCartOpen && (
+          <div className={`fixed z-[60] animate-in fade-in slide-in-from-bottom-5 duration-300 ${
+            cart.length > 0 ? 'bottom-28 left-6 sm:bottom-8 sm:left-6' : 'bottom-8 left-6'
+          }`}>
+            <button
+              onClick={() => setShowOrderStatusModal(true)}
+              className="bg-slate-900/95 dark:bg-[#090D16]/95 text-white p-3.5 sm:p-4 rounded-[2rem] border border-amber-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl flex items-center gap-3 group transition-all hover:border-amber-500 hover:scale-[1.02] active:scale-95 text-left max-w-[280px] sm:max-w-xs"
+            >
+              <div className="relative shrink-0">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs ${
+                  activeUserOrders[0].status === 'ready'
+                    ? 'bg-emerald-500 text-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-bounce'
+                    : activeUserOrders[0].status === 'preparing'
+                    ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]'
+                    : activeUserOrders[0].status === 'pending-verification'
+                    ? 'bg-purple-500 text-white'
+                    : 'bg-amber-500 text-slate-900'
+                }`}>
+                  {activeUserOrders[0].status === 'ready' ? <Sparkles className="w-5 h-5" /> : <Coffee className="w-5 h-5" />}
+                </div>
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 rounded-full border-2 border-slate-900 animate-ping" />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 truncate">
+                    Order #{activeUserOrders[0].id?.slice(-4)}
+                  </span>
+                  {activeUserOrders.length > 1 && (
+                    <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded text-[9px] font-bold shrink-0">
+                      +{activeUserOrders.length - 1}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs font-bold text-slate-100 truncate">
+                  {activeUserOrders[0].status === 'pending-verification' ? 'GCash Verification Pending' :
+                   activeUserOrders[0].status === 'unpaid' ? 'Pay at Counter' :
+                   activeUserOrders[0].status === 'pending' ? 'Sent to Kitchen' :
+                   activeUserOrders[0].status === 'preparing' ? 'Barista Preparing' :
+                   activeUserOrders[0].status === 'ready' ? 'Ready for Pickup! ☕' : activeUserOrders[0].status}
+                </p>
+              </div>
+
+              <div className="p-2 rounded-xl bg-white/10 group-hover:bg-amber-500 group-hover:text-slate-900 transition-colors shrink-0">
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            </button>
+          </div>
+        )}
+
+        <OrderStatusModal
+          isOpen={showOrderStatusModal}
+          onClose={() => setShowOrderStatusModal(false)}
+          orders={activeUserOrders.length > 0 ? activeUserOrders : customerOrders.length > 0 ? customerOrders : (orders || [])}
+          selectedOrderId={selectedStatusOrderId}
+          onSelectOrder={(id) => setSelectedStatusOrderId(id)}
+          onOrderMore={() => setShowOrderStatusModal(false)}
+          onViewHistory={onNavigateToHistory}
         />
     </div>
   );

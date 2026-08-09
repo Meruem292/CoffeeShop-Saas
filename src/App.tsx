@@ -1040,6 +1040,7 @@ export default function App() {
                       userClaimedVouchers={userClaimedVouchers}
                       userProfile={userProfile}
                       orders={orders}
+                      onNavigateToHistory={() => setCurrentView('order-history')}
                     />
                   )}
                   {currentView === 'cashier' && (
@@ -1188,7 +1189,9 @@ export default function App() {
                 <button
                   onClick={() => {
                     setSuccessOrder(null);
-                    if (currentView === 'mobile' || currentView === 'kiosk') {
+                    if (currentView === 'mobile') {
+                      setIsStarted(true);
+                    } else if (currentView === 'kiosk') {
                       setIsStarted(false);
                     }
                   }}
