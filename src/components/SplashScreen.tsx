@@ -67,7 +67,7 @@ export function SplashScreen({ data, shopSettings, orders, onStart, isKioskModeA
           )}
           <div>
             <h1 className="text-xl font-black italic uppercase tracking-tight text-white flex items-center gap-2">
-              {shopSettings?.name || 'ORDER ORBIT'}
+              {shopSettings?.name || 'CAIDOZ'}
             </h1>
             <p className="text-[10px] font-bold text-slate-400 tracking-[0.25em] uppercase">
               {shopSettings?.tagline || 'REAL-TIME ORDER STATUS'}

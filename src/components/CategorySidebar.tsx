@@ -84,7 +84,7 @@ export const CategorySidebar = React.memo(({
             )}
           </div>
           <span className="text-[9px] text-amber-500 font-bold tracking-wider mt-2.5 uppercase truncate w-full px-1">
-            {shopSettings?.name || 'Astro Coffee'}
+            {shopSettings?.name || 'CAIDOZ'}
           </span>
         </div>
       )}

@@ -351,7 +351,7 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
       let data = INIT;
       
       // Header
-      const nameToPrint = shopSettings?.receiptName || shopSettings?.name || 'Astro Coffee';
+      const nameToPrint = shopSettings?.receiptName || shopSettings?.name || 'CAIDOZ';
       data += centerText(nameToPrint.toUpperCase());
       data += centerText((shopSettings?.tagline || "Refuel Station").toUpperCase());
       data += centerText((shopSettings?.address || "123 NEBULA BLVD, SPACEPORT").toUpperCase());

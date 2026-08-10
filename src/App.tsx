@@ -782,7 +782,7 @@ export default function App() {
                 </button>
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-black tracking-tight uppercase italic leading-none mb-1 truncate block">
-                    {shopSettings?.name || 'Astro Coffee'}
+                    {shopSettings?.name || 'CAIDOZ'}
                   </span>
                   <div className="flex items-center gap-1 leading-none mt-0.5">
                     <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
@@ -844,7 +844,7 @@ export default function App() {
                       )}
                     </div>
                     <span className="text-xs font-black tracking-tight uppercase italic truncate max-w-[120px]">
-                      {shopSettings?.name || 'Astro Coffee'}
+                      {shopSettings?.name || 'CAIDOZ'}
                     </span>
                   </div>
                   <button 
