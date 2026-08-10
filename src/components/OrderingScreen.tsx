@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher } from '../types';
@@ -381,6 +381,12 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   const [customerName, setCustomerName] = useState('');
   const [orderType, setOrderType] = useState<'dine-in' | 'take-away' | null>('take-away');
   const [paymentMethod, setPaymentMethod] = useState<'counter' | 'gcash'>('counter');
+
+  useEffect(() => {
+    if (mode === 'kiosk') {
+      setPaymentMethod('counter');
+    }
+  }, [mode]);
   const [checkoutStep, setCheckoutStep] = useState<number>(1);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
   const [isKioskCartOpen, setIsKioskCartOpen] = useState(false);
@@ -1598,139 +1604,153 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                 </span>
               </div>
               
-              {/* Sleek Segmented Payment Selector */}
-              <div className="grid grid-cols-2 gap-2 p-1 bg-black/10 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 mb-3">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('counter')}
-                  className={`py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                    paymentMethod === 'counter' 
-                      ? 'bg-amber-500 text-slate-950 shadow-md' 
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <Coffee className="w-4 h-4" /> Over Counter
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('gcash')}
-                  className={`py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                    paymentMethod === 'gcash' 
-                      ? 'bg-amber-500 text-slate-950 shadow-md' 
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <QrCode className="w-4 h-4" /> Online (GCash)
-                </button>
-              </div>
-
-              {/* Payment Verification for GCash */}
-              {paymentMethod === 'gcash' && (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-3">
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-2">
-                    <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
-                      <div className="flex items-center gap-1.5 text-amber-500 font-black text-xs uppercase tracking-wider">
-                        <QrCode className="w-4 h-4" />
-                        <span>GCash Payment Details</span>
-                      </div>
-                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                        Amount: <span className="font-black text-amber-500">₱{total.toLocaleString()}</span>
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-1">
-                      {shopSettings?.gcashQrUrl && (
-                        <div className="bg-white p-1.5 rounded-xl border border-amber-500/20 shadow-sm shrink-0 relative group">
-                          <img 
-                            src={shopSettings.gcashQrUrl} 
-                            alt="GCash Payment QR" 
-                            className="w-20 h-20 object-contain rounded-lg"
-                            referrerPolicy="no-referrer"
-                          />
-                          <button 
-                            type="button"
-                            onClick={handleDownloadQR}
-                            className="absolute top-1 right-1 p-1 bg-black/60 backdrop-blur rounded-full text-white hover:bg-amber-500 transition-colors"
-                            title="Download QR"
-                          >
-                            <Download className="w-3 h-3" />
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="flex-1 flex flex-col justify-center gap-1.5 min-w-0">
-                        <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Send GCash Payment To:</div>
-                        <div className="flex items-center justify-between text-xs bg-black/10 dark:bg-white/5 px-2.5 py-1.5 rounded-xl border border-black/5 dark:border-white/5">
-                          <span className="font-black tracking-wider text-slate-900 dark:text-white text-xs truncate">{shopSettings?.gcashNumber || '0917-123-4567'}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigator.clipboard.writeText(shopSettings?.gcashNumber || '0917-123-4567');
-                              toast.success('GCash number copied');
-                            }}
-                            className="p-1 bg-black/5 dark:bg-white/10 hover:bg-amber-500 hover:text-slate-950 rounded-md transition-all shrink-0 ml-1"
-                            title="Copy number"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400">Scan QR or copy number to pay, then upload receipt screenshot below.</p>
-                      </div>
-                    </div>
+              {mode === 'kiosk' ? (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-3.5 my-2">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-md">
+                    <Coffee className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase text-slate-900 dark:text-white tracking-wider">Pay Over Counter</p>
+                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Please present your order reference to the cashier for payment upon placing order.</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Sleek Segmented Payment Selector */}
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-black/10 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('counter')}
+                      className={`py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                        paymentMethod === 'counter' 
+                          ? 'bg-amber-500 text-slate-950 shadow-md' 
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <Coffee className="w-4 h-4" /> Over Counter
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('gcash')}
+                      className={`py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                        paymentMethod === 'gcash' 
+                          ? 'bg-amber-500 text-slate-950 shadow-md' 
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <QrCode className="w-4 h-4" /> Online (GCash)
+                    </button>
                   </div>
 
-                  {/* Screenshot Upload */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.2em] ml-1">
-                      Payment Receipt Screenshot
-                    </label>
-                    {receiptBase64 ? (
-                      <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2.5 overflow-hidden">
-                          <img src={receiptBase64} className="w-9 h-9 object-cover rounded-lg border border-emerald-500/20" alt="Receipt Preview" referrerPolicy="no-referrer" />
-                          <div className="flex flex-col overflow-hidden">
-                            <span className="text-[10px] font-black text-emerald-500 uppercase tracking-wider flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Receipt Attached
-                            </span>
-                            <span className="text-[9px] font-bold text-slate-500 uppercase truncate">
-                              Ready for verification
-                            </span>
+                  {/* Payment Verification for GCash */}
+                  {paymentMethod === 'gcash' && (
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-3">
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-2">
+                        <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+                          <div className="flex items-center gap-1.5 text-amber-500 font-black text-xs uppercase tracking-wider">
+                            <QrCode className="w-4 h-4" />
+                            <span>GCash Payment Details</span>
+                          </div>
+                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                            Amount: <span className="font-black text-amber-500">₱{total.toLocaleString()}</span>
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 pt-1">
+                          {shopSettings?.gcashQrUrl && (
+                            <div className="bg-white p-1.5 rounded-xl border border-amber-500/20 shadow-sm shrink-0 relative group">
+                              <img 
+                                src={shopSettings.gcashQrUrl} 
+                                alt="GCash Payment QR" 
+                                className="w-20 h-20 object-contain rounded-lg"
+                                referrerPolicy="no-referrer"
+                              />
+                              <button 
+                                type="button"
+                                onClick={handleDownloadQR}
+                                className="absolute top-1 right-1 p-1 bg-black/60 backdrop-blur rounded-full text-white hover:bg-amber-500 transition-colors"
+                                title="Download QR"
+                              >
+                                <Download className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+
+                          <div className="flex-1 flex flex-col justify-center gap-1.5 min-w-0">
+                            <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Send GCash Payment To:</div>
+                            <div className="flex items-center justify-between text-xs bg-black/10 dark:bg-white/5 px-2.5 py-1.5 rounded-xl border border-black/5 dark:border-white/5">
+                              <span className="font-black tracking-wider text-slate-900 dark:text-white text-xs truncate">{shopSettings?.gcashNumber || '0917-123-4567'}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(shopSettings?.gcashNumber || '0917-123-4567');
+                                  toast.success('GCash number copied');
+                                }}
+                                className="p-1 bg-black/5 dark:bg-white/10 hover:bg-amber-500 hover:text-slate-950 rounded-md transition-all shrink-0 ml-1"
+                                title="Copy number"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400">Scan QR or copy number to pay, then upload receipt screenshot below.</p>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setReceiptBase64('')}
-                          className="p-1 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
-                          title="Remove receipt"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
                       </div>
-                    ) : (
-                      <label className="flex items-center justify-center gap-2.5 p-3 border-2 border-dashed border-amber-500/30 hover:border-amber-500 bg-amber-500/5 rounded-2xl cursor-pointer hover:bg-amber-500/10 transition-all text-center group">
-                        <Upload className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
-                        <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                          {compressingImage ? 'Compressing Image...' : 'Upload Receipt Screenshot'}
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleReceiptUpload}
-                          disabled={compressingImage}
-                        />
-                      </label>
-                    )}
-                  </div>
-                </div>
-              )}
 
-              {paymentMethod === 'counter' && (
-                <div className="p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center space-y-1 my-2">
-                  <p className="text-xs font-black uppercase text-slate-800 dark:text-white tracking-wider">Pay Over Counter Selected</p>
-                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Please present your order reference to the cashier for payment upon ordering.</p>
-                </div>
+                      {/* Screenshot Upload */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.2em] ml-1">
+                          Payment Receipt Screenshot
+                        </label>
+                        {receiptBase64 ? (
+                          <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 overflow-hidden">
+                              <img src={receiptBase64} className="w-9 h-9 object-cover rounded-lg border border-emerald-500/20" alt="Receipt Preview" referrerPolicy="no-referrer" />
+                              <div className="flex flex-col overflow-hidden">
+                                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-wider flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Receipt Attached
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-500 uppercase truncate">
+                                  Ready for verification
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setReceiptBase64('')}
+                              className="p-1 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
+                              title="Remove receipt"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="flex items-center justify-center gap-2.5 p-3 border-2 border-dashed border-amber-500/30 hover:border-amber-500 bg-amber-500/5 rounded-2xl cursor-pointer hover:bg-amber-500/10 transition-all text-center group">
+                            <Upload className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                              {compressingImage ? 'Compressing Image...' : 'Upload Receipt Screenshot'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleReceiptUpload}
+                              disabled={compressingImage}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'counter' && (
+                    <div className="p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center space-y-1 my-2">
+                      <p className="text-xs font-black uppercase text-slate-800 dark:text-white tracking-wider">Pay Over Counter Selected</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Please present your order reference to the cashier for payment upon ordering.</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
