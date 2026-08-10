@@ -57,7 +57,7 @@ export default function App() {
         deferredPrompt.prompt();
         const choiceResult = await deferredPrompt.userChoice;
         if (choiceResult.outcome === 'accepted') {
-          toast.success('OrderOrbit installed as a native app!');
+          toast.success(`${shopSettings?.name || 'CAIDOZ'} installed as a native app!`);
           setDeferredPrompt(null);
         } else {
           toast.info('Installation cancelled');
@@ -1154,6 +1154,7 @@ export default function App() {
             isOpen={showPwaInstallModal}
             onClose={() => setShowPwaInstallModal(false)}
             deferredPrompt={deferredPrompt}
+            shopName={shopSettings?.name || 'CAIDOZ'}
             onInstallSuccess={() => {
               toast.success('App installed successfully!');
               setDeferredPrompt(null);

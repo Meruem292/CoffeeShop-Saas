@@ -582,7 +582,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
               </div>
               
               <div>
-                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">QR Code (Order Orbit)</label>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">QR Code ({shopData.name || 'CAIDOZ'})</label>
                 <div className="flex items-center gap-4 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10">
                   {shopData.qrCodeUrl ? (
                     <div className="w-16 h-16 rounded-xl bg-white p-1 overflow-hidden shrink-0 border border-black/10 dark:border-white/10 relative group">

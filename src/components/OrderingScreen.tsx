@@ -1264,7 +1264,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       <div className="px-4 py-2.5 border-b border-black/10 dark:border-white/5 bg-slate-50/80 dark:bg-[#131722]/80 flex justify-between items-center shrink-0">
         <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-tighter italic">
           <ShoppingBag className="w-4 h-4 text-amber-500" />
-          Order Orbit
+          {shopSettings?.name || 'CAIDOZ'}
         </h2>
         {(mode === 'mobile' || mode === 'kiosk' || isPosCartDrawerOpen) && (
           <button onClick={() => {

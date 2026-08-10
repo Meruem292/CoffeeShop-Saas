@@ -6,6 +6,7 @@ interface PWAInstallModalProps {
   onClose: () => void;
   deferredPrompt: any;
   onInstallSuccess: () => void;
+  shopName?: string;
 }
 
 export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
@@ -13,6 +14,7 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
   onClose,
   deferredPrompt,
   onInstallSuccess,
+  shopName = 'CAIDOZ',
 }) => {
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -73,7 +75,7 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
 
           <div className="space-y-1">
             <h3 className="text-xl font-black uppercase tracking-tight italic">
-              Install OrderOrbit
+              Install {shopName}
             </h3>
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
               Get the native app experience with offline support, fast loading, and quick home screen launch!
@@ -87,7 +89,7 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
             <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto" />
             <h4 className="text-sm font-bold text-emerald-500">App Already Installed!</h4>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              You are currently running OrderOrbit in native standalone app mode.
+              You are currently running {shopName} in native standalone app mode.
             </p>
           </div>
         ) : deferredPrompt ? (
@@ -134,7 +136,7 @@ export const PWAInstallModal: React.FC<PWAInstallModalProps> = ({
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-amber-500 font-bold">•</span>
-                <span>Or open browser menu <span className="font-mono font-bold">(⋮ or ⋯)</span> and click <strong>"Install OrderOrbit"</strong> or <strong>"Add to Home screen"</strong>.</span>
+                <span>Or open browser menu <span className="font-mono font-bold">(⋮ or ⋯)</span> and click <strong>"Install {shopName}"</strong> or <strong>"Add to Home screen"</strong>.</span>
               </li>
             </ul>
           </div>

@@ -1,7 +1,7 @@
 {
-  "name": "Coffee Shop POS - Order Orbit",
-  "short_name": "OrderOrbit",
-  "description": "A premium multi-platform Coffee Shop Point of Sale system with staff POS, kiosk ordering, mobile simulation, and inventory management.",
+  "name": "CAIDOZ",
+  "short_name": "CAIDOZ",
+  "description": "CAIDOZ Point of Sale and Mobile Ordering system with live order status tracking, kitchen queue, and inventory management.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0D0F14",
