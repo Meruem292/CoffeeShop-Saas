@@ -181,12 +181,25 @@ export default function App() {
     }
   }, [allowedNavigation, currentView]);
 
-  // Force Kiosk view if kiosk mode is active
+  // Ensure logged-in customer accounts are always in mobile mode and kiosk mode is disabled for them
   useEffect(() => {
-    if (isKioskModeActive) {
+    if (user && !isAdmin) {
+      if (isKioskModeActive) {
+        setIsKioskModeActive(false);
+        localStorage.removeItem('astro_pos_kiosk_active');
+      }
+      if (currentView === 'kiosk') {
+        setCurrentView('mobile');
+      }
+    }
+  }, [user, isAdmin, isKioskModeActive, currentView]);
+
+  // Force Kiosk view only if kiosk mode is explicitly active and user is NOT logged in as a customer
+  useEffect(() => {
+    if (isKioskModeActive && !user && currentView === 'mobile') {
       setCurrentView('kiosk');
     }
-  }, [isKioskModeActive]);
+  }, [isKioskModeActive, user, currentView]);
 
   // Auto-start for admin to avoid splash screen in management view (unless Kiosk mode is active)
   useEffect(() => {
@@ -544,7 +557,7 @@ export default function App() {
       </div>
 
       <div className="flex-1 flex min-h-screen overflow-hidden relative z-10 w-full">
-        {isKioskModeActive && (isStarted || !splashScreen?.isActive) && (
+        {isKioskModeActive && isAdmin && (isStarted || !splashScreen?.isActive) && (
           <div className="absolute top-4 right-4 z-[300]">
             <button
               onClick={() => setShowExitKioskModal(true)}
@@ -556,7 +569,7 @@ export default function App() {
           </div>
         )}
 
-        {isKioskModeActive && showExitKioskModal && (
+        {isKioskModeActive && isAdmin && showExitKioskModal && (
           <div className="fixed inset-0 z-[350] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
             <div className="bg-[#0a0a0c] rounded-[2.5rem] p-8 max-w-sm w-full border border-white/10 shadow-2xl relative">
               <button 
@@ -970,7 +983,7 @@ export default function App() {
               orders={orders}
               onStart={() => setIsStarted(true)} 
               isKioskModeActive={isKioskModeActive}
-              onExitKiosk={() => setShowExitKioskModal(true)}
+              onExitKiosk={user && !isAdmin ? undefined : () => setShowExitKioskModal(true)}
             />
           )}
           
