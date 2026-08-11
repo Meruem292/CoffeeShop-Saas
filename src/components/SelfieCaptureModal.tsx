@@ -98,17 +98,22 @@ export function SelfieCaptureModal({
     }
   };
 
+  const holdCountRef = useRef<number>(0);
+  const isCapturingRef = useRef<boolean>(false);
+
   const startPoseDetectionLoop = () => {
     if (detectIntervalRef.current) clearInterval(detectIntervalRef.current);
+    holdCountRef.current = 0;
 
     detectIntervalRef.current = setInterval(async () => {
-      if (!videoRef.current || isCompleted) return;
+      if (!videoRef.current || isCompleted || isCapturingRef.current) return;
 
       try {
         const poseRes = await detectHeadPoseAndExpression(videoRef.current);
         if (!poseRes || !poseRes.hasFace) {
           setIsPoseMatched(false);
-          setPoseStatusText('Position face inside target ring');
+          holdCountRef.current = 0;
+          setPoseStatusText('Position face inside ring');
           return;
         }
 
@@ -117,19 +122,33 @@ export function SelfieCaptureModal({
 
         if (step.id === 'front') {
           matched = poseRes.isCenter;
-          setPoseStatusText(matched ? 'Perfect! Face centered' : 'Look straight ahead');
+          setPoseStatusText(matched ? 'Hold center position...' : 'Look straight into camera');
         } else if (step.id === 'left') {
-          matched = poseRes.isTurnLeft || poseRes.yawRatio > 0.58;
-          setPoseStatusText(matched ? 'Pose target reached!' : 'Turn head slightly to LEFT');
+          matched = poseRes.isTurnLeft || poseRes.yawRatio > 0.14;
+          setPoseStatusText(matched ? 'Left angle detected! Hold...' : 'Turn head to the LEFT ⬅️');
         } else if (step.id === 'right') {
-          matched = poseRes.isTurnRight || poseRes.yawRatio < 0.42;
-          setPoseStatusText(matched ? 'Pose target reached!' : 'Turn head slightly to RIGHT');
+          matched = poseRes.isTurnRight || poseRes.yawRatio < -0.14;
+          setPoseStatusText(matched ? 'Right angle detected! Hold...' : 'Turn head to the RIGHT ➡️');
         } else if (step.id === 'smile') {
-          matched = poseRes.isSmiling || poseRes.isCenter;
-          setPoseStatusText(matched ? 'Nice smile!' : 'Smile into camera');
+          matched = poseRes.isSmiling;
+          setPoseStatusText(matched ? 'Nice smile! Hold...' : 'Smile into camera 😊');
         }
 
         setIsPoseMatched(matched);
+
+        if (matched) {
+          holdCountRef.current += 1;
+          if (holdCountRef.current >= 2 && !isCapturingRef.current) {
+            isCapturingRef.current = true;
+            holdCountRef.current = 0;
+            await captureCurrentPose();
+            setTimeout(() => {
+              isCapturingRef.current = false;
+            }, 600);
+          }
+        } else {
+          holdCountRef.current = 0;
+        }
       } catch (e) {
         // quiet error handle
       }

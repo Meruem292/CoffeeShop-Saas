@@ -183,13 +183,46 @@ export function calculateDistanceSimilarity(vA: number[], vB: number[]): number 
 }
 
 /**
+ * Safely parse vectors stored in Firestore (which may be string[], stringified JSON, or number[][])
+ */
+export function parseStoredFaceVectors(raw: any): number[][] {
+  if (!raw) return [];
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parseStoredFaceVectors(parsed);
+    } catch {
+      return [];
+    }
+  }
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => {
+        if (typeof item === 'string') {
+          try {
+            return JSON.parse(item);
+          } catch {
+            return null;
+          }
+        }
+        if (Array.isArray(item)) return item;
+        return null;
+      })
+      .filter((v): v is number[] => Array.isArray(v) && v.length > 0);
+  }
+  return [];
+}
+
+/**
   * Calculate highest similarity score across multiple candidate vectors
   */
 export function calculateBestMultiVectorSimilarity(
   liveVector: number[],
-  storedVectors: number[][]
+  storedRawVectors: any
 ): number {
-  if (!liveVector || !storedVectors || storedVectors.length === 0) return 0;
+  if (!liveVector) return 0;
+  const storedVectors = parseStoredFaceVectors(storedRawVectors);
+  if (storedVectors.length === 0) return 0;
 
   let maxScore = 0;
   for (const storedVec of storedVectors) {
@@ -227,7 +260,7 @@ export async function detectHeadPoseAndExpression(
       return {
         hasFace: false,
         vector: null,
-        yawRatio: 0.5,
+        yawRatio: 0,
         isCenter: false,
         isTurnLeft: false,
         isTurnRight: false,
@@ -244,12 +277,16 @@ export async function detectHeadPoseAndExpression(
     const pMouthLeft = landmarks[61];
     const pMouthRight = landmarks[291];
 
-    const eyeWidth = Math.abs(pRightEye.x - pLeftEye.x) || 0.1;
-    const yawRatio = (pNose.x - Math.min(pLeftEye.x, pRightEye.x)) / eyeWidth;
+    const eyeCenterX = (pLeftEye.x + pRightEye.x) / 2;
+    const eyeWidth = Math.hypot(pRightEye.x - pLeftEye.x, pRightEye.y - pLeftEye.y) || 0.1;
 
-    const isCenter = yawRatio >= 0.38 && yawRatio <= 0.62;
-    const isTurnLeft = yawRatio > 0.62 || yawRatio < 0.30;
-    const isTurnRight = yawRatio < 0.38 || yawRatio > 0.70;
+    // Nose position relative to eye center [-0.5 to +0.5]
+    const noseOffset = (pNose.x - eyeCenterX) / eyeWidth;
+    const zDiff = (pRightEye.z - pLeftEye.z) / eyeWidth;
+
+    const isCenter = Math.abs(noseOffset) < 0.12 && Math.abs(zDiff) < 0.25;
+    const isTurnLeft = noseOffset > 0.15 || zDiff > 0.22;
+    const isTurnRight = noseOffset < -0.15 || zDiff < -0.22;
 
     let mouthWidth = 0;
     if (pMouthLeft && pMouthRight) {
@@ -260,7 +297,7 @@ export async function detectHeadPoseAndExpression(
     return {
       hasFace: true,
       vector,
-      yawRatio,
+      yawRatio: noseOffset,
       isCenter,
       isTurnLeft,
       isTurnRight,

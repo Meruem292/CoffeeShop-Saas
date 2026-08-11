@@ -31,7 +31,8 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
         updatedAt: Date.now()
       };
       if (faceVectors && faceVectors.length > 0) {
-        updateData.faceVectors = faceVectors;
+        // Store as array of JSON strings to avoid Firestore nested array error
+        updateData.faceVectors = faceVectors.map((v) => JSON.stringify(v));
       }
       await setDoc(doc(db, 'profiles', user.uid), updateData, { merge: true });
       toast.success('3D Multi-Angle Face ID registered! High-precision scanning active at all kiosks.');
