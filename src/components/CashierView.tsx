@@ -30,7 +30,7 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-  const [orderToCancel, setOrderToCancel] = useState<{order: Order, action: 'delete' | 'status'} | null>(null);
+  const [orderToCancel, setOrderToCancel] = useState<{order: Order, action: 'delete' | 'status', title?: string, message?: string} | null>(null);
   const [payingOrder, setPayingOrder] = useState<Order | null>(null);
   const [amountTendered, setAmountTendered] = useState<string>('');
   const [zoomedReceiptUrl, setZoomedReceiptUrl] = useState<string | null>(null);
@@ -1473,6 +1473,13 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                                     <CheckCircle className="w-4 h-4" />
                                     Confirm Payment & Send to Kitchen
                                   </button>
+                                   <button 
+                                     onClick={() => setOrderToCancel({ order, action: "status", title: "Refuse GCash Payment", message: `Are you sure you want to refuse this GCash payment and cancel order #${order.id?.slice(-4)}?` })}
+                                     className="w-full mt-2 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 active:scale-95"
+                                   >
+                                     <X className="w-4 h-4" />
+                                     Refuse GCash Payment
+                                   </button>
                                 </div>
                               </div>
                             </div>
@@ -1565,6 +1572,13 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                         >
                           <CheckCircle className="w-5 h-5 text-white" />
                           Confirm Payment & Send to Kitchen
+                        </button>
+                        <button 
+                          onClick={() => setOrderToCancel({ order, action: "status", title: "Refuse GCash Payment", message: `Are you sure you want to refuse this GCash payment and cancel order #${order.id?.slice(-4)}?` })}
+                          className="w-full mt-3 py-3.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 active:scale-95"
+                        >
+                          <X className="w-4 h-4" />
+                          Refuse GCash Payment
                         </button>
                       </div>
                     </div>

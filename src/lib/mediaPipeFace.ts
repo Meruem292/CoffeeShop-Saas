@@ -4,6 +4,19 @@ let faceLandmarker: FaceLandmarker | null = null;
 let isInitializing = false;
 let initPromise: Promise<FaceLandmarker | null> | null = null;
 
+// Curated key facial landmark indices for high-accuracy matching (eyes, nose, lips, jaw contour)
+const KEY_LANDMARK_INDICES = [
+  // Eyes
+  33, 133, 160, 159, 158, 144, 153, 145, 154, 246,
+  263, 362, 385, 386, 387, 373, 380, 374, 381, 466,
+  // Nose
+  1, 2, 4, 5, 6, 195, 168, 197, 19, 94, 125, 141, 242, 456,
+  // Mouth / Lips
+  13, 14, 78, 308, 61, 291, 0, 17, 37, 267, 269, 270, 409, 292, 375, 321, 405, 314, 17, 84, 181, 91, 146,
+  // Face Contour & Cheeks
+  10, 152, 234, 454, 58, 288, 136, 365, 149, 378, 127, 356, 116, 345, 123, 352, 147, 376
+];
+
 /**
  * Initialize Google MediaPipe Face Landmarker client-side in the browser
  */
@@ -72,11 +85,10 @@ export async function extractFaceVector(
       return null;
     }
 
-    const landmarks = results.faceLandmarks[0]; // 478 3D points
+    const landmarks = results.faceLandmarks[0];
     if (!landmarks || landmarks.length === 0) return null;
 
-    // Normalize coordinates relative to face center & eye scale
-    // Key landmark indices: Left Eye Outer (33), Right Eye Outer (263), Nose Tip (1), Chin (152)
+    // Key landmark indices: Left Eye Outer (33), Right Eye Outer (263)
     const pLeftEye = landmarks[33] || landmarks[0];
     const pRightEye = landmarks[263] || landmarks[1];
 
@@ -86,23 +98,31 @@ export async function extractFaceVector(
       pRightEye.z - pLeftEye.z
     ) || 0.1;
 
-    // Calculate face centroid
+    // Calculate face centroid using key points
     let cx = 0, cy = 0, cz = 0;
-    for (const p of landmarks) {
+    const validIndices = KEY_LANDMARK_INDICES.filter(idx => landmarks[idx]);
+    const targetPoints = validIndices.length > 0 ? validIndices.map(idx => landmarks[idx]) : landmarks;
+
+    for (const p of targetPoints) {
       cx += p.x;
       cy += p.y;
       cz += p.z;
     }
-    cx /= landmarks.length;
-    cy /= landmarks.length;
-    cz /= landmarks.length;
+    cx /= targetPoints.length;
+    cy /= targetPoints.length;
+    cz /= targetPoints.length;
 
-    // Create normalized 3D feature vector
+    // Create normalized 3D feature vector from key structural indices
     const vector: number[] = [];
-    for (const p of landmarks) {
-      vector.push((p.x - cx) / eyeDistance);
-      vector.push((p.y - cy) / eyeDistance);
-      vector.push((p.z - cz) / eyeDistance);
+    for (const idx of KEY_LANDMARK_INDICES) {
+      const p = landmarks[idx];
+      if (p) {
+        vector.push((p.x - cx) / eyeDistance);
+        vector.push((p.y - cy) / eyeDistance);
+        vector.push((p.z - cz) / eyeDistance);
+      } else {
+        vector.push(0, 0, 0);
+      }
     }
 
     return vector;
@@ -159,5 +179,5 @@ export function calculateDistanceSimilarity(vA: number[], vB: number[]): number 
 
   const dist = Math.sqrt(sumSq);
   // Convert distance to normalized similarity score [0, 1]
-  return Math.max(0, 1 - dist / 25);
+  return Math.max(0, 1 - dist / 15);
 }
