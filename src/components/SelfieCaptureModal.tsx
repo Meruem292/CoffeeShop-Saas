@@ -114,14 +114,17 @@ export function SelfieCaptureModal({
 
   const holdCountRef = useRef<number>(0);
   const isCapturingRef = useRef<boolean>(false);
+  const isProcessingRef = useRef<boolean>(false);
 
   const startPoseDetectionLoop = () => {
     if (detectIntervalRef.current) clearInterval(detectIntervalRef.current);
     holdCountRef.current = 0;
+    isProcessingRef.current = false;
 
     detectIntervalRef.current = setInterval(async () => {
-      if (!videoRef.current || isCompleted || isCapturingRef.current) return;
+      if (!videoRef.current || isCompleted || isCapturingRef.current || isProcessingRef.current) return;
 
+      isProcessingRef.current = true;
       try {
         const stepIdx = currentStepRef.current;
         const step = REGISTRATION_STEPS[stepIdx] || REGISTRATION_STEPS[0];
@@ -183,6 +186,8 @@ export function SelfieCaptureModal({
         }
       } catch (e) {
         // quiet error handle
+      } finally {
+        isProcessingRef.current = false;
       }
     }, 350);
   };

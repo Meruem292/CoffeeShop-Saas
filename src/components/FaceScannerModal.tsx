@@ -40,8 +40,10 @@ export function FaceScannerModal({
   // Cache candidate landmarks so dynamic comparison is instantaneous
   const candidateVectorsRef = useRef<Map<string, number[]>>(new Map());
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isProcessingRef = useRef<boolean>(false);
 
   const stopCamera = () => {
+    isProcessingRef.current = false;
     if (scanIntervalRef.current) {
       clearInterval(scanIntervalRef.current);
       scanIntervalRef.current = null;
@@ -52,8 +54,69 @@ export function FaceScannerModal({
     }
   };
 
+  const extractCandidateVectors = (p: UserProfile): number[][] => {
+    const vecs: number[][] = [];
+    const pushVal = (val: any) => {
+      if (!val) return;
+      if (Array.isArray(val)) {
+        if (val.length > 0 && typeof val[0] === 'number') {
+          vecs.push(val);
+        } else {
+          vecs.push(...parseStoredFaceVectors(val));
+        }
+      } else if (typeof val === 'string') {
+        vecs.push(...parseStoredFaceVectors(val));
+      }
+    };
+
+    pushVal(p.faceVector_front);
+    pushVal(p.faceVector_left);
+    pushVal(p.faceVector_right);
+    pushVal(p.faceVector_smile);
+    if (p.faceAngles) {
+      pushVal(p.faceAngles.front);
+      pushVal(p.faceAngles.left);
+      pushVal(p.faceAngles.right);
+      pushVal(p.faceAngles.smile);
+    }
+    if (p.faceVectors) {
+      vecs.push(...parseStoredFaceVectors(p.faceVectors));
+    }
+    return vecs;
+  };
+
+  // Pre-extract / pre-load photoURL candidates in background off the video scan loop
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+    const preloadPhotos = async () => {
+      for (const candidate of allProfiles) {
+        if (!isMounted) break;
+        if (candidate.photoURL && candidate.photoURL.length > 50 && !candidateVectorsRef.current.has(candidate.uid)) {
+          const vecs = extractCandidateVectors(candidate);
+          if (vecs.length === 0) {
+            try {
+              const img = await loadImageElement(candidate.photoURL);
+              const vec = await extractFaceVector(img);
+              if (vec && isMounted) {
+                candidateVectorsRef.current.set(candidate.uid, vec);
+              }
+            } catch (_) {}
+          }
+        }
+      }
+    };
+
+    preloadPhotos();
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, allProfiles]);
+
   const startCamera = async () => {
     stopCamera();
+    isProcessingRef.current = false;
     setErrorMessage('');
     setMatchedUser(null);
     setIsAnalyzing(false);
@@ -106,8 +169,9 @@ export function FaceScannerModal({
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
 
     scanIntervalRef.current = setInterval(async () => {
-      if (!videoRef.current || matchedUser || isAnalyzing) return;
+      if (isProcessingRef.current || !videoRef.current || matchedUser || isAnalyzing) return;
 
+      isProcessingRef.current = true;
       try {
         const liveVector = await extractFaceVector(videoRef.current);
 
@@ -117,27 +181,9 @@ export function FaceScannerModal({
           return;
         }
 
-        // Face detected! Turn green
+        // Face detected!
         setIsFaceDetected(true);
         setAnalysisStatus('Face detected! Verifying match...');
-
-        const getCandidateVectors = (p: UserProfile): number[][] => {
-          const vecs: number[][] = [];
-          if (Array.isArray(p.faceVector_front) && p.faceVector_front.length > 0) vecs.push(p.faceVector_front);
-          if (Array.isArray(p.faceVector_left) && p.faceVector_left.length > 0) vecs.push(p.faceVector_left);
-          if (Array.isArray(p.faceVector_right) && p.faceVector_right.length > 0) vecs.push(p.faceVector_right);
-          if (Array.isArray(p.faceVector_smile) && p.faceVector_smile.length > 0) vecs.push(p.faceVector_smile);
-          if (p.faceAngles) {
-            if (Array.isArray(p.faceAngles.front) && p.faceAngles.front.length > 0) vecs.push(p.faceAngles.front);
-            if (Array.isArray(p.faceAngles.left) && p.faceAngles.left.length > 0) vecs.push(p.faceAngles.left);
-            if (Array.isArray(p.faceAngles.right) && p.faceAngles.right.length > 0) vecs.push(p.faceAngles.right);
-            if (Array.isArray(p.faceAngles.smile) && p.faceAngles.smile.length > 0) vecs.push(p.faceAngles.smile);
-          }
-          if (p.faceVectors) {
-            vecs.push(...parseStoredFaceVectors(p.faceVectors));
-          }
-          return vecs;
-        };
 
         const candidates = allProfiles.filter(
           (p) =>
@@ -149,8 +195,9 @@ export function FaceScannerModal({
             (p.faceVectors && p.faceVectors.length > 0) ||
             (p.photoURL && p.photoURL.length > 50)
         );
+
         if (candidates.length === 0) {
-          setAnalysisStatus('No registered Face ID profiles in customer records');
+          setAnalysisStatus('No registered Face ID profiles found');
           return;
         }
 
@@ -158,7 +205,7 @@ export function FaceScannerModal({
         let highestSimilarity = 0;
 
         for (const candidate of candidates) {
-          const candidateVecs = getCandidateVectors(candidate);
+          const candidateVecs = extractCandidateVectors(candidate);
 
           if (candidateVecs.length > 0) {
             for (const candidateVec of candidateVecs) {
@@ -170,24 +217,11 @@ export function FaceScannerModal({
                 bestMatchUser = candidate;
               }
             }
-          } else if (candidate.photoURL) {
-            let candidateVector = candidateVectorsRef.current.get(candidate.uid);
-
-            if (!candidateVector) {
-              try {
-                const img = await loadImageElement(candidate.photoURL);
-                candidateVector = (await extractFaceVector(img)) || undefined;
-                if (candidateVector) {
-                  candidateVectorsRef.current.set(candidate.uid, candidateVector);
-                }
-              } catch (e) {
-                console.warn(`Failed extracting face vector for candidate ${candidate.uid}:`, e);
-              }
-            }
-
-            if (candidateVector) {
-              const simCosine = calculateCosineSimilarity(liveVector, candidateVector);
-              const simDistance = calculateDistanceSimilarity(liveVector, candidateVector);
+          } else {
+            const cachedVector = candidateVectorsRef.current.get(candidate.uid);
+            if (cachedVector) {
+              const simCosine = calculateCosineSimilarity(liveVector, cachedVector);
+              const simDistance = calculateDistanceSimilarity(liveVector, cachedVector);
               const similarityScore = (simCosine + simDistance) / 2;
 
               if (similarityScore > highestSimilarity) {
@@ -198,8 +232,6 @@ export function FaceScannerModal({
           }
         }
 
-        console.log('Auto-Scan MediaPipe Match Score:', highestSimilarity, bestMatchUser?.displayName);
-
         // Multi-vector high precision threshold >= 0.76 for instant auto-verify
         if (bestMatchUser && highestSimilarity >= 0.76) {
           if (scanIntervalRef.current) {
@@ -207,7 +239,7 @@ export function FaceScannerModal({
             scanIntervalRef.current = null;
           }
           setMatchedUser(bestMatchUser);
-          setAnalysisStatus(`Verified! Welcome ${bestMatchUser.displayName}`);
+          setAnalysisStatus(`Verified! Welcome ${bestMatchUser.displayName || 'Valued Customer'}`);
           playSuccessBeep();
           setTimeout(() => {
             onFaceMatched(bestMatchUser!);
@@ -219,8 +251,10 @@ export function FaceScannerModal({
 
       } catch (err) {
         console.warn('Auto scan loop error:', err);
+      } finally {
+        isProcessingRef.current = false;
       }
-    }, 750);
+    }, 450);
   };
 
   useEffect(() => {
@@ -375,13 +409,24 @@ export function FaceScannerModal({
               {isFaceDetected ? 'Face Locked & Verifying' : 'Position face in circle'}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="py-2.5 px-5 bg-white/10 hover:bg-white/20 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all"
-          >
-            Cancel
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={startCamera}
+              className="py-2.5 px-3 bg-white/5 hover:bg-amber-500/20 hover:text-amber-400 text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl transition-all border border-white/10 flex items-center gap-1.5"
+              title="Reset scanner and camera feed"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="py-2.5 px-5 bg-white/10 hover:bg-white/20 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>

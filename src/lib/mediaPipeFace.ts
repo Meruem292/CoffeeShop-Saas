@@ -70,12 +70,83 @@ export async function getFaceLandmarker(): Promise<FaceLandmarker | null> {
   return initPromise;
 }
 
+function isElementReady(
+  element: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement
+): boolean {
+  if (!element) return false;
+  if (element instanceof HTMLVideoElement) {
+    return (
+      element.readyState >= 2 &&
+      element.videoWidth > 0 &&
+      element.videoHeight > 0 &&
+      !element.paused &&
+      !element.ended
+    );
+  }
+  if (element instanceof HTMLImageElement) {
+    return element.complete && element.naturalWidth > 0 && element.naturalHeight > 0;
+  }
+  if (element instanceof HTMLCanvasElement) {
+    return element.width > 0 && element.height > 0;
+  }
+  return true;
+}
+
+/**
+ * Helper to build normalized 3D feature vector directly from Mediapipe landmarks
+ */
+export function createVectorFromLandmarks(landmarks: any[]): number[] | null {
+  if (!landmarks || landmarks.length === 0) return null;
+
+  const pLeftEye = landmarks[33] || landmarks[0];
+  const pRightEye = landmarks[263] || landmarks[1];
+
+  const eyeDistance =
+    Math.hypot(
+      pRightEye.x - pLeftEye.x,
+      pRightEye.y - pLeftEye.y,
+      pRightEye.z - pLeftEye.z
+    ) || 0.1;
+
+  let cx = 0,
+    cy = 0,
+    cz = 0;
+  const validIndices = KEY_LANDMARK_INDICES.filter((idx) => landmarks[idx]);
+  const targetPoints =
+    validIndices.length > 0 ? validIndices.map((idx) => landmarks[idx]) : landmarks;
+
+  for (const p of targetPoints) {
+    cx += p.x;
+    cy += p.y;
+    cz += p.z;
+  }
+  cx /= targetPoints.length;
+  cy /= targetPoints.length;
+  cz /= targetPoints.length;
+
+  const vector: number[] = [];
+  for (const idx of KEY_LANDMARK_INDICES) {
+    const p = landmarks[idx];
+    if (p) {
+      vector.push((p.x - cx) / eyeDistance);
+      vector.push((p.y - cy) / eyeDistance);
+      vector.push((p.z - cz) / eyeDistance);
+    } else {
+      vector.push(0, 0, 0);
+    }
+  }
+
+  return vector;
+}
+
 /**
  * Extract normalized facial feature vector from an HTML element (Canvas / Video / Image)
  */
 export async function extractFaceVector(
   element: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement
 ): Promise<number[] | null> {
+  if (!isElementReady(element)) return null;
+
   try {
     const landmarker = await getFaceLandmarker();
     if (!landmarker) return null;
@@ -85,47 +156,7 @@ export async function extractFaceVector(
       return null;
     }
 
-    const landmarks = results.faceLandmarks[0];
-    if (!landmarks || landmarks.length === 0) return null;
-
-    // Key landmark indices: Left Eye Outer (33), Right Eye Outer (263)
-    const pLeftEye = landmarks[33] || landmarks[0];
-    const pRightEye = landmarks[263] || landmarks[1];
-
-    const eyeDistance = Math.hypot(
-      pRightEye.x - pLeftEye.x,
-      pRightEye.y - pLeftEye.y,
-      pRightEye.z - pLeftEye.z
-    ) || 0.1;
-
-    // Calculate face centroid using key points
-    let cx = 0, cy = 0, cz = 0;
-    const validIndices = KEY_LANDMARK_INDICES.filter(idx => landmarks[idx]);
-    const targetPoints = validIndices.length > 0 ? validIndices.map(idx => landmarks[idx]) : landmarks;
-
-    for (const p of targetPoints) {
-      cx += p.x;
-      cy += p.y;
-      cz += p.z;
-    }
-    cx /= targetPoints.length;
-    cy /= targetPoints.length;
-    cz /= targetPoints.length;
-
-    // Create normalized 3D feature vector from key structural indices
-    const vector: number[] = [];
-    for (const idx of KEY_LANDMARK_INDICES) {
-      const p = landmarks[idx];
-      if (p) {
-        vector.push((p.x - cx) / eyeDistance);
-        vector.push((p.y - cy) / eyeDistance);
-        vector.push((p.z - cz) / eyeDistance);
-      } else {
-        vector.push(0, 0, 0);
-      }
-    }
-
-    return vector;
+    return createVectorFromLandmarks(results.faceLandmarks[0]);
   } catch (err) {
     console.warn('Error extracting MediaPipe face vector:', err);
     return null;
@@ -251,6 +282,8 @@ export async function detectHeadPoseAndExpression(
   isTurnRight: boolean;
   isSmiling: boolean;
 } | null> {
+  if (!isElementReady(element)) return null;
+
   try {
     const landmarker = await getFaceLandmarker();
     if (!landmarker) return null;
@@ -269,7 +302,7 @@ export async function detectHeadPoseAndExpression(
     }
 
     const landmarks = results.faceLandmarks[0];
-    const vector = await extractFaceVector(element);
+    const vector = createVectorFromLandmarks(landmarks);
 
     const pLeftEye = landmarks[33] || landmarks[0];
     const pRightEye = landmarks[263] || landmarks[1];
