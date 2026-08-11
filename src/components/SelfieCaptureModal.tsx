@@ -138,23 +138,39 @@ export function SelfieCaptureModal({
 
         if (step.id === 'front') {
           matched = poseRes.isCenter;
-          setPoseStatusText(matched ? 'Center pose locked! Hold...' : 'Look straight into camera');
+          setPoseStatusText(
+            matched
+              ? `Center locked! Hold steady... (${holdCountRef.current + 1}/3)`
+              : 'Look straight into camera'
+          );
         } else if (step.id === 'left') {
           matched = poseRes.isTurnLeft;
-          setPoseStatusText(matched ? 'Left angle locked! Hold...' : 'Turn head slightly LEFT ⬅️ or tap Capture');
+          setPoseStatusText(
+            matched
+              ? `Left angle locked! Hold steady... (${holdCountRef.current + 1}/3)`
+              : 'Turn head LEFT ⬅️ (or tap Capture)'
+          );
         } else if (step.id === 'right') {
           matched = poseRes.isTurnRight;
-          setPoseStatusText(matched ? 'Right angle locked! Hold...' : 'Turn head slightly RIGHT ➡️ or tap Capture');
+          setPoseStatusText(
+            matched
+              ? `Right angle locked! Hold steady... (${holdCountRef.current + 1}/3)`
+              : 'Turn head RIGHT ➡️ (or tap Capture)'
+          );
         } else if (step.id === 'smile') {
-          matched = poseRes.isSmiling || poseRes.isCenter;
-          setPoseStatusText(matched ? 'Nice smile locked! Hold...' : 'Smile into camera 😊 or tap Capture');
+          matched = poseRes.isSmiling;
+          setPoseStatusText(
+            matched
+              ? `Smile locked! Hold steady... (${holdCountRef.current + 1}/3)`
+              : 'Smile into camera 😊 (or tap Capture)'
+          );
         }
 
         setIsPoseMatched(matched);
 
         if (matched) {
           holdCountRef.current += 1;
-          if (holdCountRef.current >= 2 && !isCapturingRef.current) {
+          if (holdCountRef.current >= 3 && !isCapturingRef.current) {
             isCapturingRef.current = true;
             holdCountRef.current = 0;
             await captureCurrentPose();
@@ -291,7 +307,8 @@ export function SelfieCaptureModal({
 
   if (!isOpen) return null;
 
-  const currentStepInfo = REGISTRATION_STEPS[currentStep] || REGISTRATION_STEPS[REGISTRATION_STEPS.length - 1];
+  const safeIndex = Math.min(Math.max(0, currentStep), REGISTRATION_STEPS.length - 1);
+  const currentStepInfo = REGISTRATION_STEPS[safeIndex] || REGISTRATION_STEPS[0];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
@@ -405,7 +422,7 @@ export function SelfieCaptureModal({
                         Step {currentStep + 1} of 4
                       </span>
                       <p className="text-xs font-black text-white italic">
-                        {currentStepInfo.hint}
+                        {currentStepInfo?.hint || 'Position face'}
                       </p>
                       <span className={`text-[9px] font-bold block mt-1 uppercase ${isPoseMatched ? 'text-emerald-400' : 'text-slate-400'}`}>
                         {poseStatusText}
@@ -492,7 +509,7 @@ export function SelfieCaptureModal({
                 }`}
               >
                 <Camera className="w-4 h-4" />
-                <span>Capture {currentStepInfo.label} Angle</span>
+                <span>Capture {currentStepInfo?.label || ''} Angle</span>
               </button>
 
               <button

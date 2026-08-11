@@ -274,27 +274,53 @@ export async function detectHeadPoseAndExpression(
     const pLeftEye = landmarks[33] || landmarks[0];
     const pRightEye = landmarks[263] || landmarks[1];
     const pNose = landmarks[1] || landmarks[2];
+    const pLeftCheek = landmarks[234];
+    const pRightCheek = landmarks[454];
     const pMouthLeft = landmarks[61];
     const pMouthRight = landmarks[291];
 
     const eyeCenterX = (pLeftEye.x + pRightEye.x) / 2;
     const eyeWidth = Math.hypot(pRightEye.x - pLeftEye.x, pRightEye.y - pLeftEye.y) || 0.1;
 
-    // Nose offset relative to eye center
+    // Nose horizontal offset relative to eye center normalized by eye width
     const noseOffset = (pNose.x - eyeCenterX) / eyeWidth;
-    const zDiffRaw = (pRightEye.z - pLeftEye.z) / eyeWidth;
-    const absZDiff = Math.abs(zDiffRaw);
 
-    // Face rotation detection (works across mirrored or unmirrored streams)
-    const isCenter = Math.abs(noseOffset) < 0.08 && absZDiff < 0.18;
-    const isTurnLeft = noseOffset > 0.04 || zDiffRaw > 0.06 || (Math.abs(noseOffset) >= 0.05 && !isCenter);
-    const isTurnRight = noseOffset < -0.04 || zDiffRaw < -0.06 || (Math.abs(noseOffset) >= 0.05 && !isCenter);
+    // Face symmetry ratio based on cheek-to-nose distances
+    let symmetryRatio = 0;
+    if (pLeftCheek && pRightCheek) {
+      const dLeft = Math.hypot(pNose.x - pLeftCheek.x, pNose.y - pLeftCheek.y);
+      const dRight = Math.hypot(pNose.x - pRightCheek.x, pNose.y - pRightCheek.y);
+      if (dLeft + dRight > 0) {
+        symmetryRatio = (dLeft - dRight) / (dLeft + dRight);
+      }
+    }
 
+    // Clean thresholds:
+    // Center: strictly neutral looking forward (small nose offset and balanced cheek distances)
+    const isCenter = Math.abs(noseOffset) < 0.10 && Math.abs(symmetryRatio) < 0.12;
+
+    // Turn Left / Turn Right: requires head to actually rotate away from center!
+    // Never matches if face is centered.
+    const isTurnLeft = !isCenter && (noseOffset > 0.13 || symmetryRatio > 0.15);
+    const isTurnRight = !isCenter && (noseOffset < -0.13 || symmetryRatio < -0.15);
+
+    // Expression detection: Mouth width vs eye width (must be noticeably wider than neutral)
     let mouthWidth = 0;
     if (pMouthLeft && pMouthRight) {
       mouthWidth = Math.hypot(pMouthRight.x - pMouthLeft.x, pMouthRight.y - pMouthLeft.y);
     }
-    const isSmiling = (mouthWidth / eyeWidth) > 0.60;
+    const smileRatio = mouthWidth / eyeWidth;
+
+    // Check blendshapes for smile if present in results
+    let blendshapeSmile = 0;
+    if ((results as any).faceBlendshapes && (results as any).faceBlendshapes.length > 0) {
+      const categories = (results as any).faceBlendshapes[0].categories || [];
+      const smileL = categories.find((c: any) => c.categoryName === 'mouthSmileLeft')?.score || 0;
+      const smileR = categories.find((c: any) => c.categoryName === 'mouthSmileRight')?.score || 0;
+      blendshapeSmile = (smileL + smileR) / 2;
+    }
+
+    const isSmiling = smileRatio > 0.63 || blendshapeSmile > 0.35;
 
     return {
       hasFace: true,
