@@ -166,6 +166,7 @@ export default function App() {
   ];
 
   const unpaidOrdersCount = orders.filter(o => o.status === 'unpaid').length;
+  const pendingVerificationOrdersCount = orders.filter(o => o.status === 'pending-verification').length;
   const pendingOrdersCount = orders.filter(o => o.status === 'pending').length;
 
   const allowedNavigation = navigationItems.filter(item => 
@@ -732,7 +733,7 @@ export default function App() {
                       <div className={`transition-colors ${isActive ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:hover:text-white'}`}>
                         {item.icon}
                       </div>
-                      <span className="text-xs tracking-tight">{item.label}</span>{((item.id === 'cashier' && unpaidOrdersCount > 0) || (item.id === 'queue' && pendingOrdersCount > 0)) && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2" />}
+                      <span className="text-xs tracking-tight">{item.label}</span>{((item.id === 'cashier' && (unpaidOrdersCount > 0 || pendingVerificationOrdersCount > 0)) || (item.id === 'queue' && pendingOrdersCount > 0)) && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2" />}
                     </div>
                     {isActive && <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
                   </button>
@@ -937,7 +938,7 @@ export default function App() {
                       >
                         <div className="flex items-center gap-3">
                           <span className={isActive ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400'}>{item.icon}</span>
-                          <span className="text-xs tracking-tight">{item.label}</span>{((item.id === 'cashier' && unpaidOrdersCount > 0) || (item.id === 'queue' && pendingOrdersCount > 0)) && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2" />}
+                          <span className="text-xs tracking-tight">{item.label}</span>{((item.id === 'cashier' && (unpaidOrdersCount > 0 || pendingVerificationOrdersCount > 0)) || (item.id === 'queue' && pendingOrdersCount > 0)) && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2" />}
                         </div>
                         <ChevronRight className="w-3 h-3 text-slate-500" />
                       </button>
