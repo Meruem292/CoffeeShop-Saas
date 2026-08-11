@@ -1,13 +1,25 @@
 export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'admin-vouchers' | 'admin-customers' | 'settings' | 'cashier' | 'reports' | 'profile' | 'order-history' | 'rewards-store';
 export type Category = 'Hot Coffee' | 'Cold Coffee' | 'Tea' | 'Food';
 
+export interface FaceAnglesMap {
+  front?: number[];
+  left?: number[];
+  right?: number[];
+  smile?: number[];
+}
+
 export interface UserProfile {
   uid: string;
   shortId?: string;
   email: string;
   displayName: string;
   photoURL?: string;
-  faceVectors?: number[][];
+  faceVectors?: any;
+  faceAngles?: FaceAnglesMap;
+  faceVector_front?: number[];
+  faceVector_left?: number[];
+  faceVector_right?: number[];
+  faceVector_smile?: number[];
   points: number;
   isAdmin?: boolean;
   phoneNumber?: string;

@@ -8,6 +8,7 @@ import {
   calculateCosineSimilarity,
   calculateDistanceSimilarity,
   calculateBestMultiVectorSimilarity,
+  parseStoredFaceVectors,
 } from '../lib/mediaPipeFace';
 
 interface FaceScannerModalProps {
@@ -120,8 +121,33 @@ export function FaceScannerModal({
         setIsFaceDetected(true);
         setAnalysisStatus('Face detected! Verifying match...');
 
+        const getCandidateVectors = (p: UserProfile): number[][] => {
+          const vecs: number[][] = [];
+          if (Array.isArray(p.faceVector_front) && p.faceVector_front.length > 0) vecs.push(p.faceVector_front);
+          if (Array.isArray(p.faceVector_left) && p.faceVector_left.length > 0) vecs.push(p.faceVector_left);
+          if (Array.isArray(p.faceVector_right) && p.faceVector_right.length > 0) vecs.push(p.faceVector_right);
+          if (Array.isArray(p.faceVector_smile) && p.faceVector_smile.length > 0) vecs.push(p.faceVector_smile);
+          if (p.faceAngles) {
+            if (Array.isArray(p.faceAngles.front) && p.faceAngles.front.length > 0) vecs.push(p.faceAngles.front);
+            if (Array.isArray(p.faceAngles.left) && p.faceAngles.left.length > 0) vecs.push(p.faceAngles.left);
+            if (Array.isArray(p.faceAngles.right) && p.faceAngles.right.length > 0) vecs.push(p.faceAngles.right);
+            if (Array.isArray(p.faceAngles.smile) && p.faceAngles.smile.length > 0) vecs.push(p.faceAngles.smile);
+          }
+          if (p.faceVectors) {
+            vecs.push(...parseStoredFaceVectors(p.faceVectors));
+          }
+          return vecs;
+        };
+
         const candidates = allProfiles.filter(
-          (p) => (p.faceVectors && p.faceVectors.length > 0) || (p.photoURL && p.photoURL.length > 50)
+          (p) =>
+            p.faceVector_front ||
+            p.faceVector_left ||
+            p.faceVector_right ||
+            p.faceVector_smile ||
+            p.faceAngles ||
+            (p.faceVectors && p.faceVectors.length > 0) ||
+            (p.photoURL && p.photoURL.length > 50)
         );
         if (candidates.length === 0) {
           setAnalysisStatus('No registered Face ID profiles in customer records');
@@ -132,14 +158,17 @@ export function FaceScannerModal({
         let highestSimilarity = 0;
 
         for (const candidate of candidates) {
-          if (candidate.faceVectors && candidate.faceVectors.length > 0) {
-            const similarityScore = calculateBestMultiVectorSimilarity(
-              liveVector,
-              candidate.faceVectors
-            );
-            if (similarityScore > highestSimilarity) {
-              highestSimilarity = similarityScore;
-              bestMatchUser = candidate;
+          const candidateVecs = getCandidateVectors(candidate);
+
+          if (candidateVecs.length > 0) {
+            for (const candidateVec of candidateVecs) {
+              const simCosine = calculateCosineSimilarity(liveVector, candidateVec);
+              const simDistance = calculateDistanceSimilarity(liveVector, candidateVec);
+              const score = (simCosine + simDistance) / 2;
+              if (score > highestSimilarity) {
+                highestSimilarity = score;
+                bestMatchUser = candidate;
+              }
             }
           } else if (candidate.photoURL) {
             let candidateVector = candidateVectorsRef.current.get(candidate.uid);

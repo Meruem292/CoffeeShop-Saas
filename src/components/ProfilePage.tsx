@@ -23,17 +23,81 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
   const [isSelfieModalOpen, setIsSelfieModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSaveSelfieBase64 = async (base64: string, faceVectors?: number[][]) => {
+  const handleSaveSelfieBase64 = async (
+    base64: string,
+    angleVectors?: {
+      front?: number[];
+      left?: number[];
+      right?: number[];
+      smile?: number[];
+    } | any
+  ) => {
     setIsSavingFace(true);
     try {
       const updateData: Record<string, any> = {
         photoURL: base64,
         updatedAt: Date.now()
       };
-      if (faceVectors && faceVectors.length > 0) {
-        // Store as array of JSON strings to avoid Firestore nested array error
-        updateData.faceVectors = faceVectors.map((v) => JSON.stringify(v));
+
+      if (angleVectors) {
+        // Sanitize vector to ensure pure flat 1D number array
+        const sanitizeVector = (vec: any): number[] => {
+          if (!Array.isArray(vec)) return [];
+          return vec
+            .flat(Infinity)
+            .map((n) => Number(n))
+            .filter((n) => !isNaN(n) && isFinite(n));
+        };
+
+        const faceAngles: Record<string, number[]> = {};
+
+        if (angleVectors.front) {
+          const clean = sanitizeVector(angleVectors.front);
+          if (clean.length > 0) {
+            updateData.faceVector_front = clean;
+            faceAngles.front = clean;
+          }
+        }
+        if (angleVectors.left) {
+          const clean = sanitizeVector(angleVectors.left);
+          if (clean.length > 0) {
+            updateData.faceVector_left = clean;
+            faceAngles.left = clean;
+          }
+        }
+        if (angleVectors.right) {
+          const clean = sanitizeVector(angleVectors.right);
+          if (clean.length > 0) {
+            updateData.faceVector_right = clean;
+            faceAngles.right = clean;
+          }
+        }
+        if (angleVectors.smile) {
+          const clean = sanitizeVector(angleVectors.smile);
+          if (clean.length > 0) {
+            updateData.faceVector_smile = clean;
+            faceAngles.smile = clean;
+          }
+        }
+
+        // If an array of vectors was passed instead of angle object
+        if (Array.isArray(angleVectors) && angleVectors.length > 0) {
+          angleVectors.forEach((v: any, idx: number) => {
+            const clean = sanitizeVector(v);
+            if (clean.length > 0) {
+              const keys = ['front', 'left', 'right', 'smile'];
+              const key = keys[idx] || `angle_${idx}`;
+              updateData[`faceVector_${key}`] = clean;
+              faceAngles[key] = clean;
+            }
+          });
+        }
+
+        if (Object.keys(faceAngles).length > 0) {
+          updateData.faceAngles = faceAngles;
+        }
       }
+
       await setDoc(doc(db, 'profiles', user.uid), updateData, { merge: true });
       toast.success('3D Multi-Angle Face ID registered! High-precision scanning active at all kiosks.');
     } catch (err) {

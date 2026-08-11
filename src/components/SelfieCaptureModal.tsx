@@ -5,7 +5,15 @@ import { detectHeadPoseAndExpression, getFaceLandmarker, extractFaceVector } fro
 interface SelfieCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPhotoCaptured: (base64Image: string, faceVectors?: number[][]) => Promise<void>;
+  onPhotoCaptured: (
+    base64Image: string,
+    angleVectors?: {
+      front?: number[];
+      left?: number[];
+      right?: number[];
+      smile?: number[];
+    }
+  ) => Promise<void>;
 }
 
 interface CapturedPose {
@@ -124,14 +132,14 @@ export function SelfieCaptureModal({
           matched = poseRes.isCenter;
           setPoseStatusText(matched ? 'Hold center position...' : 'Look straight into camera');
         } else if (step.id === 'left') {
-          matched = poseRes.isTurnLeft || poseRes.yawRatio > 0.14;
-          setPoseStatusText(matched ? 'Left angle detected! Hold...' : 'Turn head to the LEFT ⬅️');
+          matched = poseRes.isTurnLeft;
+          setPoseStatusText(matched ? 'Left angle detected! Hold...' : 'Turn head slightly LEFT ⬅️ or tap Capture');
         } else if (step.id === 'right') {
-          matched = poseRes.isTurnRight || poseRes.yawRatio < -0.14;
-          setPoseStatusText(matched ? 'Right angle detected! Hold...' : 'Turn head to the RIGHT ➡️');
+          matched = poseRes.isTurnRight;
+          setPoseStatusText(matched ? 'Right angle detected! Hold...' : 'Turn head slightly RIGHT ➡️ or tap Capture');
         } else if (step.id === 'smile') {
-          matched = poseRes.isSmiling;
-          setPoseStatusText(matched ? 'Nice smile! Hold...' : 'Smile into camera 😊');
+          matched = poseRes.isSmiling || poseRes.isCenter;
+          setPoseStatusText(matched ? 'Nice smile! Hold...' : 'Smile into camera 😊 or tap Capture');
         }
 
         setIsPoseMatched(matched);
@@ -223,9 +231,22 @@ export function SelfieCaptureModal({
     setIsSaving(true);
     try {
       const primaryPhoto = capturedPoses.find(p => p.stepIndex === 0)?.base64 || capturedPoses[0].base64;
-      const faceVectors = capturedPoses.map(p => p.vector).filter(v => v && v.length > 0);
+      
+      const angleVectors: {
+        front?: number[];
+        left?: number[];
+        right?: number[];
+        smile?: number[];
+      } = {};
 
-      await onPhotoCaptured(primaryPhoto, faceVectors);
+      capturedPoses.forEach((p) => {
+        const stepInfo = REGISTRATION_STEPS[p.stepIndex];
+        if (stepInfo && p.vector && p.vector.length > 0) {
+          angleVectors[stepInfo.id as keyof typeof angleVectors] = p.vector;
+        }
+      });
+
+      await onPhotoCaptured(primaryPhoto, angleVectors);
       onClose();
     } catch (err) {
       console.error('Failed saving 3D face vectors:', err);
