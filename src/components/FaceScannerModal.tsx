@@ -7,6 +7,7 @@ import {
   loadImageElement,
   calculateCosineSimilarity,
   calculateDistanceSimilarity,
+  calculateBestMultiVectorSimilarity,
 } from '../lib/mediaPipeFace';
 
 interface FaceScannerModalProps {
@@ -119,9 +120,11 @@ export function FaceScannerModal({
         setIsFaceDetected(true);
         setAnalysisStatus('Face detected! Verifying match...');
 
-        const candidates = allProfiles.filter(p => p.photoURL && p.photoURL.length > 50);
+        const candidates = allProfiles.filter(
+          (p) => (p.faceVectors && p.faceVectors.length > 0) || (p.photoURL && p.photoURL.length > 50)
+        );
         if (candidates.length === 0) {
-          setAnalysisStatus('No registered Face ID photos in customer records');
+          setAnalysisStatus('No registered Face ID profiles in customer records');
           return;
         }
 
@@ -129,36 +132,47 @@ export function FaceScannerModal({
         let highestSimilarity = 0;
 
         for (const candidate of candidates) {
-          let candidateVector = candidateVectorsRef.current.get(candidate.uid);
-
-          if (!candidateVector && candidate.photoURL) {
-            try {
-              const img = await loadImageElement(candidate.photoURL);
-              candidateVector = await extractFaceVector(img) || undefined;
-              if (candidateVector) {
-                candidateVectorsRef.current.set(candidate.uid, candidateVector);
-              }
-            } catch (e) {
-              console.warn(`Failed extracting face vector for candidate ${candidate.uid}:`, e);
-            }
-          }
-
-          if (candidateVector) {
-            const simCosine = calculateCosineSimilarity(liveVector, candidateVector);
-            const simDistance = calculateDistanceSimilarity(liveVector, candidateVector);
-            const similarityScore = (simCosine + simDistance) / 2;
-
+          if (candidate.faceVectors && candidate.faceVectors.length > 0) {
+            const similarityScore = calculateBestMultiVectorSimilarity(
+              liveVector,
+              candidate.faceVectors
+            );
             if (similarityScore > highestSimilarity) {
               highestSimilarity = similarityScore;
               bestMatchUser = candidate;
+            }
+          } else if (candidate.photoURL) {
+            let candidateVector = candidateVectorsRef.current.get(candidate.uid);
+
+            if (!candidateVector) {
+              try {
+                const img = await loadImageElement(candidate.photoURL);
+                candidateVector = (await extractFaceVector(img)) || undefined;
+                if (candidateVector) {
+                  candidateVectorsRef.current.set(candidate.uid, candidateVector);
+                }
+              } catch (e) {
+                console.warn(`Failed extracting face vector for candidate ${candidate.uid}:`, e);
+              }
+            }
+
+            if (candidateVector) {
+              const simCosine = calculateCosineSimilarity(liveVector, candidateVector);
+              const simDistance = calculateDistanceSimilarity(liveVector, candidateVector);
+              const similarityScore = (simCosine + simDistance) / 2;
+
+              if (similarityScore > highestSimilarity) {
+                highestSimilarity = similarityScore;
+                bestMatchUser = candidate;
+              }
             }
           }
         }
 
         console.log('Auto-Scan MediaPipe Match Score:', highestSimilarity, bestMatchUser?.displayName);
 
-        // High precision threshold >= 0.74
-        if (bestMatchUser && highestSimilarity >= 0.74) {
+        // Multi-vector high precision threshold >= 0.76 for instant auto-verify
+        if (bestMatchUser && highestSimilarity >= 0.76) {
           if (scanIntervalRef.current) {
             clearInterval(scanIntervalRef.current);
             scanIntervalRef.current = null;

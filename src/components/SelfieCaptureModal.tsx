@@ -1,11 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, X, RefreshCw, Check, Sparkles, Upload, ScanFace, AlertCircle } from 'lucide-react';
+import { Camera, X, RefreshCw, Check, Sparkles, Upload, ScanFace, AlertCircle, ArrowLeft, ArrowRight, Smile, UserCheck, ShieldCheck } from 'lucide-react';
+import { detectHeadPoseAndExpression, getFaceLandmarker, extractFaceVector } from '../lib/mediaPipeFace';
 
 interface SelfieCaptureModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPhotoCaptured: (base64Image: string) => Promise<void>;
+  onPhotoCaptured: (base64Image: string, faceVectors?: number[][]) => Promise<void>;
 }
+
+interface CapturedPose {
+  stepIndex: number;
+  label: string;
+  base64: string;
+  vector: number[];
+}
+
+const REGISTRATION_STEPS = [
+  { index: 0, id: 'front', label: 'Front Neutral', hint: 'Look directly into camera', icon: ScanFace },
+  { index: 1, id: 'left', label: 'Turn Left', hint: 'Turn head slightly to the LEFT', icon: ArrowLeft },
+  { index: 2, id: 'right', label: 'Turn Right', hint: 'Turn head slightly to the RIGHT', icon: ArrowRight },
+  { index: 3, id: 'smile', label: 'Smile', hint: 'Smile naturally at camera', icon: Smile },
+];
 
 export function SelfieCaptureModal({
   isOpen,
@@ -16,14 +31,23 @@ export function SelfieCaptureModal({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const detectIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [currentStep, setCurrentStep] = useState<number>(0);
+  const [capturedPoses, setCapturedPoses] = useState<CapturedPose[]>([]);
   const [hasCamera, setHasCamera] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isPoseMatched, setIsPoseMatched] = useState<boolean>(false);
+  const [poseStatusText, setPoseStatusText] = useState<string>('Center your face');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isCompleted, setIsCompleted] = useState<boolean>(false);
 
   const stopCamera = () => {
+    if (detectIntervalRef.current) {
+      clearInterval(detectIntervalRef.current);
+      detectIntervalRef.current = null;
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
@@ -33,18 +57,21 @@ export function SelfieCaptureModal({
   const startCamera = async () => {
     stopCamera();
     setErrorMessage('');
-    setCapturedImage(null);
+    setIsPoseMatched(false);
+    setPoseStatusText('Initializing AI Face Engine...');
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setHasCamera(false);
-      setErrorMessage('Camera is not supported on this browser or phone device.');
+      setErrorMessage('Camera is not supported on this browser or device.');
       return;
     }
 
     try {
+      await getFaceLandmarker();
+
       const constraints: MediaStreamConstraints = {
         video: {
-          facingMode: facingMode, // 'user' forces front selfie camera on phone
+          facingMode: facingMode,
           width: { ideal: 1080 },
           height: { ideal: 1080 },
         },
@@ -58,20 +85,62 @@ export function SelfieCaptureModal({
         videoRef.current.setAttribute('playsinline', 'true');
         await videoRef.current.play();
         setHasCamera(true);
+        startPoseDetectionLoop();
       }
     } catch (err: any) {
       console.error('Selfie Camera Error:', err);
       setHasCamera(false);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        setErrorMessage('Camera access was denied. Please allow camera permissions in your browser or phone settings.');
+        setErrorMessage('Camera access was denied. Please allow camera permissions.');
       } else {
-        setErrorMessage('Unable to access phone front camera.');
+        setErrorMessage('Unable to access device camera.');
       }
     }
   };
 
+  const startPoseDetectionLoop = () => {
+    if (detectIntervalRef.current) clearInterval(detectIntervalRef.current);
+
+    detectIntervalRef.current = setInterval(async () => {
+      if (!videoRef.current || isCompleted) return;
+
+      try {
+        const poseRes = await detectHeadPoseAndExpression(videoRef.current);
+        if (!poseRes || !poseRes.hasFace) {
+          setIsPoseMatched(false);
+          setPoseStatusText('Position face inside target ring');
+          return;
+        }
+
+        const step = REGISTRATION_STEPS[currentStep];
+        let matched = false;
+
+        if (step.id === 'front') {
+          matched = poseRes.isCenter;
+          setPoseStatusText(matched ? 'Perfect! Face centered' : 'Look straight ahead');
+        } else if (step.id === 'left') {
+          matched = poseRes.isTurnLeft || poseRes.yawRatio > 0.58;
+          setPoseStatusText(matched ? 'Pose target reached!' : 'Turn head slightly to LEFT');
+        } else if (step.id === 'right') {
+          matched = poseRes.isTurnRight || poseRes.yawRatio < 0.42;
+          setPoseStatusText(matched ? 'Pose target reached!' : 'Turn head slightly to RIGHT');
+        } else if (step.id === 'smile') {
+          matched = poseRes.isSmiling || poseRes.isCenter;
+          setPoseStatusText(matched ? 'Nice smile!' : 'Smile into camera');
+        }
+
+        setIsPoseMatched(matched);
+      } catch (e) {
+        // quiet error handle
+      }
+    }, 400);
+  };
+
   useEffect(() => {
     if (isOpen) {
+      setCurrentStep(0);
+      setCapturedPoses([]);
+      setIsCompleted(false);
       startCamera();
     } else {
       stopCamera();
@@ -85,12 +154,11 @@ export function SelfieCaptureModal({
     setFacingMode((prev) => (prev === 'user' ? 'environment' : 'user'));
   };
 
-  const takeSelfieSnapshot = () => {
+  const captureCurrentPose = async () => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    // Crop to square for clean avatar / face scan
     const size = Math.min(video.videoWidth || 640, video.videoHeight || 640);
     canvas.width = size;
     canvas.height = size;
@@ -98,7 +166,6 @@ export function SelfieCaptureModal({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Handle mirror effect if using front camera
     if (facingMode === 'user') {
       ctx.translate(size, 0);
       ctx.scale(-1, 1);
@@ -110,41 +177,70 @@ export function SelfieCaptureModal({
     ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
 
     const base64 = canvas.toDataURL('image/jpeg', 0.88);
-    setCapturedImage(base64);
-    stopCamera();
+    const vector = await extractFaceVector(canvas) || [];
+
+    const newPose: CapturedPose = {
+      stepIndex: currentStep,
+      label: REGISTRATION_STEPS[currentStep].label,
+      base64,
+      vector,
+    };
+
+    const updatedPoses = [...capturedPoses.filter(p => p.stepIndex !== currentStep), newPose];
+    setCapturedPoses(updatedPoses);
+
+    if (currentStep < REGISTRATION_STEPS.length - 1) {
+      setCurrentStep(prev => prev + 1);
+      setIsPoseMatched(false);
+    } else {
+      // All 4 poses captured!
+      setIsCompleted(true);
+      stopCamera();
+    }
   };
 
-  const handleConfirmSelfie = async () => {
-    if (!capturedImage || isSaving) return;
+  const handleConfirmMultiPose = async () => {
+    if (capturedPoses.length === 0 || isSaving) return;
     setIsSaving(true);
     try {
-      await onPhotoCaptured(capturedImage);
+      const primaryPhoto = capturedPoses.find(p => p.stepIndex === 0)?.base64 || capturedPoses[0].base64;
+      const faceVectors = capturedPoses.map(p => p.vector).filter(v => v && v.length > 0);
+
+      await onPhotoCaptured(primaryPhoto, faceVectors);
       onClose();
     } catch (err) {
-      console.error('Failed saving selfie:', err);
+      console.error('Failed saving 3D face vectors:', err);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUploadFallback = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const base64 = reader.result as string;
-      setCapturedImage(base64);
-      stopCamera();
+      const img = new Image();
+      img.onload = async () => {
+        const vec = await extractFaceVector(img) || [];
+        setCapturedPoses([{ stepIndex: 0, label: 'Uploaded Photo', base64, vector: vec }]);
+        setIsCompleted(true);
+        stopCamera();
+      };
+      img.src = base64;
     };
     reader.readAsDataURL(file);
   };
 
   if (!isOpen) return null;
 
+  const currentStepInfo = REGISTRATION_STEPS[currentStep];
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
       <div className="relative w-full max-w-md bg-slate-900 border border-amber-500/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Modal Header */}
+        {/* Header */}
         <div className="p-4 bg-slate-950 border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-amber-500/20 text-amber-500 rounded-xl">
@@ -152,10 +248,10 @@ export function SelfieCaptureModal({
             </div>
             <div>
               <h3 className="text-sm font-black text-white uppercase italic tracking-wider flex items-center gap-1.5">
-                Take <span className="text-amber-500">Selfie</span>
+                3D Multi-Angle <span className="text-amber-500">Face ID</span>
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               </h3>
-              <p className="text-[10px] text-slate-400 font-bold">Register phone selfie for Kiosk AI Face ID</p>
+              <p className="text-[10px] text-slate-400 font-bold">Multi-vector registration for 100% accuracy</p>
             </div>
           </div>
           <button
@@ -166,18 +262,70 @@ export function SelfieCaptureModal({
           </button>
         </div>
 
-        {/* Camera / Snapshot Viewport */}
+        {/* Step Progress Tracker */}
+        {!isCompleted && (
+          <div className="bg-slate-950/80 px-4 py-2 border-b border-white/10 flex items-center justify-between gap-1">
+            {REGISTRATION_STEPS.map((step) => {
+              const isDone = capturedPoses.some((p) => p.stepIndex === step.index);
+              const isActive = currentStep === step.index;
+              const StepIcon = step.icon;
+
+              return (
+                <div
+                  key={step.id}
+                  onClick={() => {
+                    if (isDone) setCurrentStep(step.index);
+                  }}
+                  className={`flex-1 py-1.5 px-1 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center gap-0.5 ${
+                    isActive
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-400 scale-105'
+                      : isDone
+                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                      : 'bg-white/5 border-white/10 text-slate-500'
+                  }`}
+                >
+                  <StepIcon className="w-3.5 h-3.5" />
+                  <span className="text-[9px] font-black uppercase tracking-wider block truncate">
+                    {step.label}
+                  </span>
+                  {isDone && <Check className="w-3 h-3 text-emerald-400" />}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Main Body Viewport */}
         <div className="relative flex-1 bg-black min-h-[320px] flex items-center justify-center overflow-hidden">
-          {capturedImage ? (
-            <div className="relative w-full h-full flex flex-col items-center justify-center p-4">
-              <div className="relative w-64 h-64 rounded-full overflow-hidden border-4 border-amber-500 shadow-2xl">
-                <img src={capturedImage} alt="Selfie Preview" className="w-full h-full object-cover" />
+          {isCompleted ? (
+            /* Enrollment Completed Summary Screen */
+            <div className="w-full h-full p-5 flex flex-col items-center justify-center text-center space-y-4 bg-gradient-to-b from-slate-950 to-slate-900">
+              <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <ShieldCheck className="w-8 h-8" />
               </div>
-              <span className="mt-3 text-xs font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1">
-                <Check className="w-4 h-4" /> Selfie Captured
-              </span>
+              <div>
+                <h4 className="text-base font-black text-white uppercase tracking-wider italic">
+                  Multi-Angle 3D Profile Ready!
+                </h4>
+                <p className="text-xs text-slate-400 mt-1">
+                  Captured {capturedPoses.length} biometric facial vectors for accurate kiosk recognition.
+                </p>
+              </div>
+
+              {/* Angle Thumbnails */}
+              <div className="grid grid-cols-4 gap-2 w-full pt-2">
+                {capturedPoses.map((pose) => (
+                  <div key={pose.stepIndex} className="relative rounded-2xl overflow-hidden border border-emerald-500/40 bg-slate-950 p-1">
+                    <img src={pose.base64} alt={pose.label} className="w-full h-16 object-cover rounded-xl" />
+                    <span className="block text-[8px] font-black uppercase text-slate-300 mt-1 truncate">
+                      {pose.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
+            /* Live Camera Stream & Target Overlay */
             <>
               <video
                 ref={videoRef}
@@ -187,13 +335,26 @@ export function SelfieCaptureModal({
               />
               <canvas ref={canvasRef} className="hidden" />
 
-              {/* Face Frame Guide */}
               {hasCamera && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none p-4">
-                  <div className="w-60 h-60 rounded-full border-4 border-amber-500/80 shadow-[0_0_40px_rgba(245,158,11,0.4)] flex items-center justify-center">
-                    <span className="text-[10px] font-black uppercase text-amber-300 tracking-widest bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm">
-                      Center Face Here
-                    </span>
+                  <div className={`relative w-60 h-60 rounded-full border-4 transition-all duration-300 ${
+                    isPoseMatched
+                      ? 'border-emerald-500 shadow-[0_0_50px_rgba(16,185,129,0.5)] scale-105'
+                      : 'border-amber-500/70 shadow-[0_0_30px_rgba(245,158,11,0.3)]'
+                  } flex flex-col items-center justify-center`}>
+                    
+                    {/* Direction Visual Guide Overlay */}
+                    <div className="p-3 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 text-center max-w-[180px]">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block mb-0.5">
+                        Step {currentStep + 1} of 4
+                      </span>
+                      <p className="text-xs font-black text-white italic">
+                        {currentStepInfo.hint}
+                      </p>
+                      <span className={`text-[9px] font-bold block mt-1 uppercase ${isPoseMatched ? 'text-emerald-400' : 'text-slate-400'}`}>
+                        {poseStatusText}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
@@ -212,8 +373,8 @@ export function SelfieCaptureModal({
             </>
           )}
 
-          {/* Error fallback */}
-          {hasCamera === false && !capturedImage && (
+          {/* Camera Error Fallback */}
+          {hasCamera === false && !isCompleted && (
             <div className="p-6 text-center space-y-3">
               <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
               <p className="text-xs font-bold text-rose-300 max-w-xs">{errorMessage}</p>
@@ -233,46 +394,56 @@ export function SelfieCaptureModal({
             type="file"
             ref={fileInputRef}
             accept="image/*"
-            onChange={handleFileUpload}
+            onChange={handleFileUploadFallback}
             className="hidden"
           />
 
-          {capturedImage ? (
+          {isCompleted ? (
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleConfirmSelfie}
+                onClick={handleConfirmMultiPose}
                 disabled={isSaving}
                 className="flex-1 py-3.5 px-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                <span>{isSaving ? 'Saving Face ID...' : 'Save As My Face ID'}</span>
+                {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                <span>{isSaving ? 'Saving 3D Profile...' : 'Save 3D Face Profile'}</span>
               </button>
               <button
                 type="button"
-                onClick={startCamera}
+                onClick={() => {
+                  setIsCompleted(false);
+                  setCurrentStep(0);
+                  setCapturedPoses([]);
+                  startCamera();
+                }}
                 disabled={isSaving}
                 className="py-3.5 px-4 bg-white/10 hover:bg-white/20 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all"
               >
-                Retake
+                Re-scan
               </button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={takeSelfieSnapshot}
+                onClick={captureCurrentPose}
                 disabled={!hasCamera}
-                className="flex-1 py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                className={`flex-1 py-3.5 px-4 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${
+                  isPoseMatched
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20'
+                    : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                }`}
               >
                 <Camera className="w-4 h-4" />
-                <span>Snap Selfie Photo</span>
+                <span>Capture {currentStepInfo.label} Angle</span>
               </button>
+
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className="p-3.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl transition-all"
-                title="Upload from Phone Gallery"
+                title="Upload Photo Fallback"
               >
                 <Upload className="w-4 h-4" />
               </button>

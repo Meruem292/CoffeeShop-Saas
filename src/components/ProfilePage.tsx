@@ -23,17 +23,21 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
   const [isSelfieModalOpen, setIsSelfieModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSaveSelfieBase64 = async (base64: string) => {
+  const handleSaveSelfieBase64 = async (base64: string, faceVectors?: number[][]) => {
     setIsSavingFace(true);
     try {
-      await setDoc(doc(db, 'profiles', user.uid), {
+      const updateData: Record<string, any> = {
         photoURL: base64,
         updatedAt: Date.now()
-      }, { merge: true });
-      toast.success('Face ID selfie registered! You can now use AI Face Scan at any Kiosk.');
+      };
+      if (faceVectors && faceVectors.length > 0) {
+        updateData.faceVectors = faceVectors;
+      }
+      await setDoc(doc(db, 'profiles', user.uid), updateData, { merge: true });
+      toast.success('3D Multi-Angle Face ID registered! High-precision scanning active at all kiosks.');
     } catch (err) {
       console.error('Failed saving face ID:', err);
-      toast.error('Failed to save Face ID photo.');
+      toast.error('Failed to save Face ID profile.');
       throw err;
     } finally {
       setIsSavingFace(false);

@@ -181,3 +181,92 @@ export function calculateDistanceSimilarity(vA: number[], vB: number[]): number 
   // Convert distance to normalized similarity score [0, 1]
   return Math.max(0, 1 - dist / 15);
 }
+
+/**
+  * Calculate highest similarity score across multiple candidate vectors
+  */
+export function calculateBestMultiVectorSimilarity(
+  liveVector: number[],
+  storedVectors: number[][]
+): number {
+  if (!liveVector || !storedVectors || storedVectors.length === 0) return 0;
+
+  let maxScore = 0;
+  for (const storedVec of storedVectors) {
+    if (!storedVec || storedVec.length === 0) continue;
+    const simCosine = calculateCosineSimilarity(liveVector, storedVec);
+    const simDistance = calculateDistanceSimilarity(liveVector, storedVec);
+    const score = (simCosine + simDistance) / 2;
+    if (score > maxScore) {
+      maxScore = score;
+    }
+  }
+  return maxScore;
+}
+
+/**
+ * Detect facial head pose (Center, Left, Right) and expression (Smile) for guided enrollment
+ */
+export async function detectHeadPoseAndExpression(
+  element: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement
+): Promise<{
+  hasFace: boolean;
+  vector: number[] | null;
+  yawRatio: number;
+  isCenter: boolean;
+  isTurnLeft: boolean;
+  isTurnRight: boolean;
+  isSmiling: boolean;
+} | null> {
+  try {
+    const landmarker = await getFaceLandmarker();
+    if (!landmarker) return null;
+
+    const results = landmarker.detect(element);
+    if (!results || !results.faceLandmarks || results.faceLandmarks.length === 0) {
+      return {
+        hasFace: false,
+        vector: null,
+        yawRatio: 0.5,
+        isCenter: false,
+        isTurnLeft: false,
+        isTurnRight: false,
+        isSmiling: false,
+      };
+    }
+
+    const landmarks = results.faceLandmarks[0];
+    const vector = await extractFaceVector(element);
+
+    const pLeftEye = landmarks[33] || landmarks[0];
+    const pRightEye = landmarks[263] || landmarks[1];
+    const pNose = landmarks[1] || landmarks[2];
+    const pMouthLeft = landmarks[61];
+    const pMouthRight = landmarks[291];
+
+    const eyeWidth = Math.abs(pRightEye.x - pLeftEye.x) || 0.1;
+    const yawRatio = (pNose.x - Math.min(pLeftEye.x, pRightEye.x)) / eyeWidth;
+
+    const isCenter = yawRatio >= 0.38 && yawRatio <= 0.62;
+    const isTurnLeft = yawRatio > 0.62 || yawRatio < 0.30;
+    const isTurnRight = yawRatio < 0.38 || yawRatio > 0.70;
+
+    let mouthWidth = 0;
+    if (pMouthLeft && pMouthRight) {
+      mouthWidth = Math.hypot(pMouthRight.x - pMouthLeft.x, pMouthRight.y - pMouthLeft.y);
+    }
+    const isSmiling = (mouthWidth / eyeWidth) > 0.72;
+
+    return {
+      hasFace: true,
+      vector,
+      yawRatio,
+      isCenter,
+      isTurnLeft,
+      isTurnRight,
+      isSmiling,
+    };
+  } catch (err) {
+    return null;
+  }
+}

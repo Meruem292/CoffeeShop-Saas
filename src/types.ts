@@ -7,6 +7,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   photoURL?: string;
+  faceVectors?: number[][];
   points: number;
   isAdmin?: boolean;
   phoneNumber?: string;
