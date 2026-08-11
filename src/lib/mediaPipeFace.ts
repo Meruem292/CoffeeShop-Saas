@@ -282,18 +282,19 @@ export async function detectHeadPoseAndExpression(
 
     // Nose offset relative to eye center
     const noseOffset = (pNose.x - eyeCenterX) / eyeWidth;
-    const zDiff = Math.abs(pRightEye.z - pLeftEye.z) / eyeWidth;
+    const zDiffRaw = (pRightEye.z - pLeftEye.z) / eyeWidth;
+    const absZDiff = Math.abs(zDiffRaw);
 
     // Face rotation detection (works across mirrored or unmirrored streams)
-    const isCenter = Math.abs(noseOffset) < 0.09 && zDiff < 0.20;
-    const isTurnLeft = Math.abs(noseOffset) >= 0.07 || zDiff >= 0.12;
-    const isTurnRight = Math.abs(noseOffset) >= 0.07 || zDiff >= 0.12;
+    const isCenter = Math.abs(noseOffset) < 0.08 && absZDiff < 0.18;
+    const isTurnLeft = noseOffset > 0.04 || zDiffRaw > 0.06 || (Math.abs(noseOffset) >= 0.05 && !isCenter);
+    const isTurnRight = noseOffset < -0.04 || zDiffRaw < -0.06 || (Math.abs(noseOffset) >= 0.05 && !isCenter);
 
     let mouthWidth = 0;
     if (pMouthLeft && pMouthRight) {
       mouthWidth = Math.hypot(pMouthRight.x - pMouthLeft.x, pMouthRight.y - pMouthLeft.y);
     }
-    const isSmiling = (mouthWidth / eyeWidth) > 0.65;
+    const isSmiling = (mouthWidth / eyeWidth) > 0.60;
 
     return {
       hasFace: true,

@@ -42,6 +42,12 @@ export function SelfieCaptureModal({
   const detectIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const [currentStep, setCurrentStep] = useState<number>(0);
+  const currentStepRef = useRef<number>(0);
+
+  useEffect(() => {
+    currentStepRef.current = currentStep;
+  }, [currentStep]);
+
   const [capturedPoses, setCapturedPoses] = useState<CapturedPose[]>([]);
   const [hasCamera, setHasCamera] = useState<boolean | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -117,6 +123,9 @@ export function SelfieCaptureModal({
       if (!videoRef.current || isCompleted || isCapturingRef.current) return;
 
       try {
+        const stepIdx = currentStepRef.current;
+        const step = REGISTRATION_STEPS[stepIdx] || REGISTRATION_STEPS[0];
+
         const poseRes = await detectHeadPoseAndExpression(videoRef.current);
         if (!poseRes || !poseRes.hasFace) {
           setIsPoseMatched(false);
@@ -125,21 +134,20 @@ export function SelfieCaptureModal({
           return;
         }
 
-        const step = REGISTRATION_STEPS[currentStep];
         let matched = false;
 
         if (step.id === 'front') {
           matched = poseRes.isCenter;
-          setPoseStatusText(matched ? 'Hold center position...' : 'Look straight into camera');
+          setPoseStatusText(matched ? 'Center pose locked! Hold...' : 'Look straight into camera');
         } else if (step.id === 'left') {
           matched = poseRes.isTurnLeft;
-          setPoseStatusText(matched ? 'Left angle detected! Hold...' : 'Turn head slightly LEFT ⬅️ or tap Capture');
+          setPoseStatusText(matched ? 'Left angle locked! Hold...' : 'Turn head slightly LEFT ⬅️ or tap Capture');
         } else if (step.id === 'right') {
           matched = poseRes.isTurnRight;
-          setPoseStatusText(matched ? 'Right angle detected! Hold...' : 'Turn head slightly RIGHT ➡️ or tap Capture');
+          setPoseStatusText(matched ? 'Right angle locked! Hold...' : 'Turn head slightly RIGHT ➡️ or tap Capture');
         } else if (step.id === 'smile') {
           matched = poseRes.isSmiling || poseRes.isCenter;
-          setPoseStatusText(matched ? 'Nice smile! Hold...' : 'Smile into camera 😊 or tap Capture');
+          setPoseStatusText(matched ? 'Nice smile locked! Hold...' : 'Smile into camera 😊 or tap Capture');
         }
 
         setIsPoseMatched(matched);
@@ -160,7 +168,7 @@ export function SelfieCaptureModal({
       } catch (e) {
         // quiet error handle
       }
-    }, 400);
+    }, 350);
   };
 
   useEffect(() => {
@@ -204,21 +212,29 @@ export function SelfieCaptureModal({
     ctx.drawImage(video, sx, sy, size, size, 0, 0, size, size);
 
     const base64 = canvas.toDataURL('image/jpeg', 0.88);
-    const vector = await extractFaceVector(canvas) || [];
+    const vector = (await extractFaceVector(canvas)) || [];
+
+    const stepIdx = currentStepRef.current;
+    const stepData = REGISTRATION_STEPS[stepIdx] || REGISTRATION_STEPS[0];
 
     const newPose: CapturedPose = {
-      stepIndex: currentStep,
-      label: REGISTRATION_STEPS[currentStep].label,
+      stepIndex: stepIdx,
+      label: stepData.label,
       base64,
       vector,
     };
 
-    const updatedPoses = [...capturedPoses.filter(p => p.stepIndex !== currentStep), newPose];
-    setCapturedPoses(updatedPoses);
+    setCapturedPoses((prev) => {
+      const filtered = prev.filter((p) => p.stepIndex !== stepIdx);
+      return [...filtered, newPose];
+    });
 
-    if (currentStep < REGISTRATION_STEPS.length - 1) {
-      setCurrentStep(prev => prev + 1);
+    if (stepIdx < REGISTRATION_STEPS.length - 1) {
+      const nextStep = stepIdx + 1;
+      setCurrentStep(nextStep);
+      currentStepRef.current = nextStep;
       setIsPoseMatched(false);
+      holdCountRef.current = 0;
     } else {
       // All 4 poses captured!
       setIsCompleted(true);
@@ -275,7 +291,7 @@ export function SelfieCaptureModal({
 
   if (!isOpen) return null;
 
-  const currentStepInfo = REGISTRATION_STEPS[currentStep];
+  const currentStepInfo = REGISTRATION_STEPS[currentStep] || REGISTRATION_STEPS[REGISTRATION_STEPS.length - 1];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
