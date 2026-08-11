@@ -1,8 +1,11 @@
-import React from 'react';
-import { User, Copy, Tag, Clock, ShoppingBag, Award, ArrowUpRight, ArrowDownRight, Coins, ArrowRight, QrCode } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { User, Copy, Tag, Clock, ShoppingBag, Award, ArrowUpRight, ArrowDownRight, Coins, ArrowRight, QrCode, Camera, ScanFace, Sparkles, Upload, CheckCircle2, RefreshCw } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import { Voucher, Order, ClaimedVoucher, UserProfile, ViewMode } from '../types';
 import { useToast } from '../lib/ToastContext';
+import { SelfieCaptureModal } from './SelfieCaptureModal';
 
 interface ProfilePageProps {
   user: any;
@@ -16,6 +19,41 @@ interface ProfilePageProps {
 
 export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouchers = [], orders = [], onClaimVoucher, onNavigate }: ProfilePageProps) {
   const { toast } = useToast();
+  const [isSavingFace, setIsSavingFace] = useState(false);
+  const [isSelfieModalOpen, setIsSelfieModalOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveSelfieBase64 = async (base64: string) => {
+    setIsSavingFace(true);
+    try {
+      await setDoc(doc(db, 'profiles', user.uid), {
+        photoURL: base64,
+        updatedAt: Date.now()
+      }, { merge: true });
+      toast.success('Face ID selfie registered! You can now use AI Face Scan at any Kiosk.');
+    } catch (err) {
+      console.error('Failed saving face ID:', err);
+      toast.error('Failed to save Face ID photo.');
+      throw err;
+    } finally {
+      setIsSavingFace(false);
+    }
+  };
+
+  const handleFaceImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image file too large. Please select a photo under 5MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      await handleSaveSelfieBase64(base64);
+    };
+    reader.readAsDataURL(file);
+  };
 
   if (!user) return <div className="p-8 text-center text-slate-500 font-bold">Please log in to view your profile.</div>;
 
@@ -191,6 +229,48 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
           </div>
         </div>
 
+        {/* Face ID Kiosk Pass Card */}
+        <div className="bg-gradient-to-r from-slate-900 to-amber-950 p-5 rounded-3xl border border-amber-500/30 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl relative overflow-hidden">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="relative shrink-0">
+              {userProfile?.photoURL ? (
+                <img src={userProfile.photoURL} alt="Face ID" className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-400 shadow-md" />
+              ) : (
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black">
+                  <ScanFace className="w-7 h-7" />
+                </div>
+              )}
+              {userProfile?.photoURL && (
+                <span className="absolute -bottom-1 -right-1 p-1 bg-emerald-500 text-slate-950 rounded-full border-2 border-slate-900 shadow-sm" title="Face ID Active">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </span>
+              )}
+            </div>
+            <div className="min-w-0 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-1.5 text-amber-400 font-black text-xs uppercase tracking-widest">
+                <Sparkles className="w-3.5 h-3.5" /> Kiosk AI Face ID
+              </div>
+              <h4 className="text-sm font-black text-white italic tracking-tight mt-0.5">
+                {userProfile?.photoURL ? 'Face ID Active for Kiosk Scan' : 'Register Your Face for Kiosk Auto-Login'}
+              </h4>
+              <p className="text-[10px] text-slate-300 font-medium leading-tight mt-1">
+                Walk up to any Kiosk, tap "AI Face Scan", and automatically earn points without typing your ID!
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-center">
+            <button
+              onClick={() => setIsSelfieModalOpen(true)}
+              disabled={isSavingFace}
+              className="w-full sm:w-auto px-4 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-2xl text-xs uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
+            >
+              {isSavingFace ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+              <span>{userProfile?.photoURL ? 'Update Selfie Photo' : 'Take Selfie Camera'}</span>
+            </button>
+          </div>
+        </div>
+
         {/* Points Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl flex items-center justify-between">
@@ -336,6 +416,12 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
           </div>
         )}
       </div>
+
+      <SelfieCaptureModal
+        isOpen={isSelfieModalOpen}
+        onClose={() => setIsSelfieModalOpen(false)}
+        onPhotoCaptured={handleSaveSelfieBase64}
+      />
     </div>
   );
 }

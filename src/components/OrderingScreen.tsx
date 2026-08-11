@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock } from 'lucide-react';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, ScanFace } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
@@ -12,6 +12,7 @@ import { useToast } from '../lib/ToastContext';
 import { useBackButton } from '../lib/useBackButton';
 import { QRScannerModal } from './QRScannerModal';
 import { OrderStatusModal } from './OrderStatusModal';
+import { FaceScannerModal } from './FaceScannerModal';
 
 interface OrderingScreenProps {
   mode: 'pos' | 'kiosk' | 'mobile';
@@ -149,6 +150,33 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   };
 
   const [scannedAccountProfile, setScannedAccountProfile] = useState<UserProfile | null>(null);
+  const [isFaceScannerOpen, setIsFaceScannerOpen] = useState(false);
+  const [customerProfilesList, setCustomerProfilesList] = useState<UserProfile[]>([]);
+
+  // Fetch profiles list for AI Face Scan matching
+  useEffect(() => {
+    let isMounted = true;
+    const fetchProfiles = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'profiles'));
+        if (isMounted) {
+          const list: UserProfile[] = snap.docs.map(d => ({
+            id: d.id,
+            uid: d.id,
+            shortId: (d.data().shortId || d.id.slice(0, 5)).toUpperCase(),
+            ...(d.data() as any)
+          }));
+          setCustomerProfilesList(list);
+        }
+      } catch (e) {
+        console.warn('Failed loading customer profiles for face scanning:', e);
+      }
+    };
+    if (mode === 'kiosk' || mode === 'pos' || isFaceScannerOpen) {
+      fetchProfiles();
+    }
+    return () => { isMounted = false; };
+  }, [mode, isFaceScannerOpen]);
 
   // Real-time listener for scanned account profile in kiosk or POS mode
   React.useEffect(() => {
@@ -1782,15 +1810,25 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                   <div className="space-y-2 mt-4 pt-4 border-t border-black/5 dark:border-white/5">
                     <div className="flex items-center justify-between ml-1">
                       <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] flex items-center gap-1.5">
-                        <UserIcon className="w-3 h-3 text-amber-500" /> Account ID <span className="text-slate-400 font-bold lowercase tracking-normal">(Scan or enter for points)</span>
+                        <UserIcon className="w-3 h-3 text-amber-500" /> Account ID <span className="text-slate-400 font-bold lowercase tracking-normal">(Scan face/QR for points)</span>
                       </label>
-                      <button
-                        type="button"
-                        onClick={() => openQRScanner('account_id')}
-                        className="text-[10px] font-black text-amber-500 uppercase tracking-wider flex items-center gap-1 hover:underline"
-                      >
-                        <Camera className="w-3.5 h-3.5" /> Scan Member QR
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsFaceScannerOpen(true)}
+                          className="text-[10px] font-black text-amber-500 hover:text-amber-400 uppercase tracking-wider flex items-center gap-1 hover:underline"
+                        >
+                          <ScanFace className="w-3.5 h-3.5 text-amber-500" /> AI Face Scan
+                        </button>
+                        <span className="text-slate-400 text-xs">|</span>
+                        <button
+                          type="button"
+                          onClick={() => openQRScanner('account_id')}
+                          className="text-[10px] font-black text-amber-500 uppercase tracking-wider flex items-center gap-1 hover:underline"
+                        >
+                          <Camera className="w-3.5 h-3.5" /> Scan QR
+                        </button>
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <input
@@ -1798,16 +1836,24 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                         value={accountId}
                         onChange={(e) => setAccountId(e.target.value)}
                         className="flex-1 p-4 border-2 border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-black transition-all bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 hover:border-black/20 dark:hover:border-white/20 min-w-0 uppercase font-mono"
-                        placeholder="Enter 5-char ID (e.g. A89XK) or Scan QR"
+                        placeholder="Enter 5-char ID (e.g. A89XK) or Scan"
                       />
                       <button
                         type="button"
+                        onClick={() => setIsFaceScannerOpen(true)}
+                        className="px-3.5 py-4 bg-gradient-to-r from-amber-500/20 to-amber-500/10 hover:from-amber-500/30 hover:to-amber-500/20 text-amber-500 border border-amber-500/30 rounded-2xl flex items-center justify-center gap-1.5 font-black text-xs uppercase tracking-wider shrink-0 transition-all active:scale-95 shadow-sm"
+                        title="Auto-Detect Account with AI Face Scan"
+                      >
+                        <ScanFace className="w-4 h-4 text-amber-500 animate-pulse" />
+                        <span className="hidden sm:inline">AI Face</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => openQRScanner('account_id')}
-                        className="px-4 py-4 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-2xl flex items-center justify-center gap-2 font-black text-xs uppercase tracking-wider shrink-0 transition-all active:scale-95"
+                        className="px-3 py-4 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-2xl flex items-center justify-center gap-1.5 font-black text-xs uppercase tracking-wider shrink-0 transition-all active:scale-95"
                         title="Scan Member QR Code with Kiosk Camera"
                       >
                         <Camera className="w-4 h-4" />
-                        <span className="hidden sm:inline">Scan QR</span>
                       </button>
                     </div>
 
@@ -2309,6 +2355,21 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
             </button>
           </div>
         )}
+
+        <FaceScannerModal
+          isOpen={isFaceScannerOpen}
+          onClose={() => setIsFaceScannerOpen(false)}
+          onFaceMatched={(matchedUser) => {
+            const shortId = matchedUser.shortId || matchedUser.uid.slice(0, 5).toUpperCase();
+            setAccountId(shortId);
+            setScannedAccountProfile(matchedUser);
+            if (matchedUser.displayName) {
+              setCustomerName(matchedUser.displayName);
+            }
+            toast.success(`Welcome, ${matchedUser.displayName || 'Customer'}! Points account linked.`);
+          }}
+          allProfiles={customerProfilesList}
+        />
 
         <OrderStatusModal
           isOpen={showOrderStatusModal}

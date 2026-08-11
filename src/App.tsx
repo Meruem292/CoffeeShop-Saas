@@ -208,30 +208,75 @@ export default function App() {
     }
   }, [isAdmin, isKioskModeActive]);
 
-  // Prevent zooming (pinch-to-zoom / ctrl+wheel zoom / keyboard shortcuts on desktop and touch devices)
+  // Strict Anti-Zoom protection for Kiosk mode
   useEffect(() => {
-    const handleGestureStart = (e: Event) => e.preventDefault();
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        e.preventDefault();
-      }
+    const isKiosk = isKioskModeActive || currentView === 'kiosk';
+
+    if (isKiosk) {
+      document.body.classList.add('kiosk-mode-active');
+    } else {
+      document.body.classList.remove('kiosk-mode-active');
+    }
+
+    const handleGesture = (e: Event) => {
+      if (isKiosk) e.preventDefault();
     };
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) {
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isKiosk && e.touches && e.touches.length > 1) {
         e.preventDefault();
       }
     };
 
-    document.addEventListener('gesturestart', handleGestureStart);
+    let lastTouchEnd = 0;
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!isKiosk) return;
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        const target = e.target as HTMLElement | null;
+        const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT');
+        if (!isInput) {
+          e.preventDefault();
+        }
+      }
+      lastTouchEnd = now;
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      if (isKiosk && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (
+        isKiosk &&
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0' || e.code === 'NumpadAdd' || e.code === 'NumpadSubtract')
+      ) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('gesturestart', handleGesture, { passive: false });
+    document.addEventListener('gesturechange', handleGesture, { passive: false });
+    document.addEventListener('gestureend', handleGesture, { passive: false });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: false });
     document.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.removeEventListener('gesturestart', handleGestureStart);
+      document.body.classList.remove('kiosk-mode-active');
+      document.removeEventListener('gesturestart', handleGesture);
+      document.removeEventListener('gesturechange', handleGesture);
+      document.removeEventListener('gestureend', handleGesture);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
       document.removeEventListener('wheel', handleWheel);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [isKioskModeActive, currentView]);
 
   // Handle landing page state
   useEffect(() => {
