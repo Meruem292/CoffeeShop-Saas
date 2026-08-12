@@ -5,7 +5,7 @@ let isInitializing = false;
 let initPromise: Promise<FaceLandmarker | null> | null = null;
 
 // Curated key facial landmark indices for high-accuracy matching (eyes, nose, lips, jaw contour)
-const KEY_LANDMARK_INDICES = [
+export const KEY_LANDMARK_INDICES = [
   // Eyes
   33, 133, 160, 159, 158, 144, 153, 145, 154, 246,
   263, 362, 385, 386, 387, 373, 380, 374, 381, 466,
@@ -368,3 +368,24 @@ export async function detectHeadPoseAndExpression(
     return null;
   }
 }
+
+/**
+ * Detect raw face landmarks for real-time mesh/wireframe mask overlay
+ */
+export async function detectFaceLandmarks(
+  element: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement
+): Promise<any[] | null> {
+  if (!isElementReady(element)) return null;
+  try {
+    const landmarker = await getFaceLandmarker();
+    if (!landmarker) return null;
+    const results = landmarker.detect(element);
+    if (!results || !results.faceLandmarks || results.faceLandmarks.length === 0) {
+      return null;
+    }
+    return results.faceLandmarks[0];
+  } catch (err) {
+    return null;
+  }
+}
+

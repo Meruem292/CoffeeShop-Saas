@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, X, RefreshCw, Check, Sparkles, Upload, ScanFace, AlertCircle, ArrowLeft, ArrowRight, Smile, UserCheck, ShieldCheck } from 'lucide-react';
-import { detectHeadPoseAndExpression, getFaceLandmarker, extractFaceVector } from '../lib/mediaPipeFace';
+import { detectHeadPoseAndExpression, getFaceLandmarker, extractFaceVector, detectFaceLandmarks, KEY_LANDMARK_INDICES } from '../lib/mediaPipeFace';
 
 interface SelfieCaptureModalProps {
   isOpen: boolean;
@@ -112,6 +112,7 @@ export function SelfieCaptureModal({
     }
   };
 
+  const meshCanvasRef = useRef<HTMLCanvasElement>(null);
   const holdCountRef = useRef<number>(0);
   const isCapturingRef = useRef<boolean>(false);
   const isProcessingRef = useRef<boolean>(false);
@@ -129,7 +130,50 @@ export function SelfieCaptureModal({
         const stepIdx = currentStepRef.current;
         const step = REGISTRATION_STEPS[stepIdx] || REGISTRATION_STEPS[0];
 
-        const poseRes = await detectHeadPoseAndExpression(videoRef.current);
+        const [poseRes, landmarks] = await Promise.all([
+          detectHeadPoseAndExpression(videoRef.current),
+          detectFaceLandmarks(videoRef.current),
+        ]);
+
+        // Draw live face mesh wireframe mask overlay
+        if (meshCanvasRef.current && videoRef.current) {
+          const mCanvas = meshCanvasRef.current;
+          const ctx = mCanvas.getContext('2d');
+          const v = videoRef.current;
+          const w = v.clientWidth || 300;
+          const h = v.clientHeight || 300;
+          if (mCanvas.width !== w || mCanvas.height !== h) {
+            mCanvas.width = w;
+            mCanvas.height = h;
+          }
+          if (ctx) {
+            ctx.clearRect(0, 0, w, h);
+            if (landmarks && landmarks.length > 0) {
+              ctx.save();
+              if (facingMode === 'user') {
+                ctx.translate(w, 0);
+                ctx.scale(-1, 1);
+              }
+              ctx.fillStyle = poseRes?.hasFace ? 'rgba(16, 185, 129, 0.9)' : 'rgba(245, 158, 11, 0.9)';
+              ctx.strokeStyle = poseRes?.hasFace ? 'rgba(16, 185, 129, 0.35)' : 'rgba(245, 158, 11, 0.35)';
+              ctx.lineWidth = 1;
+
+              // Draw key landmark mesh dots
+              for (const idx of KEY_LANDMARK_INDICES) {
+                const pt = landmarks[idx];
+                if (pt) {
+                  const px = pt.x * w;
+                  const py = pt.y * h;
+                  ctx.beginPath();
+                  ctx.arc(px, py, 2, 0, 2 * Math.PI);
+                  ctx.fill();
+                }
+              }
+              ctx.restore();
+            }
+          }
+        }
+
         if (!poseRes || !poseRes.hasFace) {
           setIsPoseMatched(false);
           holdCountRef.current = 0;
@@ -411,6 +455,7 @@ export function SelfieCaptureModal({
                 playsInline
                 muted
               />
+              <canvas ref={meshCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />
               <canvas ref={canvasRef} className="hidden" />
 
               {hasCamera && (
