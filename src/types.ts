@@ -103,6 +103,7 @@ export interface ShopSettings {
   gcashQrUrl?: string;
   gcashNumber?: string;
   footerContent?: string;
+  isClosed?: boolean;
 }
 
 export interface SplashScreen {

@@ -305,7 +305,7 @@ export function FaceScannerModal({
         const calculatedConf = highestConfidence;
         setMatchConfidence(calculatedConf);
 
-        // Strict 95% confidence matching requirement (>= 95%)
+        // Strict 95% confidence matching requirement (must be >= 95%)
         const isStrictMatch = bestMatchUser && 
           highestConfidence >= 95 && 
           (candidates.length === 1 || (highestConfidence - secondHighestConfidence) >= 2);
@@ -317,16 +317,16 @@ export function FaceScannerModal({
             consecutiveMatchesRef.current = { uid: bestMatchUser.uid, count: 1 };
           }
 
-          setAnalysisStatus(`Verifying ${bestMatchUser.displayName || 'Customer'} (${calculatedConf}%)... (${consecutiveMatchesRef.current.count}/2)`);
+          setAnalysisStatus(`Verified ${bestMatchUser.displayName || 'Customer'} (${calculatedConf}% Confidence)!`);
 
-          // Require 2 consecutive frames of >= 95% confidence match
+          // Require 2 consecutive frames of >= 95% confidence match for maximum precision
           if (consecutiveMatchesRef.current.count >= 2) {
             if (scanIntervalRef.current) {
               clearInterval(scanIntervalRef.current);
               scanIntervalRef.current = null;
             }
             setMatchedUser(bestMatchUser);
-            setAnalysisStatus(`Verified! Welcome ${bestMatchUser.displayName || 'Valued Customer'}`);
+            setAnalysisStatus(`Welcome, ${bestMatchUser.displayName || 'Valued Customer'}!`);
             playSuccessBeep();
             setTimeout(() => {
               onFaceMatched(bestMatchUser!);
@@ -336,28 +336,41 @@ export function FaceScannerModal({
         } else {
           consecutiveMatchesRef.current = { uid: '', count: 0 };
           
-          // Provide proper head position guidance when confidence < 95%
-          let guidance = `Need 95%+ (${calculatedConf}%): `;
+          // Provide real-time head positioning guidance to help user reach 95%+ confidence
+          let guidance = '';
           if (landmarks && landmarks.length > 0) {
             const pLeft = landmarks[33];
             const pRight = landmarks[263];
             const nose = landmarks[1];
             if (pLeft && pRight) {
               const eyeDist = Math.hypot(pRight.x - pLeft.x, pRight.y - pLeft.y);
-              if (eyeDist < 0.22) {
-                guidance += 'Move slightly CLOSER to camera';
-              } else if (eyeDist > 0.38) {
-                guidance += 'Move slightly FARTHER back';
-              } else if (nose && Math.abs(nose.x - (pLeft.x + pRight.x) / 2) > 0.03) {
-                guidance += 'Center face & TILT head straight';
+              const eyeCenterX = (pLeft.x + pRight.x) / 2;
+              const eyeCenterY = (pLeft.y + pRight.y) / 2;
+              const yawOffset = nose ? nose.x - eyeCenterX : 0;
+              const pitchOffset = nose ? nose.y - eyeCenterY : 0;
+
+              if (eyeDist < 0.20) {
+                guidance = '↔️ Move slightly CLOSER to camera';
+              } else if (eyeDist > 0.40) {
+                guidance = '↔️ Move slightly FARTHER back from camera';
+              } else if (Math.abs(yawOffset) > 0.028) {
+                guidance = '🔄 Align face STRAIGHT toward lens';
+              } else if (pitchOffset < 0.04) {
+                guidance = '⬇️ Lower head level with camera';
+              } else if (pitchOffset > 0.12) {
+                guidance = '⬆️ Raise head level with camera';
+              } else if (calculatedConf >= 75) {
+                guidance = `🎯 Almost there (${calculatedConf}%)! Hold steady & look straight`;
+              } else if (calculatedConf >= 40) {
+                guidance = `🔍 Position face in ring (Needs 95%+)`;
               } else {
-                guidance += 'Hold steady & look directly at lens';
+                guidance = '👤 Center face in the target ring';
               }
             } else {
-              guidance += 'Align face clearly inside circle';
+              guidance = 'Align face clearly inside circle';
             }
           } else {
-            guidance += 'Hold steady & face the camera';
+            guidance = 'Hold steady & look at camera';
           }
           setAnalysisStatus(guidance);
         }
@@ -441,6 +454,48 @@ export function FaceScannerModal({
           />
           <canvas ref={meshCanvasRef} className="absolute inset-0 w-full h-full pointer-events-none z-10" />
           <canvas ref={canvasRef} className="hidden" />
+
+          {/* Real-time Confidence HUD Gauge Header */}
+          {hasCamera && !matchedUser && (
+            <div className="absolute top-3 inset-x-3 z-20 pointer-events-none flex flex-col items-center">
+              <div className={`px-4 py-2 rounded-2xl backdrop-blur-md border shadow-xl flex items-center gap-3 transition-all ${
+                matchConfidence >= 95
+                  ? 'bg-emerald-950/90 border-emerald-500/60 text-emerald-300 shadow-emerald-500/20'
+                  : matchConfidence >= 75
+                  ? 'bg-amber-950/90 border-amber-500/60 text-amber-300 shadow-amber-500/20'
+                  : 'bg-slate-950/80 border-white/15 text-slate-300'
+              }`}>
+                <div className="flex flex-col items-start">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Match Confidence</span>
+                    <span className={`text-xs font-black px-2 py-0.5 rounded-md ${
+                      matchConfidence >= 95
+                        ? 'bg-emerald-500 text-slate-950'
+                        : matchConfidence >= 75
+                        ? 'bg-amber-500 text-slate-950'
+                        : 'bg-white/10 text-white'
+                    }`}>
+                      {matchConfidence}%
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-400">(Required: 95%+)</span>
+                  </div>
+                  {/* Progress bar gauge */}
+                  <div className="w-48 sm:w-56 h-1.5 bg-black/50 rounded-full overflow-hidden mt-1 border border-white/10">
+                    <div
+                      className={`h-full transition-all duration-300 ${
+                        matchConfidence >= 95
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-300'
+                          : matchConfidence >= 75
+                          ? 'bg-gradient-to-r from-amber-500 to-yellow-300'
+                          : 'bg-gradient-to-r from-slate-500 to-amber-500'
+                      }`}
+                      style={{ width: `${Math.min(100, matchConfidence)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* AI Face Target Overlay */}
           {hasCamera && !matchedUser && (

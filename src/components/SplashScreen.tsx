@@ -215,8 +215,10 @@ export function SplashScreen({ data, shopSettings, orders, onStart, isKioskModeA
               <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black italic uppercase tracking-tighter text-white leading-none">
                 WE ARE
               </h1>
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black italic uppercase tracking-tighter text-amber-500 leading-none">
-                OPEN!
+              <h1 className={`text-5xl sm:text-6xl lg:text-7xl font-black italic uppercase tracking-tighter leading-none ${
+                shopSettings?.isClosed ? 'text-rose-500 drop-shadow-[0_0_25px_rgba(244,63,94,0.4)]' : 'text-amber-500'
+              }`}>
+                {shopSettings?.isClosed ? 'CLOSED' : 'OPEN!'}
               </h1>
             </div>
 
@@ -227,7 +229,9 @@ export function SplashScreen({ data, shopSettings, orders, onStart, isKioskModeA
             </div>
 
             <p className="text-sm sm:text-base font-bold text-slate-300 max-w-sm leading-relaxed mb-6">
-              Experience the finest coffee, crafted with passion and precision.
+              {shopSettings?.isClosed 
+                ? 'We are currently not taking new orders. Please check back soon or visit our counter!' 
+                : 'Experience the finest coffee, crafted with passion and precision.'}
             </p>
           </div>
 
@@ -239,19 +243,31 @@ export function SplashScreen({ data, shopSettings, orders, onStart, isKioskModeA
               
               {/* Left Button */}
               <div className="w-full md:w-1/2 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={onStart}
-                  className="w-full bg-gradient-to-r from-orange-600 via-amber-500 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-slate-950 font-black text-base lg:text-lg uppercase tracking-widest px-6 py-4 rounded-2xl flex items-center justify-between shadow-xl shadow-amber-500/20 active:scale-[0.98] transition-all group"
-                >
-                  <span className="flex items-center gap-3">
-                    <Coffee className="w-6 h-6 text-slate-950" />
-                    START ORDERING
-                  </span>
-                  <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1 transition-transform" />
-                </button>
+                {shopSettings?.isClosed ? (
+                  <div className="w-full bg-rose-500/10 border border-rose-500/30 text-rose-400 font-black text-sm uppercase tracking-widest px-6 py-4 rounded-2xl flex items-center justify-between shadow-lg">
+                    <span className="flex items-center gap-3">
+                      <Coffee className="w-6 h-6 text-rose-500" />
+                      STORE IS CLOSED
+                    </span>
+                    <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 rounded-md text-[10px]">PAUSED</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onStart}
+                    className="w-full bg-gradient-to-r from-orange-600 via-amber-500 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-slate-950 font-black text-base lg:text-lg uppercase tracking-widest px-6 py-4 rounded-2xl flex items-center justify-between shadow-xl shadow-amber-500/20 active:scale-[0.98] transition-all group"
+                  >
+                    <span className="flex items-center gap-3">
+                      <Coffee className="w-6 h-6 text-slate-950" />
+                      START ORDERING
+                    </span>
+                    <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                )}
                 <p className="text-[11px] font-bold text-slate-400 text-center md:text-left px-1">
-                  Place your order and we'll get it ready for you.
+                  {shopSettings?.isClosed 
+                    ? 'Orders are disabled while the shop is closed.' 
+                    : "Place your order and we'll get it ready for you."}
                 </p>
               </div>
 

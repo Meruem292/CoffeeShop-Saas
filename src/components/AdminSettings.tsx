@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SplashScreen, ShopSettings } from '../types';
-import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt, QrCode, Link, Trash2, Lock } from 'lucide-react';
+import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt, QrCode, Link, Trash2, Lock, Store, Power } from 'lucide-react';
 import { useTheme } from '../lib/ThemeProvider';
 import { useToast } from '../lib/ToastContext';
 
@@ -45,7 +45,8 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     kioskPin: '0000',
     pointsEarnedPer100Pesos: 10,
     gcashQrUrl: '',
-    gcashNumber: ''
+    gcashNumber: '',
+    isClosed: false
   });
 
   const [saving, setSaving] = useState(false);
@@ -88,7 +89,8 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         pointsEarnedPer100Pesos: shopSettings.pointsEarnedPer100Pesos || 10,
         gcashQrUrl: shopSettings.gcashQrUrl || '',
         gcashNumber: shopSettings.gcashNumber || '',
-        footerContent: shopSettings.footerContent || ''
+        footerContent: shopSettings.footerContent || '',
+        isClosed: shopSettings.isClosed || false
       });
     }
   }, [shopSettings]);
@@ -226,6 +228,65 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         <div className="space-y-8">
           {activeTab === 'shop' ? (
             <form onSubmit={handleShopSubmit} className="space-y-6 bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 shadow-2xl">
+              {/* Store Operating Status Control */}
+              <div className={`p-5 sm:p-6 rounded-3xl border transition-all ${
+                shopData.isClosed 
+                  ? 'bg-rose-500/10 border-rose-500/40 text-rose-500 shadow-lg shadow-rose-500/5' 
+                  : 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 shadow-lg shadow-emerald-500/5'
+              }`}>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
+                      shopData.isClosed ? 'bg-rose-500 text-slate-950' : 'bg-emerald-500 text-slate-950'
+                    }`}>
+                      <Store className="w-6 h-6 stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-[0.25em]">Store Status</span>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                          shopData.isClosed ? 'bg-rose-500 text-slate-950' : 'bg-emerald-500 text-slate-950 animate-pulse'
+                        }`}>
+                          {shopData.isClosed ? 'CLOSED' : 'OPEN'}
+                        </span>
+                      </div>
+                      <h4 className="text-base font-black uppercase tracking-tight text-slate-900 dark:text-white mt-0.5">
+                        {shopData.isClosed ? 'Shop is CLOSED (Ordering Disabled)' : 'Shop is OPEN (Accepting Orders)'}
+                      </h4>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-0.5">
+                        {shopData.isClosed 
+                          ? 'Customers see a closed notice & cannot place orders.' 
+                          : 'Customers can place orders on Mobile & Kiosk terminals.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Switch Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextIsClosed = !shopData.isClosed;
+                      setShopData(prev => ({ ...prev, isClosed: nextIsClosed }));
+                      onUpdateShop({ isClosed: nextIsClosed });
+                      if (nextIsClosed) {
+                        toast.info('Shop set to CLOSED. Customer ordering is now disabled.');
+                      } else {
+                        toast.success('Shop set to OPEN. Customer ordering is now active!');
+                      }
+                    }}
+                    className={`relative inline-flex h-9 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      shopData.isClosed ? 'bg-rose-500/40 hover:bg-rose-500/60' : 'bg-emerald-500'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-8 w-8 transform rounded-full bg-white shadow-xl ring-0 transition duration-200 ease-in-out ${
+                        shopData.isClosed ? 'translate-x-0' : 'translate-x-7'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div>
                   <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Shop & Receipt Name</label>

@@ -669,6 +669,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   };
 
   const addToCart = useCallback((product: Product, size?: ProductSize, sugarLevel?: SugarLevel, selectedAddons?: Addon[]) => {
+    if (shopSettings?.isClosed) {
+      toast.error('The shop is currently closed. Ordering is unavailable.');
+      return;
+    }
     const basePrice = size ? size.price : product.price;
     const addonsPrice = selectedAddons ? selectedAddons.reduce((sum, a) => sum + a.price, 0) : 0;
     const finalPrice = basePrice + addonsPrice;
@@ -700,6 +704,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
   // Product Click Handler
   const handleProductClick = useCallback((product: Product) => {
+    if (shopSettings?.isClosed) {
+      toast.error('The shop is currently closed. Ordering is unavailable.');
+      return;
+    }
     if ((product.sizes && product.sizes.length > 0) || product.isCustomizable || isProductBeverage(product)) {
       setSelectedProductForConfig(product);
       setSelectedSizeConfig(product.sizes && product.sizes.length > 0 ? product.sizes[0] : null);
@@ -708,7 +716,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     } else {
       addToCart(product);
     }
-  }, [addToCart]);
+  }, [addToCart, shopSettings?.isClosed, toast]);
 
   const handleConfigSubmit = () => {
     if (selectedProductForConfig) {
@@ -924,6 +932,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   };
 
   const handleCheckout = () => {
+    if (shopSettings?.isClosed) {
+      toast.error('The shop is currently closed. Ordering is unavailable at this time.');
+      return;
+    }
     if (cart.length === 0) return;
     
     // Ensure we have a default order type if not set
@@ -2001,10 +2013,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
             <button
               type="button"
               onClick={handleCheckout}
-              disabled={cart.length === 0 || (!customerName.trim() && mode !== 'mobile')}
-              className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-black/5 dark:disabled:bg-white/10 disabled:text-black/30 dark:disabled:text-white/50 text-slate-950 py-3 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              disabled={cart.length === 0 || (!customerName.trim() && mode !== 'mobile') || !!shopSettings?.isClosed}
+              className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-rose-500/20 disabled:text-rose-400 dark:disabled:bg-rose-500/20 dark:disabled:text-rose-400 text-slate-950 py-3 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              Confirm Order <Check className="w-4 h-4" />
+              {shopSettings?.isClosed ? 'SHOP IS CLOSED' : 'Confirm Order'} <Check className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -2014,7 +2026,20 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
   return (
     <div className={containerClasses[mode]}>
-      {/* Mobile/Kiosk local header removed as search moved to global header */}
+      {shopSettings?.isClosed && (
+        <div className="bg-rose-500/15 border-b border-rose-500/30 px-6 py-2.5 flex items-center justify-between gap-4 text-rose-500 dark:text-rose-400 font-black text-xs uppercase tracking-wider shrink-0 z-30 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+            </span>
+            <span>STORE IS CURRENTLY CLOSED — Customer ordering is temporarily paused</span>
+          </div>
+          <span className="bg-rose-500 text-slate-950 px-3 py-0.5 rounded-full text-[9px] font-black tracking-widest">
+            OFFLINE
+          </span>
+        </div>
+      )}
 
       {/* Main Layout */}
       <div className={`flex-1 overflow-hidden ${mode === 'kiosk' ? 'flex flex-col' : 'flex'}`}>
