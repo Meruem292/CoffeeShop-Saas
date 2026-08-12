@@ -45,6 +45,7 @@ export function FaceScannerModal({
   const candidateVectorsRef = useRef<Map<string, number[]>>(new Map());
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef<boolean>(false);
+  const consecutiveMatchesRef = useRef<{ uid: string; count: number }>({ uid: '', count: 0 });
 
   const stopCamera = () => {
     isProcessingRef.current = false;
@@ -307,39 +308,39 @@ export function FaceScannerModal({
         const calculatedConf = Math.round(Math.min(100, Math.max(0, highestSimilarity * 100)));
         setMatchConfidence(calculatedConf);
 
-        // Foolproof matching: match best candidate if similarity >= 0.35 when face is detected
-        const isUniqueMatch = bestMatchUser && highestSimilarity >= 0.35;
+        // Strict high-precision matching:
+        // 1. Minimum similarity threshold >= 0.70 (70% confidence)
+        // 2. Uniqueness margin over second best >= 0.015 (if multiple profiles exist)
+        const isStrictMatch = bestMatchUser && 
+          highestSimilarity >= 0.70 && 
+          (candidates.length === 1 || (highestSimilarity - secondHighestSimilarity) >= 0.015);
 
-        if (isUniqueMatch) {
-          if (scanIntervalRef.current) {
-            clearInterval(scanIntervalRef.current);
-            scanIntervalRef.current = null;
+        if (isStrictMatch && bestMatchUser) {
+          if (consecutiveMatchesRef.current.uid === bestMatchUser.uid) {
+            consecutiveMatchesRef.current.count += 1;
+          } else {
+            consecutiveMatchesRef.current = { uid: bestMatchUser.uid, count: 1 };
           }
-          setMatchedUser(bestMatchUser);
-          setAnalysisStatus(`Verified! Welcome ${bestMatchUser.displayName || 'Valued Customer'}`);
-          playSuccessBeep();
-          setTimeout(() => {
-            onFaceMatched(bestMatchUser!);
-            onClose();
-          }, 1200);
-        } else if (candidates.length > 0 && isFaceDetected) {
-          // Fallback: if face is detected but similarity is slightly lower, auto-select top candidate after brief lock
-          const topCandidate = candidates[0];
-          if (topCandidate) {
+
+          setAnalysisStatus(`Verifying ${bestMatchUser.displayName || 'Customer'} (${calculatedConf}%)... (${consecutiveMatchesRef.current.count}/2)`);
+
+          // Require 2 consecutive frames of high-confidence match to prevent wrong user identification
+          if (consecutiveMatchesRef.current.count >= 2) {
             if (scanIntervalRef.current) {
               clearInterval(scanIntervalRef.current);
               scanIntervalRef.current = null;
             }
-            setMatchedUser(topCandidate);
-            setAnalysisStatus(`Verified! Welcome ${topCandidate.displayName || 'Valued Customer'}`);
+            setMatchedUser(bestMatchUser);
+            setAnalysisStatus(`Verified! Welcome ${bestMatchUser.displayName || 'Valued Customer'}`);
             playSuccessBeep();
             setTimeout(() => {
-              onFaceMatched(topCandidate);
+              onFaceMatched(bestMatchUser!);
               onClose();
             }, 1200);
           }
         } else {
-          setAnalysisStatus('Align face inside circle for verification');
+          consecutiveMatchesRef.current = { uid: '', count: 0 };
+          setAnalysisStatus(isFaceDetected ? 'Scanning facial features... hold steady' : 'Align face inside circle for verification');
         }
 
       } catch (err) {
