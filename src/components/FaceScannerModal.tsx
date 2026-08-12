@@ -39,6 +39,7 @@ export function FaceScannerModal({
   const [analysisStatus, setAnalysisStatus] = useState<string>('Center your face in the circle');
   const [matchedUser, setMatchedUser] = useState<UserProfile | null>(null);
   const [isMediaPipeReady, setIsMediaPipeReady] = useState<boolean>(false);
+  const [matchConfidence, setMatchConfidence] = useState<number>(0);
 
   // Cache candidate landmarks so dynamic comparison is instantaneous
   const candidateVectorsRef = useRef<Map<string, number[]>>(new Map());
@@ -220,6 +221,7 @@ export function FaceScannerModal({
 
         if (!liveVector) {
           setIsFaceDetected(false);
+          setMatchConfidence(0);
           setAnalysisStatus('Center your face in the circle');
           return;
         }
@@ -231,10 +233,12 @@ export function FaceScannerModal({
             const eyeDist = Math.hypot(pRight.x - pLeft.x, pRight.y - pLeft.y);
             if (eyeDist < 0.15) {
               setIsFaceDetected(false);
+              setMatchConfidence(0);
               setAnalysisStatus('⚠️ Move closer to camera');
               return;
             } else if (eyeDist > 0.45) {
               setIsFaceDetected(false);
+              setMatchConfidence(0);
               setAnalysisStatus('⚠️ Move back from camera');
               return;
             }
@@ -257,6 +261,7 @@ export function FaceScannerModal({
         );
 
         if (candidates.length === 0) {
+          setMatchConfidence(0);
           setAnalysisStatus('No registered Face ID profiles found');
           return;
         }
@@ -298,6 +303,9 @@ export function FaceScannerModal({
             secondHighestSimilarity = candidateBestScore;
           }
         }
+
+        const calculatedConf = Math.round(Math.min(100, Math.max(0, highestSimilarity * 100)));
+        setMatchConfidence(calculatedConf);
 
         // Foolproof matching: match best candidate if similarity >= 0.35 when face is detected
         const isUniqueMatch = bestMatchUser && highestSimilarity >= 0.35;
@@ -342,19 +350,7 @@ export function FaceScannerModal({
     }, 450);
   };
 
-  const handleSelectProfile = (user: UserProfile) => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
-    }
-    setMatchedUser(user);
-    setAnalysisStatus(`Verified! Welcome ${user.displayName || 'Valued Customer'}`);
-    playSuccessBeep();
-    setTimeout(() => {
-      onFaceMatched(user);
-      onClose();
-    }, 1000);
-  };
+
 
   useEffect(() => {
     if (isOpen) {
@@ -501,34 +497,20 @@ export function FaceScannerModal({
           )}
         </div>
 
-        {/* Quick Tap Profile Fallback Bar */}
-        {allProfiles.length > 0 && !matchedUser && (
-          <div className="px-4 py-2 bg-slate-900 border-t border-white/10 flex items-center gap-2 overflow-x-auto shrink-0 scrollbar-none">
-            <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 shrink-0">Quick Tap:</span>
-            <div className="flex items-center gap-2">
-              {allProfiles.map((p) => (
-                <button
-                  key={p.uid}
-                  onClick={() => handleSelectProfile(p)}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 border border-white/10 rounded-xl flex items-center gap-2 text-white text-xs font-bold transition-all shrink-0 active:scale-95"
-                >
-                  <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-black text-[10px]">
-                    {(p.displayName || 'U')[0].toUpperCase()}
-                  </div>
-                  <span className="truncate max-w-[100px]">{p.displayName || 'Customer'}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Controls Footer */}
         <div className="p-4 bg-slate-950 border-t border-white/10 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${isFaceDetected ? 'bg-emerald-500 animate-ping' : 'bg-amber-500 animate-pulse'}`} />
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-              {isFaceDetected ? 'Face Locked & Verifying' : 'Position face in circle'}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <div className={`w-2.5 h-2.5 rounded-full ${isFaceDetected ? 'bg-emerald-500 animate-ping' : 'bg-amber-500 animate-pulse'}`} />
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                {isFaceDetected ? 'Face Locked & Verifying' : 'Position face in circle'}
+              </span>
+            </div>
+            {isFaceDetected && (
+              <span className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black rounded-full uppercase tracking-wider">
+                Confidence: {matchConfidence}%
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
