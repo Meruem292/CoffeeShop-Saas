@@ -130,11 +130,11 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
       </div>
 
       {/* Table Container */}
-      <div className="bg-white dark:bg-[#0a0a0c] rounded-3xl border border-black/10 dark:border-white/5 shadow-xl overflow-hidden">
-        <div className="overflow-x-auto scrollbar-hide">
+      <div className="bg-white dark:bg-[#0a0a0c] rounded-3xl border border-black/10 dark:border-white/5 shadow-xl overflow-hidden flex flex-col">
+        <div className="max-h-[65vh] overflow-y-auto overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[650px]">
-            <thead>
-              <tr className="bg-slate-50/50 dark:bg-white/5">
+            <thead className="sticky top-0 bg-slate-50 dark:bg-[#131722] z-10 shadow-sm">
+              <tr className="bg-slate-50 dark:bg-[#131722]">
                 <th className="px-6 py-4">
                   <button 
                     onClick={() => toggleSort('displayName')}
@@ -219,9 +219,13 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
                           <Coins className="w-4 h-4 text-amber-500" />
                           <input
                             type="number"
-                            value={editForm.points || 0}
-                            onChange={(e) => setEditForm({ ...editForm, points: parseInt(e.target.value) || 0 })}
-                            className="w-20 bg-transparent border-b border-amber-500 text-sm font-black text-amber-600 focus:outline-none"
+                            value={editForm.points === 0 ? '' : (editForm.points ?? '')}
+                            placeholder="0"
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setEditForm({ ...editForm, points: val === '' ? 0 : parseInt(val) || 0 });
+                            }}
+                            className="w-24 bg-transparent border-b border-amber-500 text-sm font-black text-amber-600 focus:outline-none"
                           />
                         </div>
                       ) : (

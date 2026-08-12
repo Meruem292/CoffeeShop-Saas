@@ -206,15 +206,15 @@ export function FaceScannerModal({
 
         for (const candidate of candidates) {
           const candidateVecs = extractCandidateVectors(candidate);
+          let candidateBestScore = 0;
 
           if (candidateVecs.length > 0) {
             for (const candidateVec of candidateVecs) {
               const simCosine = calculateCosineSimilarity(liveVector, candidateVec);
               const simDistance = calculateDistanceSimilarity(liveVector, candidateVec);
-              const score = (simCosine + simDistance) / 2;
-              if (score > highestSimilarity) {
-                highestSimilarity = score;
-                bestMatchUser = candidate;
+              const score = (simCosine * 0.6) + (simDistance * 0.4);
+              if (score > candidateBestScore) {
+                candidateBestScore = score;
               }
             }
           } else {
@@ -222,18 +222,21 @@ export function FaceScannerModal({
             if (cachedVector) {
               const simCosine = calculateCosineSimilarity(liveVector, cachedVector);
               const simDistance = calculateDistanceSimilarity(liveVector, cachedVector);
-              const similarityScore = (simCosine + simDistance) / 2;
-
-              if (similarityScore > highestSimilarity) {
-                highestSimilarity = similarityScore;
-                bestMatchUser = candidate;
+              const score = (simCosine * 0.6) + (simDistance * 0.4);
+              if (score > candidateBestScore) {
+                candidateBestScore = score;
               }
             }
           }
+
+          if (candidateBestScore > highestSimilarity) {
+            highestSimilarity = candidateBestScore;
+            bestMatchUser = candidate;
+          }
         }
 
-        // Multi-vector high precision threshold >= 0.76 for instant auto-verify
-        if (bestMatchUser && highestSimilarity >= 0.76) {
+        // Strict multi-vector high precision threshold >= 0.88 for secure auto-verify
+        if (bestMatchUser && highestSimilarity >= 0.88) {
           if (scanIntervalRef.current) {
             clearInterval(scanIntervalRef.current);
             scanIntervalRef.current = null;
