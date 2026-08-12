@@ -84,6 +84,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         notificationVolume: shopSettings.notificationVolume !== undefined ? shopSettings.notificationVolume : 1.0,
         speakCustomerName: shopSettings.speakCustomerName || false,
         kioskPin: shopSettings.kioskPin || '0000',
+        adminPin: shopSettings.adminPin || shopSettings.kioskPin || '0000',
         pointsEarnedPer100Pesos: shopSettings.pointsEarnedPer100Pesos || 10,
         gcashQrUrl: shopSettings.gcashQrUrl || '',
         gcashNumber: shopSettings.gcashNumber || '',
@@ -458,6 +459,20 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                     />
                   </div>
                   <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">This PIN is used to exit Kiosk mode, separate from your main Admin credentials.</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Admin Voucher Security PIN</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-amber-500/60" />
+                    <input 
+                      type="text" 
+                      value={shopData.adminPin || ''}
+                      onChange={e => setShopData({ ...shopData, adminPin: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-amber-500/30 dark:border-amber-500/20 rounded-2xl focus:border-amber-500 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. 0000"
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">Required by cashier/admin to activate vouchers on orders.</p>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Points Earned per 100 Pesos Spent</label>

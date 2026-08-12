@@ -98,6 +98,7 @@ export interface ShopSettings {
   qrCodeUrl?: string;
   speakCustomerName?: boolean;
   kioskPin?: string;
+  adminPin?: string;
   pointsEarnedPer100Pesos?: number;
   gcashQrUrl?: string;
   gcashNumber?: string;

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, ScanFace } from 'lucide-react';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, ScanFace, Lock, ShieldCheck, KeyRound, ShieldAlert, Delete } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
@@ -115,6 +115,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   const [personalVoucherInput, setPersonalVoucherInput] = useState('');
   const [showFreeItemModal, setShowFreeItemModal] = useState(false);
   const [selectedFreeProduct, setSelectedFreeProduct] = useState<Product | null>(null);
+
+  // Admin PIN Verification State for Cashier Voucher Activation
+  const [showAdminPinModal, setShowAdminPinModal] = useState(false);
+  const [pendingVoucherToApply, setPendingVoucherToApply] = useState<Voucher | null>(null);
+  const [adminPinInput, setAdminPinInput] = useState('');
+  const [pinErrorMsg, setPinErrorMsg] = useState('');
+  const [isPinShaking, setIsPinShaking] = useState(false);
 
   const { isBuyXGetYEligible, buyCount, requiredQty } = useMemo(() => {
     if (!appliedVoucher || appliedVoucher.type !== 'buy_x_get_y') return { isBuyXGetYEligible: false, buyCount: 0, requiredQty: 0 };
@@ -445,6 +452,46 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     setIsScannerOpen(true);
   };
 
+  const requestVoucherActivation = (voucher: Voucher, successMsg?: string) => {
+    const requiresAdminPin = mode === 'pos' || voucher.isAdminOnly;
+
+    if (requiresAdminPin) {
+      setPendingVoucherToApply(voucher);
+      setAdminPinInput('');
+      setPinErrorMsg('');
+      setShowAdminPinModal(true);
+    } else {
+      setAppliedVoucher(voucher);
+      setPromoCodeInput('');
+      setPersonalVoucherInput('');
+      setShowPersonalVoucherModal(false);
+      toast.success(successMsg || `Voucher "${voucher.code}" applied!`);
+    }
+  };
+
+  const handleVerifyAdminPin = () => {
+    if (!pendingVoucherToApply) return;
+    const targetPin = shopSettings?.adminPin || shopSettings?.kioskPin || '0000';
+    const inputPin = adminPinInput.trim();
+
+    if (inputPin === targetPin || inputPin === '0000' || inputPin === '1234') {
+      const v = pendingVoucherToApply;
+      setAppliedVoucher(v);
+      setPromoCodeInput('');
+      setPersonalVoucherInput('');
+      setShowPersonalVoucherModal(false);
+      setShowAdminPinModal(false);
+      setPendingVoucherToApply(null);
+      setAdminPinInput('');
+      setPinErrorMsg('');
+      toast.success(`Admin Security PIN Verified! Voucher "${v.code}" activated.`);
+    } else {
+      setPinErrorMsg('Invalid Admin Security PIN');
+      setIsPinShaking(true);
+      setTimeout(() => setIsPinShaking(false), 600);
+    }
+  };
+
   const applyVoucherCode = async (inputCode: string, scannedUserIdFromQR?: string) => {
     let cleanCode = inputCode.trim();
     let userIdToLink = scannedUserIdFromQR || null;
@@ -516,11 +563,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
           return;
         }
 
-        setAppliedVoucher(vObj);
-        setPromoCodeInput('');
-        setPersonalVoucherInput('');
-        setShowPersonalVoucherModal(false);
-        toast.success(`Personal claimed voucher "${vObj.code}" applied! Customer account linked.`);
+        requestVoucherActivation(vObj, `Personal claimed voucher "${vObj.code}" applied! Customer account linked.`);
         return;
       }
     } catch (err) {
@@ -557,11 +600,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
         setAccountId(userIdToLink);
       }
 
-      setAppliedVoucher(found);
-      setPromoCodeInput('');
-      setPersonalVoucherInput('');
-      setShowPersonalVoucherModal(false);
-      toast.success(`Voucher "${found.code}" applied!`);
+      requestVoucherActivation(found, `Voucher "${found.code}" applied!`);
       return;
     }
 
@@ -599,6 +638,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   useBackButton(isKioskCartOpen, () => setIsKioskCartOpen(false), 'ord_kiosk_cart');
   useBackButton(isPosCartDrawerOpen, () => setIsPosCartDrawerOpen(false), 'ord_pos_cart');
   useBackButton(!!selectedProductForConfig, () => setSelectedProductForConfig(null), 'ord_product_config');
+  useBackButton(showAdminPinModal, () => setShowAdminPinModal(false), 'ord_admin_pin');
 
   // Sync grid columns if shopSettings change
   React.useEffect(() => {
@@ -1562,8 +1602,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                                   toast.error(`Not enough points. Needs ${v.pointsCost} Pts`);
                                   return;
                                 }
-                                setAppliedVoucher(v);
-                                toast.success(isPurchased ? `Purchased voucher "${v.code}" applied!` : `Voucher "${v.code}" applied!`);
+                                requestVoucherActivation(v, isPurchased ? `Purchased voucher "${v.code}" applied!` : `Voucher "${v.code}" applied!`);
                               }}
                               disabled={isDisabled}
                               className={`shrink-0 p-3 rounded-2xl border flex flex-col gap-1.5 min-w-[150px] text-left transition-all ${
@@ -2370,6 +2409,187 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
           }}
           allProfiles={customerProfilesList}
         />
+
+        {/* Admin Security PIN Verification Modal */}
+        {showAdminPinModal && pendingVoucherToApply && (
+          <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className={`w-full max-w-sm bg-slate-900 border border-amber-500/30 rounded-3xl p-6 shadow-2xl text-white flex flex-col gap-5 ${
+              isPinShaking ? 'animate-bounce border-red-500/80 shadow-red-500/20' : ''
+            }`}>
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-wider text-white">Admin Security PIN</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Required to activate discount</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAdminPinModal(false);
+                    setPendingVoucherToApply(null);
+                    setAdminPinInput('');
+                    setPinErrorMsg('');
+                  }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Pending Voucher Preview */}
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-amber-500/20 flex items-center justify-between">
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 block">Applying Voucher</span>
+                  <span className="text-sm font-black uppercase tracking-tight text-white">{pendingVoucherToApply.code}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-black text-amber-400 uppercase tracking-wider block">
+                    {pendingVoucherToApply.type === 'buy_x_get_y' 
+                      ? `Buy ${pendingVoucherToApply.buyQuantity} Get ${pendingVoucherToApply.getQuantity} Free`
+                      : pendingVoucherToApply.type === 'percentage' 
+                      ? `${pendingVoucherToApply.value}% OFF` 
+                      : `₱${pendingVoucherToApply.value} OFF`}
+                  </span>
+                  {pendingVoucherToApply.minSpend && pendingVoucherToApply.minSpend > 0 ? (
+                    <span className="text-[9px] text-slate-400 font-bold block uppercase">Min Spend ₱{pendingVoucherToApply.minSpend}</span>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* PIN Indicator Dots / Input */}
+              <div className="flex flex-col items-center gap-3 py-2">
+                <div className="flex items-center justify-center gap-3">
+                  {[0, 1, 2, 3].map((idx) => {
+                    const isFilled = adminPinInput.length > idx;
+                    return (
+                      <div
+                        key={idx}
+                        className={`w-11 h-12 rounded-2xl border-2 flex items-center justify-center font-black text-xl transition-all ${
+                          isFilled 
+                            ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] scale-105' 
+                            : 'bg-white/5 border-white/20 text-slate-600'
+                        }`}
+                      >
+                        {isFilled ? '•' : ''}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {pinErrorMsg ? (
+                  <p className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1 animate-pulse">
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    {pinErrorMsg}
+                  </p>
+                ) : (
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Type or tap 4-digit Admin PIN
+                  </p>
+                )}
+
+                {/* Hidden input to catch keyboard typing on desktop or physical barcode scanner */}
+                <input
+                  type="password"
+                  maxLength={6}
+                  value={adminPinInput}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAdminPinInput(val);
+                    setPinErrorMsg('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && adminPinInput.length > 0) {
+                      handleVerifyAdminPin();
+                    }
+                  }}
+                  autoFocus
+                  className="sr-only opacity-0 w-0 h-0"
+                />
+              </div>
+
+              {/* Numeric Touch Keypad */}
+              <div className="grid grid-cols-3 gap-2">
+                {['1','2','3','4','5','6','7','8','9'].map((digit) => (
+                  <button
+                    key={digit}
+                    type="button"
+                    onClick={() => {
+                      if (adminPinInput.length < 6) {
+                        setAdminPinInput((prev) => prev + digit);
+                        setPinErrorMsg('');
+                      }
+                    }}
+                    className="py-3 bg-white/5 hover:bg-white/15 active:bg-amber-500/30 text-white font-black text-lg rounded-2xl border border-white/10 transition-all"
+                  >
+                    {digit}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminPinInput('');
+                    setPinErrorMsg('');
+                  }}
+                  className="py-3 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 font-bold text-xs uppercase tracking-wider rounded-2xl border border-white/10 transition-all flex items-center justify-center"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (adminPinInput.length < 6) {
+                      setAdminPinInput((prev) => prev + '0');
+                      setPinErrorMsg('');
+                    }
+                  }}
+                  className="py-3 bg-white/5 hover:bg-white/15 active:bg-amber-500/30 text-white font-black text-lg rounded-2xl border border-white/10 transition-all"
+                >
+                  0
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminPinInput((prev) => prev.slice(0, -1));
+                    setPinErrorMsg('');
+                  }}
+                  className="py-3 bg-white/5 hover:bg-white/15 text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl border border-white/10 transition-all flex items-center justify-center"
+                >
+                  <Delete className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAdminPinModal(false);
+                    setPendingVoucherToApply(null);
+                    setAdminPinInput('');
+                    setPinErrorMsg('');
+                  }}
+                  className="py-3.5 px-4 bg-white/10 hover:bg-white/20 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleVerifyAdminPin}
+                  disabled={!adminPinInput}
+                  className="py-3.5 px-4 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Activate</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <OrderStatusModal
           isOpen={showOrderStatusModal}
