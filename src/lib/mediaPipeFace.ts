@@ -209,8 +209,8 @@ export function calculateDistanceSimilarity(vA: number[], vB: number[]): number 
   }
 
   const dist = Math.sqrt(sumSq);
-  // Convert distance to normalized similarity score [0, 1]
-  return Math.max(0, 1 - dist / 15);
+  // Gaussian exponential decay kernel for sharp facial feature discrimination
+  return Math.exp(-dist / 5);
 }
 
 /**

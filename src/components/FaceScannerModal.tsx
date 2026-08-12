@@ -203,6 +203,7 @@ export function FaceScannerModal({
 
         let bestMatchUser: UserProfile | null = null;
         let highestSimilarity = 0;
+        let secondHighestSimilarity = 0;
 
         for (const candidate of candidates) {
           const candidateVecs = extractCandidateVectors(candidate);
@@ -212,7 +213,7 @@ export function FaceScannerModal({
             for (const candidateVec of candidateVecs) {
               const simCosine = calculateCosineSimilarity(liveVector, candidateVec);
               const simDistance = calculateDistanceSimilarity(liveVector, candidateVec);
-              const score = (simCosine * 0.6) + (simDistance * 0.4);
+              const score = (simCosine * 0.4) + (simDistance * 0.6);
               if (score > candidateBestScore) {
                 candidateBestScore = score;
               }
@@ -222,7 +223,7 @@ export function FaceScannerModal({
             if (cachedVector) {
               const simCosine = calculateCosineSimilarity(liveVector, cachedVector);
               const simDistance = calculateDistanceSimilarity(liveVector, cachedVector);
-              const score = (simCosine * 0.6) + (simDistance * 0.4);
+              const score = (simCosine * 0.4) + (simDistance * 0.6);
               if (score > candidateBestScore) {
                 candidateBestScore = score;
               }
@@ -230,13 +231,22 @@ export function FaceScannerModal({
           }
 
           if (candidateBestScore > highestSimilarity) {
+            secondHighestSimilarity = highestSimilarity;
             highestSimilarity = candidateBestScore;
             bestMatchUser = candidate;
+          } else if (candidateBestScore > secondHighestSimilarity) {
+            secondHighestSimilarity = candidateBestScore;
           }
         }
 
-        // Strict multi-vector high precision threshold >= 0.88 for secure auto-verify
-        if (bestMatchUser && highestSimilarity >= 0.88) {
+        // Strict uniqueness & high precision criteria:
+        // 1. Absolute threshold >= 0.93
+        // 2. Margin over second best >= 0.025 (prevents false matches when multiple profiles exist)
+        const isUniqueMatch = bestMatchUser && 
+          highestSimilarity >= 0.93 && 
+          (candidates.length === 1 || (highestSimilarity - secondHighestSimilarity) >= 0.025);
+
+        if (isUniqueMatch) {
           if (scanIntervalRef.current) {
             clearInterval(scanIntervalRef.current);
             scanIntervalRef.current = null;
