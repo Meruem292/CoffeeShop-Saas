@@ -308,12 +308,10 @@ export function FaceScannerModal({
         const calculatedConf = Math.round(Math.min(100, Math.max(0, highestSimilarity * 100)));
         setMatchConfidence(calculatedConf);
 
-        // Strict high-precision matching:
-        // 1. Minimum similarity threshold >= 0.70 (70% confidence)
-        // 2. Uniqueness margin over second best >= 0.015 (if multiple profiles exist)
+        // Strict 95% confidence matching requirement (>= 0.95)
         const isStrictMatch = bestMatchUser && 
-          highestSimilarity >= 0.70 && 
-          (candidates.length === 1 || (highestSimilarity - secondHighestSimilarity) >= 0.015);
+          highestSimilarity >= 0.95 && 
+          (candidates.length === 1 || (highestSimilarity - secondHighestSimilarity) >= 0.02);
 
         if (isStrictMatch && bestMatchUser) {
           if (consecutiveMatchesRef.current.uid === bestMatchUser.uid) {
@@ -324,7 +322,7 @@ export function FaceScannerModal({
 
           setAnalysisStatus(`Verifying ${bestMatchUser.displayName || 'Customer'} (${calculatedConf}%)... (${consecutiveMatchesRef.current.count}/2)`);
 
-          // Require 2 consecutive frames of high-confidence match to prevent wrong user identification
+          // Require 2 consecutive frames of >= 95% confidence match
           if (consecutiveMatchesRef.current.count >= 2) {
             if (scanIntervalRef.current) {
               clearInterval(scanIntervalRef.current);
@@ -340,7 +338,31 @@ export function FaceScannerModal({
           }
         } else {
           consecutiveMatchesRef.current = { uid: '', count: 0 };
-          setAnalysisStatus(isFaceDetected ? 'Scanning facial features... hold steady' : 'Align face inside circle for verification');
+          
+          // Provide proper head position guidance when confidence < 95%
+          let guidance = `Need 95%+ (${calculatedConf}%): `;
+          if (landmarks && landmarks.length > 0) {
+            const pLeft = landmarks[33];
+            const pRight = landmarks[263];
+            const nose = landmarks[1];
+            if (pLeft && pRight) {
+              const eyeDist = Math.hypot(pRight.x - pLeft.x, pRight.y - pLeft.y);
+              if (eyeDist < 0.22) {
+                guidance += 'Move slightly CLOSER to camera';
+              } else if (eyeDist > 0.38) {
+                guidance += 'Move slightly FARTHER back';
+              } else if (nose && Math.abs(nose.x - (pLeft.x + pRight.x) / 2) > 0.03) {
+                guidance += 'Center face & TILT head straight';
+              } else {
+                guidance += 'Hold steady & look directly at lens';
+              }
+            } else {
+              guidance += 'Align face clearly inside circle';
+            }
+          } else {
+            guidance += 'Hold steady & face the camera';
+          }
+          setAnalysisStatus(guidance);
         }
 
       } catch (err) {
