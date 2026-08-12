@@ -130,7 +130,8 @@ export function createVectorFromLandmarks(landmarks: any[]): number[] | null {
     if (p) {
       vector.push((p.x - cx) / eyeDistance);
       vector.push((p.y - cy) / eyeDistance);
-      vector.push((p.z - cz) / eyeDistance);
+      // Dampen z coordinate to reduce perspective depth distortion sensitivity across distances
+      vector.push(((p.z - cz) / eyeDistance) * 0.5);
     } else {
       vector.push(0, 0, 0);
     }

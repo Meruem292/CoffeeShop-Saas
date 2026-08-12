@@ -181,6 +181,23 @@ export function SelfieCaptureModal({
           return;
         }
 
+        if (landmarks && landmarks.length > 0) {
+          const pLeft = landmarks[33];
+          const pRight = landmarks[263];
+          if (pLeft && pRight) {
+            const eyeDist = Math.hypot(pRight.x - pLeft.x, pRight.y - pLeft.y);
+            if (eyeDist < 0.15) {
+              setPoseStatusText('⚠️ Move closer to camera');
+              setIsPoseMatched(false);
+              return;
+            } else if (eyeDist > 0.45) {
+              setPoseStatusText('⚠️ Move back from camera');
+              setIsPoseMatched(false);
+              return;
+            }
+          }
+        }
+
         let matched = false;
 
         if (step.id === 'front') {

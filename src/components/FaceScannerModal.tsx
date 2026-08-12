@@ -224,6 +224,23 @@ export function FaceScannerModal({
           return;
         }
 
+        if (landmarks && landmarks.length > 0) {
+          const pLeft = landmarks[33];
+          const pRight = landmarks[263];
+          if (pLeft && pRight) {
+            const eyeDist = Math.hypot(pRight.x - pLeft.x, pRight.y - pLeft.y);
+            if (eyeDist < 0.15) {
+              setIsFaceDetected(false);
+              setAnalysisStatus('⚠️ Move closer to camera');
+              return;
+            } else if (eyeDist > 0.45) {
+              setIsFaceDetected(false);
+              setAnalysisStatus('⚠️ Move back from camera');
+              return;
+            }
+          }
+        }
+
         // Face detected!
         setIsFaceDetected(true);
         setAnalysisStatus('Face detected! Verifying match...');
