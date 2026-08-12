@@ -93,6 +93,21 @@ function isElementReady(
 }
 
 /**
+ * L2 Unit Normalize a 1D vector
+ */
+export function normalizeL2(vec: number[]): number[] {
+  if (!vec || vec.length === 0) return [];
+  let normSq = 0;
+  for (let i = 0; i < vec.length; i++) {
+    const val = Number(vec[i]) || 0;
+    normSq += val * val;
+  }
+  const norm = Math.sqrt(normSq);
+  if (norm === 0) return vec;
+  return vec.map((v) => (Number(v) || 0) / norm);
+}
+
+/**
  * Helper to build normalized 3D feature vector directly from Mediapipe landmarks
  */
 export function createVectorFromLandmarks(landmarks: any[]): number[] | null {
@@ -131,13 +146,13 @@ export function createVectorFromLandmarks(landmarks: any[]): number[] | null {
       vector.push((p.x - cx) / eyeDistance);
       vector.push((p.y - cy) / eyeDistance);
       // Dampen z coordinate to reduce perspective depth distortion sensitivity across distances
-      vector.push(((p.z - cz) / eyeDistance) * 0.5);
+      vector.push(((p.z - cz) / eyeDistance) * 0.3);
     } else {
       vector.push(0, 0, 0);
     }
   }
 
-  return vector;
+  return normalizeL2(vector);
 }
 
 /**
@@ -178,40 +193,69 @@ export function loadImageElement(url: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Calculate Cosine Similarity between two feature vectors
+ * Calculate Cosine Similarity between two feature vectors with L2 normalization
  */
 export function calculateCosineSimilarity(vA: number[], vB: number[]): number {
-  if (!vA || !vB || vA.length !== vB.length || vA.length === 0) return 0;
+  if (!vA || !vB || vA.length === 0 || vB.length === 0 || vA.length !== vB.length) return 0;
+
+  const nA = normalizeL2(vA);
+  const nB = normalizeL2(vB);
 
   let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-
-  for (let i = 0; i < vA.length; i++) {
-    dotProduct += vA[i] * vB[i];
-    normA += vA[i] * vA[i];
-    normB += vB[i] * vB[i];
+  for (let i = 0; i < nA.length; i++) {
+    dotProduct += nA[i] * nB[i];
   }
 
-  if (normA === 0 || normB === 0) return 0;
-  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  return Math.max(-1, Math.min(1, dotProduct));
 }
 
 /**
- * Calculate Euclidean Distance Similarity (0 to 1)
+ * Calculate Euclidean Distance Similarity (0 to 1) for L2 normalized vectors
  */
 export function calculateDistanceSimilarity(vA: number[], vB: number[]): number {
-  if (!vA || !vB || vA.length !== vB.length || vA.length === 0) return 0;
+  if (!vA || !vB || vA.length === 0 || vB.length === 0 || vA.length !== vB.length) return 0;
+
+  const nA = normalizeL2(vA);
+  const nB = normalizeL2(vB);
 
   let sumSq = 0;
-  for (let i = 0; i < vA.length; i++) {
-    const diff = vA[i] - vB[i];
+  for (let i = 0; i < nA.length; i++) {
+    const diff = nA[i] - nB[i];
     sumSq += diff * diff;
   }
 
   const dist = Math.sqrt(sumSq);
-  // Normalized distance similarity [0, 1] with smoother scale
-  return Math.max(0, 1 - dist / 3.5);
+  // For unit vectors, max distance is 2. Smooth scale [0, 1]
+  return Math.max(0, 1 - dist / 2);
+}
+
+/**
+ * Calibrate cosine similarity of 3D facial landmark vectors to intuitive [0, 100]% match confidence
+ */
+export function calculateFaceMatchConfidence(vA: number[], vB: number[]): { confidence: number; similarity: number } {
+  if (!vA || !vB || vA.length === 0 || vB.length === 0 || vA.length !== vB.length) {
+    return { confidence: 0, similarity: 0 };
+  }
+
+  const similarity = calculateCosineSimilarity(vA, vB);
+
+  // Calibrated scale:
+  // Same face aligned: similarity >= 0.95 -> 95% - 100% confidence
+  // Same face with minor angle/pose shift: similarity in [0.80, 0.95] -> 0% - 94% confidence
+  // Different face: similarity < 0.80 -> 0% confidence
+  let confidence = 0;
+  if (similarity >= 0.95) {
+    confidence = Math.min(100, 95 + ((similarity - 0.95) / 0.05) * 5);
+  } else if (similarity >= 0.80) {
+    confidence = Math.max(0, ((similarity - 0.80) / 0.15) * 94);
+  } else {
+    confidence = 0;
+  }
+
+  return {
+    confidence: Math.round(confidence),
+    similarity,
+  };
 }
 
 /**
@@ -246,27 +290,27 @@ export function parseStoredFaceVectors(raw: any): number[][] {
 }
 
 /**
-  * Calculate highest similarity score across multiple candidate vectors
+  * Calculate highest similarity score & confidence across multiple candidate vectors
   */
 export function calculateBestMultiVectorSimilarity(
   liveVector: number[],
   storedRawVectors: any
-): number {
-  if (!liveVector) return 0;
+): { confidence: number; similarity: number } {
+  if (!liveVector) return { confidence: 0, similarity: 0 };
   const storedVectors = parseStoredFaceVectors(storedRawVectors);
-  if (storedVectors.length === 0) return 0;
+  if (storedVectors.length === 0) return { confidence: 0, similarity: 0 };
 
-  let maxScore = 0;
+  let maxConf = 0;
+  let maxSim = 0;
   for (const storedVec of storedVectors) {
     if (!storedVec || storedVec.length === 0) continue;
-    const simCosine = calculateCosineSimilarity(liveVector, storedVec);
-    const simDistance = calculateDistanceSimilarity(liveVector, storedVec);
-    const score = (simCosine + simDistance) / 2;
-    if (score > maxScore) {
-      maxScore = score;
+    const { confidence, similarity } = calculateFaceMatchConfidence(liveVector, storedVec);
+    if (confidence > maxConf) {
+      maxConf = confidence;
+      maxSim = similarity;
     }
   }
-  return maxScore;
+  return { confidence: maxConf, similarity: maxSim };
 }
 
 /**

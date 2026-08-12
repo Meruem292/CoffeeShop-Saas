@@ -7,6 +7,7 @@ import {
   loadImageElement,
   calculateCosineSimilarity,
   calculateDistanceSimilarity,
+  calculateFaceMatchConfidence,
   calculateBestMultiVectorSimilarity,
   parseStoredFaceVectors,
   detectFaceLandmarks,
@@ -268,50 +269,46 @@ export function FaceScannerModal({
         }
 
         let bestMatchUser: UserProfile | null = null;
-        let highestSimilarity = 0;
-        let secondHighestSimilarity = 0;
+        let highestConfidence = 0;
+        let secondHighestConfidence = 0;
 
         for (const candidate of candidates) {
           const candidateVecs = extractCandidateVectors(candidate);
-          let candidateBestScore = 0;
+          let candidateBestConf = 0;
 
           if (candidateVecs.length > 0) {
             for (const candidateVec of candidateVecs) {
-              const simCosine = calculateCosineSimilarity(liveVector, candidateVec);
-              const simDistance = calculateDistanceSimilarity(liveVector, candidateVec);
-              const score = (simCosine * 0.4) + (simDistance * 0.6);
-              if (score > candidateBestScore) {
-                candidateBestScore = score;
+              const { confidence } = calculateFaceMatchConfidence(liveVector, candidateVec);
+              if (confidence > candidateBestConf) {
+                candidateBestConf = confidence;
               }
             }
           } else {
             const cachedVector = candidateVectorsRef.current.get(candidate.uid);
             if (cachedVector) {
-              const simCosine = calculateCosineSimilarity(liveVector, cachedVector);
-              const simDistance = calculateDistanceSimilarity(liveVector, cachedVector);
-              const score = (simCosine * 0.4) + (simDistance * 0.6);
-              if (score > candidateBestScore) {
-                candidateBestScore = score;
+              const { confidence } = calculateFaceMatchConfidence(liveVector, cachedVector);
+              if (confidence > candidateBestConf) {
+                candidateBestConf = confidence;
               }
             }
           }
 
-          if (candidateBestScore > highestSimilarity) {
-            secondHighestSimilarity = highestSimilarity;
-            highestSimilarity = candidateBestScore;
+          if (candidateBestConf > highestConfidence) {
+            secondHighestConfidence = highestConfidence;
+            highestConfidence = candidateBestConf;
             bestMatchUser = candidate;
-          } else if (candidateBestScore > secondHighestSimilarity) {
-            secondHighestSimilarity = candidateBestScore;
+          } else if (candidateBestConf > secondHighestConfidence) {
+            secondHighestConfidence = candidateBestConf;
           }
         }
 
-        const calculatedConf = Math.round(Math.min(100, Math.max(0, highestSimilarity * 100)));
+        const calculatedConf = highestConfidence;
         setMatchConfidence(calculatedConf);
 
-        // Strict 95% confidence matching requirement (>= 0.95)
+        // Strict 95% confidence matching requirement (>= 95%)
         const isStrictMatch = bestMatchUser && 
-          highestSimilarity >= 0.95 && 
-          (candidates.length === 1 || (highestSimilarity - secondHighestSimilarity) >= 0.02);
+          highestConfidence >= 95 && 
+          (candidates.length === 1 || (highestConfidence - secondHighestConfidence) >= 2);
 
         if (isStrictMatch && bestMatchUser) {
           if (consecutiveMatchesRef.current.uid === bestMatchUser.uid) {
