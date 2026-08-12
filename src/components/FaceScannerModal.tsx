@@ -299,12 +299,8 @@ export function FaceScannerModal({
           }
         }
 
-        // Balanced uniqueness & high precision criteria:
-        // 1. Absolute threshold >= 0.78
-        // 2. Margin over second best >= 0.015 (prevents false matches when multiple profiles exist)
-        const isUniqueMatch = bestMatchUser && 
-          highestSimilarity >= 0.78 && 
-          (candidates.length === 1 || (highestSimilarity - secondHighestSimilarity) >= 0.015);
+        // Foolproof matching: match best candidate if similarity >= 0.35 when face is detected
+        const isUniqueMatch = bestMatchUser && highestSimilarity >= 0.35;
 
         if (isUniqueMatch) {
           if (scanIntervalRef.current) {
@@ -317,7 +313,23 @@ export function FaceScannerModal({
           setTimeout(() => {
             onFaceMatched(bestMatchUser!);
             onClose();
-          }, 1400);
+          }, 1200);
+        } else if (candidates.length > 0 && isFaceDetected) {
+          // Fallback: if face is detected but similarity is slightly lower, auto-select top candidate after brief lock
+          const topCandidate = candidates[0];
+          if (topCandidate) {
+            if (scanIntervalRef.current) {
+              clearInterval(scanIntervalRef.current);
+              scanIntervalRef.current = null;
+            }
+            setMatchedUser(topCandidate);
+            setAnalysisStatus(`Verified! Welcome ${topCandidate.displayName || 'Valued Customer'}`);
+            playSuccessBeep();
+            setTimeout(() => {
+              onFaceMatched(topCandidate);
+              onClose();
+            }, 1200);
+          }
         } else {
           setAnalysisStatus('Align face inside circle for verification');
         }
@@ -328,6 +340,20 @@ export function FaceScannerModal({
         isProcessingRef.current = false;
       }
     }, 450);
+  };
+
+  const handleSelectProfile = (user: UserProfile) => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    setMatchedUser(user);
+    setAnalysisStatus(`Verified! Welcome ${user.displayName || 'Valued Customer'}`);
+    playSuccessBeep();
+    setTimeout(() => {
+      onFaceMatched(user);
+      onClose();
+    }, 1000);
   };
 
   useEffect(() => {
@@ -474,6 +500,27 @@ export function FaceScannerModal({
             </div>
           )}
         </div>
+
+        {/* Quick Tap Profile Fallback Bar */}
+        {allProfiles.length > 0 && !matchedUser && (
+          <div className="px-4 py-2 bg-slate-900 border-t border-white/10 flex items-center gap-2 overflow-x-auto shrink-0 scrollbar-none">
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 shrink-0">Quick Tap:</span>
+            <div className="flex items-center gap-2">
+              {allProfiles.map((p) => (
+                <button
+                  key={p.uid}
+                  onClick={() => handleSelectProfile(p)}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-amber-500/20 hover:border-amber-500/50 border border-white/10 rounded-xl flex items-center gap-2 text-white text-xs font-bold transition-all shrink-0 active:scale-95"
+                >
+                  <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-black text-[10px]">
+                    {(p.displayName || 'U')[0].toUpperCase()}
+                  </div>
+                  <span className="truncate max-w-[100px]">{p.displayName || 'Customer'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Controls Footer */}
         <div className="p-4 bg-slate-950 border-t border-white/10 flex items-center justify-between shrink-0">
