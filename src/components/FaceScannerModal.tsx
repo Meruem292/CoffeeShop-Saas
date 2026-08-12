@@ -299,12 +299,12 @@ export function FaceScannerModal({
           }
         }
 
-        // Strict uniqueness & high precision criteria:
-        // 1. Absolute threshold >= 0.93
-        // 2. Margin over second best >= 0.025 (prevents false matches when multiple profiles exist)
+        // Balanced uniqueness & high precision criteria:
+        // 1. Absolute threshold >= 0.78
+        // 2. Margin over second best >= 0.015 (prevents false matches when multiple profiles exist)
         const isUniqueMatch = bestMatchUser && 
-          highestSimilarity >= 0.93 && 
-          (candidates.length === 1 || (highestSimilarity - secondHighestSimilarity) >= 0.025);
+          highestSimilarity >= 0.78 && 
+          (candidates.length === 1 || (highestSimilarity - secondHighestSimilarity) >= 0.015);
 
         if (isUniqueMatch) {
           if (scanIntervalRef.current) {
