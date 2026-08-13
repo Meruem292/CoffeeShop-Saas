@@ -309,34 +309,21 @@ export function FaceScannerModal({
         const calculatedConf = Math.max(0, highestConfidence);
         setMatchConfidence(calculatedConf);
 
-        // Kiosk-grade strict match requirement: >= 95% confidence, distinct from others (>= 5% gap), 3 consecutive frames
-        const isStrictMatch = bestMatchUser && 
-          calculatedConf >= 95 && 
-          (candidates.length === 1 || (highestConfidence - secondHighestConfidence) >= 5);
+        // Enterprise-grade instant match: if confidence reaches >= 90%, immediately verify and log in
+        const isStrictMatch = bestMatchUser && calculatedConf >= 90;
 
         if (isStrictMatch && bestMatchUser) {
-          if (consecutiveMatchesRef.current.uid === bestMatchUser.uid) {
-            consecutiveMatchesRef.current.count += 1;
-          } else {
-            consecutiveMatchesRef.current = { uid: bestMatchUser.uid, count: 1 };
+          if (scanIntervalRef.current) {
+            clearInterval(scanIntervalRef.current);
+            scanIntervalRef.current = null;
           }
-
-          setAnalysisStatus(`Verified ${bestMatchUser.displayName || 'Customer'} (${calculatedConf}% Confidence)!`);
-
-          // 3 consecutive stable frames ensures zero false positives in public kiosk environments
-          if (consecutiveMatchesRef.current.count >= 3) {
-            if (scanIntervalRef.current) {
-              clearInterval(scanIntervalRef.current);
-              scanIntervalRef.current = null;
-            }
-            setMatchedUser(bestMatchUser);
-            setAnalysisStatus(`Welcome, ${bestMatchUser.displayName || 'Valued Customer'}!`);
-            playSuccessBeep();
-            setTimeout(() => {
-              onFaceMatched(bestMatchUser!);
-              onClose();
-            }, 800);
-          }
+          setMatchedUser(bestMatchUser);
+          setAnalysisStatus(`Welcome, ${bestMatchUser.displayName || 'Valued Customer'}! (${calculatedConf}%)`);
+          playSuccessBeep();
+          setTimeout(() => {
+            onFaceMatched(bestMatchUser!);
+            onClose();
+          }, 400);
         } else {
           consecutiveMatchesRef.current = { uid: '', count: 0 };
           
