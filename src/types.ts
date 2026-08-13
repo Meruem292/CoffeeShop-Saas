@@ -40,6 +40,7 @@ export interface DynamicCategory {
 export interface ProductSize {
   name: string;
   price: number;
+  cost?: number;
 }
 
 export interface Addon {
@@ -57,6 +58,7 @@ export interface Product {
   category: string;
   subCategory?: string;
   price: number;
+  cost?: number;
   image: string;
   description: string;
   stock: number;
@@ -79,6 +81,7 @@ export interface CartItem extends Product {
   sugarLevel?: SugarLevel;
   iceLevel?: string;
   selectedAddons?: Addon[];
+  cost?: number;
 }
 
 export interface ShopSettings {

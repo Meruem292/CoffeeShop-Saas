@@ -95,6 +95,21 @@ export function TransactionReports({ orders = [], onDeleteOrder, onClearOrders }
     }, 0);
   }, [filteredOrders]);
 
+  const { totalCost, totalProfit, profitMargin } = useMemo(() => {
+    let costSum = 0;
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      order.items.forEach(item => {
+        const qty = item.quantity || 1;
+        const itemCost = item.cost !== undefined ? item.cost : (item.selectedSize?.cost !== undefined ? item.selectedSize.cost : 0);
+        costSum += itemCost * qty;
+      });
+    });
+    const profit = totalRevenue - costSum;
+    const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+    return { totalCost: costSum, totalProfit: profit, profitMargin: margin };
+  }, [filteredOrders, totalRevenue]);
+
   const { totalDrinksQuantity, totalPastryQuantity } = useMemo(() => {
     let drinks = 0;
     let pastry = 0;
@@ -462,6 +477,41 @@ export function TransactionReports({ orders = [], onDeleteOrder, onClearOrders }
               <TrendingUp className="w-4 h-4 text-emerald-400/60" />
             </div>
             <span className="text-2xl sm:text-3xl font-black text-emerald-500">₱{totalRevenue.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Profitability & COGS Analysis Card */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-cyan-500/10 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-amber-500/20 mb-8 sm:mb-12 shadow-2xl">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 text-amber-500 text-xs font-black uppercase tracking-widest mb-1">
+                <BarChart3 className="w-4 h-4" /> Profitability & COGS Analysis
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                Real Net Profit Comparison
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Compare total sales against product costing (COGS) to calculate your true business earnings.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto">
+              <div className="bg-black/10 dark:bg-white/10 p-4 rounded-2xl border border-white/5 text-center">
+                <div className="text-[10px] font-black uppercase text-slate-400">Total Sales</div>
+                <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mt-0.5">₱{totalRevenue.toLocaleString()}</div>
+              </div>
+              <div className="bg-black/10 dark:bg-white/10 p-4 rounded-2xl border border-white/5 text-center">
+                <div className="text-[10px] font-black uppercase text-rose-400">Total Cost (COGS)</div>
+                <div className="text-lg sm:text-xl font-black text-rose-500 mt-0.5">₱{totalCost.toLocaleString()}</div>
+              </div>
+              <div className="bg-black/10 dark:bg-white/10 p-4 rounded-2xl border border-white/5 text-center">
+                <div className="text-[10px] font-black uppercase text-emerald-400">Net Profit</div>
+                <div className="text-lg sm:text-xl font-black text-emerald-500 mt-0.5">₱{totalProfit.toLocaleString()}</div>
+              </div>
+              <div className="bg-black/10 dark:bg-white/10 p-4 rounded-2xl border border-white/5 text-center">
+                <div className="text-[10px] font-black uppercase text-amber-400">Profit Margin</div>
+                <div className="text-lg sm:text-xl font-black text-amber-500 mt-0.5">{profitMargin.toFixed(1)}%</div>
+              </div>
+            </div>
           </div>
         </div>
 

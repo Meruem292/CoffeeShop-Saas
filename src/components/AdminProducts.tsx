@@ -136,6 +136,7 @@ export function AdminProducts({
     category: availableCategories[0] || 'Hot Coffee',
     subCategory: '',
     price: 0,
+    cost: 0,
     image: '',
     description: '',
     stock: 0,
@@ -188,7 +189,7 @@ export function AdminProducts({
   const handleAddSize = () => {
     setFormData({
       ...formData,
-      sizes: [...(formData.sizes || []), { name: '', price: 0 }]
+      sizes: [...(formData.sizes || []), { name: '', price: 0, cost: 0 }]
     });
   };
 
@@ -450,6 +451,19 @@ export function AdminProducts({
                       className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
                     />
                   </div>
+                  <div>
+                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Product Cost (₱) <span className="text-[10px] text-amber-500 font-normal">(COGS)</span></label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      min="0" 
+                      placeholder="0.00"
+                      value={formData.cost !== undefined ? formData.cost : ''} 
+                      onFocus={(e) => e.target.select()} 
+                      onChange={e => setFormData({ ...formData, cost: parseFloat(e.target.value) || 0 })} 
+                      className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
+                    />
+                  </div>
                   <div className="md:col-span-2">
                     <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Product Image</label>
                     <div className="flex gap-4 mb-4">
@@ -676,6 +690,19 @@ export function AdminProducts({
                                 value={size.price || ''} 
                                 onFocus={(e) => e.target.select()}
                                 onChange={e => handleSizeChange(index, 'price', parseFloat(e.target.value) || 0)}
+                                className="w-full p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-xl text-slate-900 dark:text-white font-bold"
+                              />
+                            </div>
+                            <div className="w-32">
+                              <label className="block text-[10px] uppercase font-black text-coffee-600 mb-2 tracking-widest">Cost (₱)</label>
+                              <input 
+                                type="number" 
+                                min="0"
+                                step="0.01"
+                                placeholder="0.00"
+                                value={size.cost !== undefined ? size.cost : ''} 
+                                onFocus={(e) => e.target.select()}
+                                onChange={e => handleSizeChange(index, 'cost', parseFloat(e.target.value) || 0)}
                                 className="w-full p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-xl text-slate-900 dark:text-white font-bold"
                               />
                             </div>

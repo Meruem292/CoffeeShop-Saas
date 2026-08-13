@@ -709,6 +709,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       return;
     }
     const basePrice = size ? size.price : product.price;
+    const baseCost = size ? (size.cost !== undefined ? size.cost : (product.cost || 0)) : (product.cost || 0);
     const addonsPrice = selectedAddons ? selectedAddons.reduce((sum, a) => sum + a.price, 0) : 0;
     const finalPrice = basePrice + addonsPrice;
     
@@ -727,7 +728,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
         isExisting = true;
         return prev.map((ci, idx) => idx === existingIndex ? { ...ci, quantity: ci.quantity + 1 } : ci);
       }
-      return [...prev, { ...product, cartId, quantity: 1, notes: '', selectedSize: size, price: finalPrice, sugarLevel, selectedAddons }];
+      return [...prev, { ...product, cartId, quantity: 1, notes: '', selectedSize: size, price: finalPrice, cost: baseCost, sugarLevel, selectedAddons }];
     });
 
     if (isExisting) {
