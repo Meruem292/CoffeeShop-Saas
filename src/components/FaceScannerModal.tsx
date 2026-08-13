@@ -305,34 +305,21 @@ export function FaceScannerModal({
         const calculatedConf = highestConfidence;
         setMatchConfidence(calculatedConf);
 
-        // Strict 95% confidence matching requirement (must be >= 95%)
-        const isStrictMatch = bestMatchUser && 
-          highestConfidence >= 95 && 
-          (candidates.length === 1 || (highestConfidence - secondHighestConfidence) >= 2);
+        // Instant match when confidence reaches >= 90%
+        const isStrictMatch = bestMatchUser && calculatedConf >= 90;
 
         if (isStrictMatch && bestMatchUser) {
-          if (consecutiveMatchesRef.current.uid === bestMatchUser.uid) {
-            consecutiveMatchesRef.current.count += 1;
-          } else {
-            consecutiveMatchesRef.current = { uid: bestMatchUser.uid, count: 1 };
+          if (scanIntervalRef.current) {
+            clearInterval(scanIntervalRef.current);
+            scanIntervalRef.current = null;
           }
-
-          setAnalysisStatus(`Verified ${bestMatchUser.displayName || 'Customer'} (${calculatedConf}% Confidence)!`);
-
-          // Require 2 consecutive frames of >= 95% confidence match for maximum precision
-          if (consecutiveMatchesRef.current.count >= 2) {
-            if (scanIntervalRef.current) {
-              clearInterval(scanIntervalRef.current);
-              scanIntervalRef.current = null;
-            }
-            setMatchedUser(bestMatchUser);
-            setAnalysisStatus(`Welcome, ${bestMatchUser.displayName || 'Valued Customer'}!`);
-            playSuccessBeep();
-            setTimeout(() => {
-              onFaceMatched(bestMatchUser!);
-              onClose();
-            }, 1200);
-          }
+          setMatchedUser(bestMatchUser);
+          setAnalysisStatus(`Welcome, ${bestMatchUser.displayName || 'Valued Customer'}!`);
+          playSuccessBeep();
+          setTimeout(() => {
+            onFaceMatched(bestMatchUser!);
+            onClose();
+          }, 800);
         } else {
           consecutiveMatchesRef.current = { uid: '', count: 0 };
           
