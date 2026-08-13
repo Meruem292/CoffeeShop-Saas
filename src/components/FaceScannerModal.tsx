@@ -274,52 +274,72 @@ export function FaceScannerModal({
 
         for (const candidate of candidates) {
           const candidateVecs = extractCandidateVectors(candidate);
-          let candidateBestConf = 0;
+          const confidences: number[] = [];
 
           if (candidateVecs.length > 0) {
             for (const candidateVec of candidateVecs) {
               const { confidence } = calculateFaceMatchConfidence(liveVector, candidateVec);
-              if (confidence > candidateBestConf) {
-                candidateBestConf = confidence;
-              }
+              confidences.push(confidence);
             }
           } else {
             const cachedVector = candidateVectorsRef.current.get(candidate.uid);
             if (cachedVector) {
               const { confidence } = calculateFaceMatchConfidence(liveVector, cachedVector);
-              if (confidence > candidateBestConf) {
-                candidateBestConf = confidence;
-              }
+              confidences.push(confidence);
             }
           }
 
-          if (candidateBestConf > highestConfidence) {
+          if (confidences.length === 0) continue;
+
+          // Sort descending to get best matching vectors
+          confidences.sort((a, b) => b - a);
+
+          // Fair representative score: average of top 2 matching vectors (or top 1 if only 1)
+          let candidateScore = confidences[0];
+          if (confidences.length >= 2) {
+            candidateScore = Math.round((confidences[0] + confidences[1]) / 2);
+          }
+
+          if (candidateScore > highestConfidence) {
             secondHighestConfidence = highestConfidence;
-            highestConfidence = candidateBestConf;
+            highestConfidence = candidateScore;
             bestMatchUser = candidate;
-          } else if (candidateBestConf > secondHighestConfidence) {
-            secondHighestConfidence = candidateBestConf;
+          } else if (candidateScore > secondHighestConfidence) {
+            secondHighestConfidence = candidateScore;
           }
         }
 
         const calculatedConf = highestConfidence;
         setMatchConfidence(calculatedConf);
 
-        // Instant match when confidence reaches >= 90%
-        const isStrictMatch = bestMatchUser && calculatedConf >= 90;
+        // Fair & robust match requirement: >= 92% confidence and distinct from others
+        const isStrictMatch = bestMatchUser && 
+          calculatedConf >= 92 && 
+          (candidates.length === 1 || (highestConfidence - secondHighestConfidence) >= 2);
 
         if (isStrictMatch && bestMatchUser) {
-          if (scanIntervalRef.current) {
-            clearInterval(scanIntervalRef.current);
-            scanIntervalRef.current = null;
+          if (consecutiveMatchesRef.current.uid === bestMatchUser.uid) {
+            consecutiveMatchesRef.current.count += 1;
+          } else {
+            consecutiveMatchesRef.current = { uid: bestMatchUser.uid, count: 1 };
           }
-          setMatchedUser(bestMatchUser);
-          setAnalysisStatus(`Welcome, ${bestMatchUser.displayName || 'Valued Customer'}!`);
-          playSuccessBeep();
-          setTimeout(() => {
-            onFaceMatched(bestMatchUser!);
-            onClose();
-          }, 800);
+
+          setAnalysisStatus(`Verified ${bestMatchUser.displayName || 'Customer'} (${calculatedConf}% Confidence)!`);
+
+          // 2 consecutive stable frames ensures lightning fast response without false matches
+          if (consecutiveMatchesRef.current.count >= 2) {
+            if (scanIntervalRef.current) {
+              clearInterval(scanIntervalRef.current);
+              scanIntervalRef.current = null;
+            }
+            setMatchedUser(bestMatchUser);
+            setAnalysisStatus(`Welcome, ${bestMatchUser.displayName || 'Valued Customer'}!`);
+            playSuccessBeep();
+            setTimeout(() => {
+              onFaceMatched(bestMatchUser!);
+              onClose();
+            }, 800);
+          }
         } else {
           consecutiveMatchesRef.current = { uid: '', count: 0 };
           
