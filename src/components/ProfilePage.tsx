@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { User, Copy, Tag, Clock, ShoppingBag, Award, ArrowUpRight, ArrowDownRight, Coins, ArrowRight, QrCode, Camera, ScanFace, Sparkles, Upload, CheckCircle2, RefreshCw } from 'lucide-react';
+import { User, Copy, Tag, Clock, ShoppingBag, Award, ArrowUpRight, ArrowDownRight, Coins, ArrowRight, QrCode, Camera, ScanFace, Sparkles, Upload, CheckCircle2, RefreshCw, Download, Maximize2, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -21,7 +21,40 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
   const { toast } = useToast();
   const [isSavingFace, setIsSavingFace] = useState(false);
   const [isSelfieModalOpen, setIsSelfieModalOpen] = useState(false);
+  const [isMemberQrModalOpen, setIsMemberQrModalOpen] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDownloadMemberQr = () => {
+    const svgElement = document.getElementById(`member-pass-qr-svg`);
+    if (!svgElement) return;
+    
+    const xml = new XMLSerializer().serializeToString(svgElement);
+    const svgBlob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+    const blobURL = (window.URL || (window as any).webkitURL).createObjectURL(svgBlob);
+    
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 400;
+      canvas.height = 400;
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.fillStyle = '#FFFFFF';
+        context.fillRect(0, 0, 400, 400);
+        context.drawImage(image, 20, 20, 360, 360);
+        const png = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = png;
+        downloadLink.download = `Member_Pass_QR_${userProfile?.shortId || user.uid.slice(0, 6)}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        toast.success('Member Pass QR downloaded successfully!');
+      }
+    };
+    image.src = blobURL;
+  };
 
   const handleSaveSelfieBase64 = async (
     base64: string,
@@ -273,24 +306,34 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
           </div>
 
           {/* Member QR Pass */}
-          <div className="flex items-center gap-3.5 bg-slate-50 dark:bg-white/5 p-3 sm:p-4 rounded-2xl border border-black/5 dark:border-white/5 shrink-0 w-full lg:w-auto justify-center">
-            <div className="bg-white p-2 rounded-xl shadow-sm shrink-0">
+          <div 
+            onClick={() => setIsMemberQrModalOpen(true)}
+            className="flex items-center gap-3.5 bg-slate-50 dark:bg-white/5 p-3 sm:p-4 rounded-2xl border border-black/5 dark:border-white/5 shrink-0 w-full lg:w-auto justify-center cursor-pointer hover:border-amber-500/40 hover:bg-amber-500/5 transition-all group"
+            title="Click to Enlarge QR Code for Easy Scanning"
+          >
+            <div className="bg-white p-2 rounded-xl shadow-sm shrink-0 relative">
               <QRCodeSVG 
+                id="member-pass-qr-svg"
                 value={JSON.stringify({ 
                   type: 'member_pass', 
                   uid: user.uid, 
-                  shortId: (user as any).shortId || user.uid.slice(0, 5).toUpperCase(),
+                  shortId: (userProfile as any)?.shortId || user.uid.slice(0, 5).toUpperCase(),
                   email: user.email, 
                   name: user.displayName || '' 
                 })} 
                 size={76} 
               />
+              <div className="absolute inset-0 bg-slate-950/60 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                <Maximize2 className="w-5 h-5 text-amber-400" />
+              </div>
             </div>
             <div className="flex flex-col text-left">
               <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 flex items-center gap-1">
                 <QrCode className="w-3 h-3" /> Member Pass
               </span>
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5">Scan at Counter</span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5 group-hover:text-amber-500 transition-colors">
+                Tap to Enlarge QR
+              </span>
               <span className="text-[9px] text-slate-400 leading-tight mt-1 max-w-[120px]">
                 Scan at POS or Kiosk to earn & use points
               </span>
@@ -301,9 +344,18 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
         {/* Face ID Kiosk Pass Card */}
         <div className="bg-gradient-to-r from-slate-900 to-amber-950 p-5 rounded-3xl border border-amber-500/30 text-white flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl relative overflow-hidden">
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="relative shrink-0">
+            <div 
+              onClick={() => userProfile?.photoURL && setIsPhotoModalOpen(true)}
+              className={`relative shrink-0 ${userProfile?.photoURL ? 'cursor-pointer group' : ''}`}
+              title={userProfile?.photoURL ? 'Click to view full photo' : 'No photo uploaded'}
+            >
               {userProfile?.photoURL ? (
-                <img src={userProfile.photoURL} alt="Face ID" className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-400 shadow-md" />
+                <>
+                  <img src={userProfile.photoURL} alt="Face ID" className="w-14 h-14 rounded-2xl object-cover border-2 border-amber-400 shadow-md transition-transform group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Maximize2 className="w-4 h-4 text-white" />
+                  </div>
+                </>
               ) : (
                 <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black">
                   <ScanFace className="w-7 h-7" />
@@ -491,6 +543,92 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
         onClose={() => setIsSelfieModalOpen(false)}
         onPhotoCaptured={handleSaveSelfieBase64}
       />
+
+      {/* Enlarged Member Pass QR Modal */}
+      {isMemberQrModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-6 text-white text-center relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-500 font-black text-xs uppercase tracking-widest">
+                <QrCode className="w-4 h-4" /> Member Digital Pass
+              </div>
+              <button
+                onClick={() => setIsMemberQrModalOpen(false)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-white p-6 rounded-3xl inline-block shadow-2xl border-4 border-amber-500/30">
+              <QRCodeSVG 
+                id="member-pass-qr-svg-modal"
+                value={JSON.stringify({ 
+                  type: 'member_pass', 
+                  uid: user.uid, 
+                  shortId: (userProfile as any)?.shortId || user.uid.slice(0, 5).toUpperCase(),
+                  email: user.email, 
+                  name: user.displayName || '' 
+                })} 
+                size={220} 
+                level="H"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-white">{user.displayName || 'Loyalty Member'}</h3>
+              <p className="text-xs text-amber-400 font-mono font-bold uppercase tracking-wider">
+                #{ (userProfile as any)?.shortId || user.uid.slice(0, 5).toUpperCase() }
+              </p>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest">
+                Show this QR Code to Cashier or Kiosk Scanner
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleDownloadMemberQr}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Download QR Code Image
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Photo Lightbox Modal */}
+      {isPhotoModalOpen && userProfile?.photoURL && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 text-white text-center relative">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-500 font-black text-xs uppercase tracking-widest">
+                <Camera className="w-4 h-4" /> Face ID Profile Photo
+              </div>
+              <button
+                onClick={() => setIsPhotoModalOpen(false)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="relative rounded-2xl overflow-hidden border-2 border-amber-500/40 bg-black max-h-[60vh] flex items-center justify-center">
+              <img 
+                src={userProfile.photoURL} 
+                alt={user.displayName || 'Customer'} 
+                className="w-full h-auto max-h-[60vh] object-contain"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+
+            <div className="space-y-1 text-center">
+              <h4 className="text-sm font-bold text-white">{user.displayName || 'Customer'}</h4>
+              <p className="text-[10px] text-slate-400 font-mono">{user.email}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

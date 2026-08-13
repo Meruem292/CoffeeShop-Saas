@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, ScanFace, Lock, ShieldCheck, KeyRound, ShieldAlert, Delete } from 'lucide-react';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, ScanFace, Lock, ShieldCheck, KeyRound, ShieldAlert, ShieldOff, Delete, Maximize2 } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
@@ -230,6 +230,32 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     };
   }, [accountId]);
 
+  // Active customer profile (scanned or logged-in) and ordering suspension check
+  const activeCustomerProfile = scannedAccountProfile || userProfile;
+  const isAccountSuspended = useMemo(() => {
+    return Boolean(
+      activeCustomerProfile?.orderingDisabledUntil && 
+      activeCustomerProfile.orderingDisabledUntil > Date.now()
+    );
+  }, [activeCustomerProfile]);
+
+  const accountSuspensionTimeLeft = useMemo(() => {
+    if (!activeCustomerProfile?.orderingDisabledUntil || activeCustomerProfile.orderingDisabledUntil <= Date.now()) {
+      return null;
+    }
+    const diffMs = activeCustomerProfile.orderingDisabledUntil - Date.now();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.ceil((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      return `${days}d ${hours % 24}h`;
+    }
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  }, [activeCustomerProfile]);
+
   // Real-time listener for the logged-in customer's orders to calculate favorites (only in mobile mode)
   React.useEffect(() => {
     if (!user || mode === 'kiosk' || mode === 'pos') {
@@ -428,6 +454,11 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   const [isPosCartDrawerOpen, setIsPosCartDrawerOpen] = useState(false);
   const [gridColumns, setGridColumns] = useState<number>(shopSettings?.gridColumns || 5);
   const [selectedProductForConfig, setSelectedProductForConfig] = useState<Product | null>(null);
+
+  // Lightbox QR & Customer Photo modal state
+  const [lightboxQrUrl, setLightboxQrUrl] = useState<string | null>(null);
+  const [lightboxQrTitle, setLightboxQrTitle] = useState<string>('QR Code');
+  const [customerPhotoModal, setCustomerPhotoModal] = useState<UserProfile | null>(null);
 
   // QR Camera Scanner state
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -673,6 +704,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       toast.error('The shop is currently closed. Ordering is unavailable.');
       return;
     }
+    if (isAccountSuspended) {
+      toast.error(`Your account is suspended from ordering for another ${accountSuspensionTimeLeft || 'duration'}. Reason: ${activeCustomerProfile?.orderingDisabledReason || 'Spam prevention'}`);
+      return;
+    }
     const basePrice = size ? size.price : product.price;
     const addonsPrice = selectedAddons ? selectedAddons.reduce((sum, a) => sum + a.price, 0) : 0;
     const finalPrice = basePrice + addonsPrice;
@@ -700,12 +735,16 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     } else {
       toast.success(`${product.name} added to cart`);
     }
-  }, [toast]);
+  }, [toast, shopSettings?.isClosed, isAccountSuspended, accountSuspensionTimeLeft, activeCustomerProfile?.orderingDisabledReason]);
 
   // Product Click Handler
   const handleProductClick = useCallback((product: Product) => {
     if (shopSettings?.isClosed) {
       toast.error('The shop is currently closed. Ordering is unavailable.');
+      return;
+    }
+    if (isAccountSuspended) {
+      toast.error(`Your account is suspended from ordering for another ${accountSuspensionTimeLeft || 'duration'}. Reason: ${activeCustomerProfile?.orderingDisabledReason || 'Spam prevention'}`);
       return;
     }
     if ((product.sizes && product.sizes.length > 0) || product.isCustomizable || isProductBeverage(product)) {
@@ -716,7 +755,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     } else {
       addToCart(product);
     }
-  }, [addToCart, shopSettings?.isClosed, toast]);
+  }, [addToCart, shopSettings?.isClosed, isAccountSuspended, accountSuspensionTimeLeft, activeCustomerProfile?.orderingDisabledReason, toast]);
 
   const handleConfigSubmit = () => {
     if (selectedProductForConfig) {
@@ -936,6 +975,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       toast.error('The shop is currently closed. Ordering is unavailable at this time.');
       return;
     }
+    if (isAccountSuspended) {
+      toast.error(`Your account is suspended from ordering for another ${accountSuspensionTimeLeft || 'duration'}. Reason: ${activeCustomerProfile?.orderingDisabledReason || 'Spam prevention'}`);
+      return;
+    }
     if (cart.length === 0) return;
     
     // Ensure we have a default order type if not set
@@ -1069,6 +1112,36 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
         <div className={`flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 lg:p-12 ${mode === 'mobile' ? 'scrollbar-hide pb-32' : 'pb-24'}`}>
           <div className="w-full max-w-[1600px] mx-auto">
+            {/* Account Suspension Banner */}
+            {isAccountSuspended && (
+              <div className="mb-6 p-4.5 rounded-3xl bg-rose-500/15 border border-rose-500/40 text-rose-300 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center shrink-0 mt-0.5">
+                    <ShieldOff className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-tight flex items-center gap-2 flex-wrap">
+                      Account Ordering Suspended
+                      <span className="text-[10px] font-mono bg-rose-500 text-slate-950 px-2 py-0.5 rounded-full font-bold">
+                        {accountSuspensionTimeLeft} left
+                      </span>
+                    </h3>
+                    <p className="text-xs text-rose-200/90 font-medium mt-1">
+                      Your account ({activeCustomerProfile?.displayName || 'Customer'}) is temporarily restricted from placing orders.
+                      {activeCustomerProfile?.orderingDisabledReason && (
+                        <span className="block text-[11px] text-rose-300 italic mt-0.5 font-semibold">
+                          Reason: "{activeCustomerProfile.orderingDisabledReason}"
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-[10px] text-rose-300 font-bold uppercase tracking-wider bg-rose-950/60 px-3.5 py-1.5 rounded-xl border border-rose-500/30 shrink-0 self-end sm:self-center">
+                  Spam Control Active
+                </div>
+              </div>
+            )}
+
             <header className={`${mode === 'mobile' ? 'mb-4 flex items-center justify-between px-1' : 'mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6'}`}>
               <div className={`${mode === 'mobile' ? 'flex items-center gap-2' : 'flex flex-col'}`}>
                 {mode === 'mobile' ? (
@@ -1737,20 +1810,33 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
                         <div className="flex items-center gap-3 pt-1">
                           {shopSettings?.gcashQrUrl && (
-                            <div className="bg-white p-1.5 rounded-xl border border-amber-500/20 shadow-sm shrink-0 relative group">
+                            <div 
+                              onClick={() => {
+                                setLightboxQrUrl(shopSettings.gcashQrUrl || null);
+                                setLightboxQrTitle('GCash Payment QR Code');
+                              }}
+                              className="bg-white p-1.5 rounded-2xl border border-amber-500/30 shadow-md shrink-0 relative group cursor-pointer hover:border-amber-400 hover:scale-105 transition-all"
+                              title="Click to enlarge GCash QR Code"
+                            >
                               <img 
                                 src={shopSettings.gcashQrUrl} 
                                 alt="GCash Payment QR" 
-                                className="w-20 h-20 object-contain rounded-lg"
+                                className="w-20 h-20 object-contain rounded-xl"
                                 referrerPolicy="no-referrer"
                               />
+                              <div className="absolute inset-0 bg-slate-950/60 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-amber-400">
+                                <Maximize2 className="w-5 h-5" />
+                              </div>
                               <button 
                                 type="button"
-                                onClick={handleDownloadQR}
-                                className="absolute top-1 right-1 p-1 bg-black/60 backdrop-blur rounded-full text-white hover:bg-amber-500 transition-colors"
-                                title="Download QR"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadQR();
+                                }}
+                                className="absolute top-1 right-1 p-1 bg-slate-950/80 backdrop-blur rounded-full text-white hover:bg-amber-500 hover:text-slate-950 transition-all z-10"
+                                title="Download GCash QR Code"
                               >
-                                <Download className="w-3 h-3" />
+                                <Download className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           )}
@@ -1911,12 +1997,26 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                     {accountId && (
                       <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 mt-2 animate-in fade-in">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 bg-amber-500 text-slate-900 font-black rounded-xl flex items-center justify-center text-xs shrink-0 shadow-sm">
-                            <Coins className="w-4 h-4" />
+                          <div 
+                            onClick={() => activeCustomerProfile && setCustomerPhotoModal(activeCustomerProfile)}
+                            className="w-10 h-10 bg-amber-500 text-slate-900 font-black rounded-xl flex items-center justify-center text-xs shrink-0 shadow-sm overflow-hidden relative cursor-pointer hover:scale-105 transition-all group"
+                            title="Click to view customer photo"
+                          >
+                            {activeCustomerProfile?.photoURL ? (
+                              <>
+                                <img src={activeCustomerProfile.photoURL} alt={activeCustomerProfile.displayName} className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+                                <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-amber-400">
+                                  <Maximize2 className="w-3.5 h-3.5" />
+                                </div>
+                              </>
+                            ) : (
+                              <Coins className="w-5 h-5 text-slate-950" />
+                            )}
                           </div>
                           <div className="min-w-0 flex flex-col">
-                            <span className="text-[10px] font-black uppercase text-amber-500 tracking-wider truncate">
+                            <span className="text-[10px] font-black uppercase text-amber-500 tracking-wider truncate flex items-center gap-1">
                               {scannedAccountProfile?.displayName || scannedAccountProfile?.email || `Account Linked`}
+                              {activeCustomerProfile?.photoURL && <Camera className="w-3 h-3 text-amber-400 shrink-0" />}
                             </span>
                             <span className="text-xs font-black text-slate-900 dark:text-white tracking-tight">
                               ⚡ {availablePoints} Loyalty Pts Available
@@ -2013,10 +2113,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
             <button
               type="button"
               onClick={handleCheckout}
-              disabled={cart.length === 0 || (!customerName.trim() && mode !== 'mobile') || !!shopSettings?.isClosed}
+              disabled={cart.length === 0 || (!customerName.trim() && mode !== 'mobile') || !!shopSettings?.isClosed || isAccountSuspended}
               className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-rose-500/20 disabled:text-rose-400 dark:disabled:bg-rose-500/20 dark:disabled:text-rose-400 text-slate-950 py-3 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
-              {shopSettings?.isClosed ? 'SHOP IS CLOSED' : 'Confirm Order'} <Check className="w-4 h-4" />
+              {shopSettings?.isClosed ? 'SHOP IS CLOSED' : isAccountSuspended ? 'ACCOUNT SUSPENDED' : 'Confirm Order'} <Check className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -2026,7 +2126,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
   return (
     <div className={containerClasses[mode]}>
-      {shopSettings?.isClosed && (
+      {shopSettings?.isClosed ? (
         <div className="bg-rose-500/15 border-b border-rose-500/30 px-6 py-2.5 flex items-center justify-between gap-4 text-rose-500 dark:text-rose-400 font-black text-xs uppercase tracking-wider shrink-0 z-30 animate-in fade-in">
           <div className="flex items-center gap-3">
             <span className="relative flex h-2.5 w-2.5">
@@ -2039,7 +2139,17 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
             OFFLINE
           </span>
         </div>
-      )}
+      ) : isAccountSuspended ? (
+        <div className="bg-rose-500/15 border-b border-rose-500/30 px-6 py-2.5 flex items-center justify-between gap-4 text-rose-400 font-black text-xs uppercase tracking-wider shrink-0 z-30 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <ShieldOff className="w-4 h-4 text-rose-400 animate-pulse" />
+            <span>ORDERING SUSPENDED — {accountSuspensionTimeLeft} remaining ({activeCustomerProfile?.orderingDisabledReason || 'Spam prevention'})</span>
+          </div>
+          <span className="bg-rose-500 text-slate-950 px-3 py-0.5 rounded-full text-[9px] font-black tracking-widest">
+            SUSPENDED
+          </span>
+        </div>
+      ) : null}
 
       {/* Main Layout */}
       <div className={`flex-1 overflow-hidden ${mode === 'kiosk' ? 'flex flex-col' : 'flex'}`}>
@@ -2625,6 +2735,93 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
           onOrderMore={() => setShowOrderStatusModal(false)}
           onViewHistory={onNavigateToHistory}
         />
+
+        {/* Enlarged QR Lightbox Modal */}
+        {lightboxQrUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+            <div className="bg-slate-900 border border-white/10 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-6 text-white text-center relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-500 font-black text-xs uppercase tracking-widest">
+                  <QrCode className="w-4 h-4" /> {lightboxQrTitle}
+                </div>
+                <button
+                  onClick={() => setLightboxQrUrl(null)}
+                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="bg-white p-4 sm:p-6 rounded-3xl inline-block shadow-2xl border-4 border-amber-500/30">
+                <img 
+                  src={lightboxQrUrl} 
+                  alt={lightboxQrTitle} 
+                  className="w-56 h-56 object-contain rounded-xl"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs text-amber-400 font-bold uppercase tracking-wider">
+                  Easy Camera / App Scanning
+                </p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest">
+                  Scan this QR code using GCash or your Mobile Camera App
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDownloadQR();
+                  }}
+                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Download QR Code Image
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Customer Photo Lightbox Modal */}
+        {customerPhotoModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+            <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 text-white text-center relative">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-500 font-black text-xs uppercase tracking-widest">
+                  <Camera className="w-4 h-4" /> Customer Face Photo ID
+                </div>
+                <button
+                  onClick={() => setCustomerPhotoModal(null)}
+                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="relative rounded-2xl overflow-hidden border-2 border-amber-500/40 bg-black max-h-[60vh] flex items-center justify-center min-h-[200px]">
+                {customerPhotoModal.photoURL ? (
+                  <img 
+                    src={customerPhotoModal.photoURL} 
+                    alt={customerPhotoModal.displayName || 'Customer'} 
+                    className="w-full h-auto max-h-[60vh] object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="p-8 text-slate-400 font-bold text-xs">No profile image found</div>
+                )}
+              </div>
+
+              <div className="space-y-1 text-center">
+                <h4 className="text-base font-black text-white">{customerPhotoModal.displayName || 'Customer'}</h4>
+                <p className="text-xs text-amber-400 font-mono">#{customerPhotoModal.shortId || customerPhotoModal.uid.slice(0, 5).toUpperCase()}</p>
+                <p className="text-[10px] text-slate-400 font-mono">{customerPhotoModal.email}</p>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SplashScreen, ShopSettings } from '../types';
-import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt, QrCode, Link, Trash2, Lock, Store, Power } from 'lucide-react';
+import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt, QrCode, Link, Trash2, Lock, Store, Power, Download, Maximize2, X } from 'lucide-react';
 import { useTheme } from '../lib/ThemeProvider';
 import { useToast } from '../lib/ToastContext';
 
@@ -50,6 +50,18 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
   });
 
   const [saving, setSaving] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+
+  const handleDownloadGcashQr = () => {
+    if (!shopData.gcashQrUrl) return;
+    const a = document.createElement('a');
+    a.href = shopData.gcashQrUrl;
+    a.download = `GCash_Payment_QR_${shopData.name || 'Store'}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success('GCash QR Code image downloaded!');
+  };
 
   useEffect(() => {
     if (splashScreen) {
@@ -584,10 +596,32 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                   <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">GCash Payment QR Code</label>
                   <div className="flex items-center gap-4 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10 h-[58px]">
                     {shopData.gcashQrUrl ? (
-                      <div className="w-10 h-10 rounded-xl bg-white p-0.5 overflow-hidden shrink-0 border border-black/10 dark:border-white/10 relative group">
-                        <img src={shopData.gcashQrUrl} alt="GCash QR Code" className="w-full h-full object-contain" />
-                        <button type="button" onClick={() => setShopData({...shopData, gcashQrUrl: ''})} className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Trash2 className="w-3 h-3" />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div 
+                          onClick={() => setIsQrModalOpen(true)}
+                          className="w-10 h-10 rounded-xl bg-white p-0.5 overflow-hidden shrink-0 border border-black/10 dark:border-white/10 relative group cursor-pointer hover:border-amber-500 transition-all shadow-sm"
+                          title="Click to enlarge GCash QR"
+                        >
+                          <img src={shopData.gcashQrUrl} alt="GCash QR Code" className="w-full h-full object-contain" />
+                          <div className="absolute inset-0 bg-slate-950/60 text-amber-400 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Maximize2 className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleDownloadGcashQr}
+                          className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 transition-all"
+                          title="Download GCash QR"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => setShopData({...shopData, gcashQrUrl: ''})} 
+                          className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 transition-all"
+                          title="Remove QR Code"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     ) : (
@@ -861,6 +895,50 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
           )}
         </div>
       </div>
+
+      {/* GCash QR Lightbox Modal */}
+      {isQrModalOpen && shopData.gcashQrUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-6 text-white text-center relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-500 font-black text-xs uppercase tracking-widest">
+                <QrCode className="w-4 h-4" /> GCash Payment QR Code
+              </div>
+              <button
+                onClick={() => setIsQrModalOpen(false)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-white p-4 rounded-3xl inline-block shadow-2xl border-4 border-amber-500/30">
+              <img 
+                src={shopData.gcashQrUrl} 
+                alt="GCash Payment QR Code" 
+                className="w-56 h-56 object-contain rounded-xl" 
+              />
+            </div>
+
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-white">{shopData.name || 'Store'} GCash QR</h4>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest">
+                Displayed to customers during checkout
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleDownloadGcashQr}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Download QR Image
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

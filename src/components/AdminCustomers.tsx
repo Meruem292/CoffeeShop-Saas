@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { Search, User, Mail, Calendar, Coins, Edit2, X, Check, Trash2, Filter, ArrowUpDown } from 'lucide-react';
+import { Search, User, Mail, Calendar, Coins, Edit2, X, Check, Trash2, Filter, ArrowUpDown, ShieldAlert, ShieldOff, Clock, Ban, AlertTriangle, ShieldCheck, Maximize2, ScanFace, Camera } from 'lucide-react';
 import { useToast } from '../lib/ToastContext';
 
 interface AdminCustomersProps {
@@ -15,9 +15,33 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
   const [editForm, setEditForm] = useState<Partial<UserProfile>>({});
   const [isSaving, setIsSaving] = useState(false);
 
+  // Photo lightbox state
+  const [viewingPhotoProfile, setViewingPhotoProfile] = useState<UserProfile | null>(null);
+
+  // Suspension modal state
+  const [suspendModalProfile, setSuspendModalProfile] = useState<UserProfile | null>(null);
+  const [suspendHours, setSuspendHours] = useState<number>(2); // Default 2 hours
+  const [customHours, setCustomHours] = useState<string>('');
+  const [suspendReason, setSuspendReason] = useState<string>('Spamming orders');
+
   // Sorting
-  const [sortField, setSortField] = useState<'displayName' | 'points' | 'createdAt' | 'lastLoginAt'>('createdAt');
+  const [sortField, setSortField] = useState<'displayName' | 'points' | 'createdAt' | 'lastLoginAt' | 'orderingDisabledUntil'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const formatRemainingTime = (disabledUntil?: number) => {
+    if (!disabledUntil || disabledUntil <= Date.now()) return null;
+    const diffMs = disabledUntil - Date.now();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.ceil((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      return `${days}d ${hours % 24}h remaining`;
+    }
+    if (hours > 0) {
+      return `${hours}h ${minutes}m remaining`;
+    }
+    return `${minutes}m remaining`;
+  };
 
   const filteredProfiles = profiles
     .filter(p => 
@@ -49,6 +73,46 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
       setEditForm({});
     } catch (err) {
       // Error handled in useFirebase
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleApplySuspension = async () => {
+    if (!suspendModalProfile) return;
+    const hoursToApply = customHours ? parseFloat(customHours) : suspendHours;
+    if (isNaN(hoursToApply) || hoursToApply <= 0) {
+      toast.error('Please enter a valid number of hours.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const untilTimestamp = Date.now() + Math.round(hoursToApply * 60 * 60 * 1000);
+      await onUpdateProfile(suspendModalProfile.uid, {
+        orderingDisabledUntil: untilTimestamp,
+        orderingDisabledReason: suspendReason || 'Spam prevention'
+      });
+      toast.success(`Ordering privileges disabled for ${suspendModalProfile.displayName || 'Customer'} for ${hoursToApply} hour(s).`);
+      setSuspendModalProfile(null);
+    } catch (err) {
+      toast.error('Failed to update suspension status.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLiftSuspension = async (profile: UserProfile) => {
+    setIsSaving(true);
+    try {
+      await onUpdateProfile(profile.uid, {
+        orderingDisabledUntil: 0,
+        orderingDisabledReason: ''
+      });
+      toast.success(`Ordering privileges restored for ${profile.displayName || 'Customer'}.`);
+      setSuspendModalProfile(null);
+    } catch (err) {
+      toast.error('Failed to lift suspension.');
     } finally {
       setIsSaving(false);
     }
@@ -89,7 +153,7 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
       </div>
 
       {/* Stats Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-[#0a0a0c] p-4 rounded-3xl border border-black/10 dark:border-white/5 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-500/10 text-blue-500 rounded-xl flex items-center justify-center">
@@ -127,12 +191,25 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
             </div>
           </div>
         </div>
+        <div className="bg-white dark:bg-[#0a0a0c] p-4 rounded-3xl border border-black/10 dark:border-white/5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center">
+              <ShieldOff className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Suspended</div>
+              <div className="text-xl font-black text-rose-500">
+                {profiles.filter(p => p.orderingDisabledUntil && p.orderingDisabledUntil > Date.now()).length}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Table Container */}
       <div className="bg-white dark:bg-[#0a0a0c] rounded-3xl border border-black/10 dark:border-white/5 shadow-xl overflow-hidden flex flex-col">
         <div className="max-h-[65vh] overflow-y-auto overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[650px]">
+          <table className="w-full text-left border-collapse min-w-[750px]">
             <thead className="sticky top-0 bg-slate-50 dark:bg-[#131722] z-10 shadow-sm">
               <tr className="bg-slate-50 dark:bg-[#131722]">
                 <th className="px-6 py-4">
@@ -141,6 +218,14 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
                     className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-amber-500 transition-colors"
                   >
                     Customer <ArrowUpDown className="w-3 h-3" />
+                  </button>
+                </th>
+                <th className="px-6 py-4">
+                  <button 
+                    onClick={() => toggleSort('orderingDisabledUntil')}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-amber-500 transition-colors"
+                  >
+                    Ordering Status <ArrowUpDown className="w-3 h-3" />
                   </button>
                 </th>
                 <th className="px-6 py-4">
@@ -173,20 +258,37 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
             <tbody className="divide-y divide-black/5 dark:divide-white/5">
               {filteredProfiles.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500 font-medium">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500 font-medium">
                     No customers found matching your search.
                   </td>
                 </tr>
               ) : (
-                filteredProfiles.map((profile) => (
-                  <tr key={profile.uid} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors group">
+                filteredProfiles.map((profile) => {
+                  const isSuspended = profile.orderingDisabledUntil && profile.orderingDisabledUntil > Date.now();
+                  const timeRemaining = formatRemainingTime(profile.orderingDisabledUntil);
+
+                  return (
+                  <tr key={profile.uid} className={`hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors group ${
+                    isSuspended ? 'bg-rose-500/5 dark:bg-rose-500/5' : ''
+                  }`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-xl flex items-center justify-center font-black shrink-0">
+                        <div 
+                          onClick={() => setViewingPhotoProfile(profile)}
+                          className="w-11 h-11 bg-amber-500/10 border border-amber-500/30 text-amber-500 rounded-2xl flex items-center justify-center font-black shrink-0 relative cursor-pointer hover:border-amber-400 hover:scale-105 transition-all group overflow-hidden shadow-sm"
+                          title="Click to view enlarged customer photo"
+                        >
                           {profile.photoURL ? (
-                            <img src={profile.photoURL} alt="" className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+                            <>
+                              <img src={profile.photoURL} alt={profile.displayName || 'Customer'} className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
+                              <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-amber-400">
+                                <Maximize2 className="w-4 h-4" />
+                              </div>
+                            </>
                           ) : (
-                            (profile.displayName?.charAt(0) || profile.email?.charAt(0))?.toUpperCase()
+                            <span className="text-sm font-black text-amber-500">
+                              {(profile.displayName?.charAt(0) || profile.email?.charAt(0))?.toUpperCase()}
+                            </span>
                           )}
                         </div>
                         <div className="min-w-0">
@@ -212,6 +314,25 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
                           </div>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {isSuspended ? (
+                        <div className="flex flex-col gap-0.5 items-start">
+                          <span className="px-2.5 py-1 rounded-full bg-rose-500/15 text-rose-500 border border-rose-500/30 text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                            <ShieldOff className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
+                            Suspended ({timeRemaining})
+                          </span>
+                          {profile.orderingDisabledReason && (
+                            <span className="text-[9px] text-slate-400 font-medium italic pl-1 truncate max-w-[150px]">
+                              "{profile.orderingDisabledReason}"
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" /> Active
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       {editingUid === profile.uid ? (
@@ -256,6 +377,24 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {/* Suspend/Unsuspend Button */}
+                        <button
+                          onClick={() => {
+                            setSuspendModalProfile(profile);
+                            setSuspendHours(2);
+                            setCustomHours('');
+                            setSuspendReason('Spamming orders');
+                          }}
+                          className={`p-2 rounded-xl transition-all ${
+                            isSuspended 
+                              ? 'text-rose-500 bg-rose-500/10 hover:bg-rose-500/20' 
+                              : 'text-slate-400 hover:text-rose-500 hover:bg-rose-500/10'
+                          }`}
+                          title={isSuspended ? 'Manage / Lift Suspension' : 'Disable Ordering (Spam Control)'}
+                        >
+                          <ShieldAlert className="w-4 h-4" />
+                        </button>
+
                         {editingUid === profile.uid ? (
                           <>
                             <button
@@ -287,12 +426,247 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Account Ordering Suspension Modal */}
+      {suspendModalProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-6 text-white relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-500 flex items-center justify-center">
+                  <ShieldOff className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black uppercase tracking-tight italic">
+                    Disable <span className="text-rose-500">Ordering</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                    Spam & Misbehavior Control
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSuspendModalProfile(null)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Target Customer Info */}
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
+              <div 
+                onClick={() => setViewingPhotoProfile(suspendModalProfile)}
+                className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 flex items-center justify-center font-black shrink-0 relative cursor-pointer hover:scale-105 transition-all overflow-hidden group"
+                title="Click to view full photo"
+              >
+                {suspendModalProfile.photoURL ? (
+                  <>
+                    <img src={suspendModalProfile.photoURL} alt={suspendModalProfile.displayName} className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
+                    <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-amber-400">
+                      <Maximize2 className="w-4 h-4" />
+                    </div>
+                  </>
+                ) : (
+                  (suspendModalProfile.displayName?.charAt(0) || suspendModalProfile.email?.charAt(0))?.toUpperCase()
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-bold text-white truncate">
+                  {suspendModalProfile.displayName || 'Customer'}
+                </div>
+                <div className="text-[10px] text-slate-400 truncate">
+                  {suspendModalProfile.email}
+                </div>
+              </div>
+              <span className="text-[9px] font-mono font-black bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded uppercase">
+                #{suspendModalProfile.shortId || suspendModalProfile.uid.slice(0, 5).toUpperCase()}
+              </span>
+            </div>
+
+            {/* Current Suspension Banner if active */}
+            {suspendModalProfile.orderingDisabledUntil && suspendModalProfile.orderingDisabledUntil > Date.now() ? (
+              <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/40 text-rose-300 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-rose-400">
+                    <AlertTriangle className="w-4 h-4" /> Currently Suspended
+                  </span>
+                  <span className="text-[10px] font-bold bg-rose-500 text-slate-950 px-2 py-0.5 rounded-full uppercase">
+                    {formatRemainingTime(suspendModalProfile.orderingDisabledUntil)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 font-medium">
+                  Suspended until: {new Date(suspendModalProfile.orderingDisabledUntil).toLocaleString()}
+                </p>
+                {suspendModalProfile.orderingDisabledReason && (
+                  <p className="text-[10px] text-slate-400 italic">
+                    Reason: "{suspendModalProfile.orderingDisabledReason}"
+                  </p>
+                )}
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleLiftSuspension(suspendModalProfile)}
+                  className="w-full mt-2 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+                >
+                  <ShieldCheck className="w-4 h-4" /> Restore Ordering Privileges Now
+                </button>
+              </div>
+            ) : null}
+
+            {/* Duration Selector */}
+            <div className="space-y-3">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Select Suspension Duration (Hours)
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[1, 2, 6, 12, 24, 48].map((hrs) => (
+                  <button
+                    key={hrs}
+                    type="button"
+                    onClick={() => {
+                      setSuspendHours(hrs);
+                      setCustomHours('');
+                    }}
+                    className={`py-2.5 px-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                      !customHours && suspendHours === hrs
+                        ? 'bg-rose-500 border-rose-500 text-slate-950 shadow-lg shadow-rose-500/20'
+                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    {hrs >= 24 ? `${hrs / 24} Day${hrs > 24 ? 's' : ''}` : `${hrs} Hr${hrs > 1 ? 's' : ''}`}
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Hours Input */}
+              <div>
+                <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                  Or Specify Custom Hours
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 0.5 for 30 mins, 3 for 3 hours..."
+                  value={customHours}
+                  onChange={(e) => setCustomHours(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-rose-500 transition-all placeholder:text-slate-600"
+                />
+              </div>
+            </div>
+
+            {/* Reason Selector */}
+            <div className="space-y-2">
+              <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Reason for Suspension
+              </label>
+              <select
+                value={suspendReason}
+                onChange={(e) => setSuspendReason(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-800 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-rose-500 transition-all"
+              >
+                <option value="Spamming orders">Spamming / Rapid duplicate orders</option>
+                <option value="Unclaimed unpaid orders">Unclaimed / abandoned unpaid orders</option>
+                <option value="Prank / Fake name input">Prank or fake order details</option>
+                <option value="Misbehavior / Abuse">Abusive behavior</option>
+                <option value="Account under verification">Account verification needed</option>
+              </select>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setSuspendModalProfile(null)}
+                className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs uppercase tracking-wider rounded-xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handleApplySuspension}
+                className="flex-1 py-3 bg-rose-500 hover:bg-rose-400 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2"
+              >
+                <ShieldOff className="w-4 h-4" />
+                Apply Suspension
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Photo Lightbox Modal */}
+      {viewingPhotoProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 text-white text-center relative">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2 text-amber-500 font-black text-xs uppercase tracking-widest">
+                <Camera className="w-4 h-4" /> Customer Profile & Face Scan Photo
+              </div>
+              <button
+                onClick={() => setViewingPhotoProfile(null)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="relative rounded-2xl overflow-hidden border-2 border-amber-500/40 bg-black min-h-[220px] max-h-[55vh] flex items-center justify-center">
+              {viewingPhotoProfile.photoURL ? (
+                <img 
+                  src={viewingPhotoProfile.photoURL} 
+                  alt={viewingPhotoProfile.displayName || 'Customer'} 
+                  className="w-full h-auto max-h-[55vh] object-contain"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="p-12 text-center space-y-2">
+                  <ScanFace className="w-12 h-12 text-slate-600 mx-auto" />
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">No Photo Uploaded Yet</p>
+                  <p className="text-[10px] text-slate-500">Customer has not registered Face ID or profile photo.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 bg-white/5 p-4 rounded-2xl border border-white/5 text-left">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-black text-white">{viewingPhotoProfile.displayName || 'Unnamed Customer'}</span>
+                <span className="text-[10px] font-mono font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 px-2 py-0.5 rounded uppercase">
+                  #{viewingPhotoProfile.shortId || viewingPhotoProfile.uid.slice(0, 5).toUpperCase()}
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-mono flex items-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-amber-500/60" /> {viewingPhotoProfile.email}
+              </p>
+              <div className="flex items-center justify-between text-[11px] pt-1 text-slate-300 font-semibold">
+                <span>Loyalty Points: <strong className="text-amber-400">{viewingPhotoProfile.points || 0} Pts</strong></span>
+                <span>
+                  Status: {viewingPhotoProfile.orderingDisabledUntil && viewingPhotoProfile.orderingDisabledUntil > Date.now() ? (
+                    <strong className="text-rose-400">Suspended</strong>
+                  ) : (
+                    <strong className="text-emerald-400">Active</strong>
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setViewingPhotoProfile(null)}
+              className="w-full py-3 bg-white/10 hover:bg-white/20 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all"
+            >
+              Close Preview
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -25,6 +25,8 @@ export interface UserProfile {
   phoneNumber?: string;
   createdAt: number;
   lastLoginAt?: number;
+  orderingDisabledUntil?: number;
+  orderingDisabledReason?: string;
 }
 
 export interface DynamicCategory {
