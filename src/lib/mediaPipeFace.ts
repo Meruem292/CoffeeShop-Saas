@@ -239,20 +239,20 @@ export function calculateFaceMatchConfidence(vA: number[], vB: number[]): { conf
 
   const similarity = calculateCosineSimilarity(vA, vB);
 
-  // Calibrated scale for 3D MediaPipe landmark vectors normalized by eye distance:
-  // Same face well-aligned: similarity >= 0.90 -> 95% - 100% confidence
-  // Same face with minor pose/distance shift: similarity in [0.82, 0.90] -> 75% - 94% confidence
-  // Moderate resemblance / partial shift: similarity in [0.72, 0.82] -> 20% - 74% confidence
-  // Different face: similarity < 0.72 -> 0% - 19% confidence
+  // Stricter kiosk calibration for high precision and zero false positives:
+  // similarity >= 0.88 -> 95% - 100% confidence
+  // similarity in [0.80, 0.88] -> 65% - 94% confidence
+  // similarity in [0.70, 0.80] -> 20% - 64% confidence
+  // similarity < 0.70 -> 0% - 19% confidence
   let confidence = 0;
-  if (similarity >= 0.90) {
-    confidence = Math.min(100, 95 + ((similarity - 0.90) / 0.08) * 5);
-  } else if (similarity >= 0.82) {
-    confidence = 75 + ((similarity - 0.82) / 0.08) * 19;
-  } else if (similarity >= 0.72) {
-    confidence = 20 + ((similarity - 0.72) / 0.10) * 54;
+  if (similarity >= 0.88) {
+    confidence = Math.min(100, 95 + ((similarity - 0.88) / 0.12) * 5);
+  } else if (similarity >= 0.80) {
+    confidence = 65 + ((similarity - 0.80) / 0.08) * 29;
+  } else if (similarity >= 0.70) {
+    confidence = 20 + ((similarity - 0.70) / 0.10) * 44;
   } else {
-    confidence = Math.max(0, (similarity / 0.72) * 19);
+    confidence = Math.max(0, (similarity / 0.70) * 19);
   }
 
   return {

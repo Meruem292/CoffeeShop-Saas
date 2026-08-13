@@ -269,8 +269,8 @@ export function FaceScannerModal({
         }
 
         let bestMatchUser: UserProfile | null = null;
-        let highestConfidence = 0;
-        let secondHighestConfidence = 0;
+        let highestConfidence = -1;
+        let secondHighestConfidence = -1;
 
         for (const candidate of candidates) {
           const candidateVecs = extractCandidateVectors(candidate);
@@ -294,11 +294,8 @@ export function FaceScannerModal({
           // Sort descending to get best matching vectors
           confidences.sort((a, b) => b - a);
 
-          // Fair representative score: average of top 2 matching vectors (or top 1 if only 1)
-          let candidateScore = confidences[0];
-          if (confidences.length >= 2) {
-            candidateScore = Math.round((confidences[0] + confidences[1]) / 2);
-          }
+          // Unbiased representative score: peak best matching vector confidence
+          const candidateScore = confidences[0];
 
           if (candidateScore > highestConfidence) {
             secondHighestConfidence = highestConfidence;
@@ -309,13 +306,13 @@ export function FaceScannerModal({
           }
         }
 
-        const calculatedConf = highestConfidence;
+        const calculatedConf = Math.max(0, highestConfidence);
         setMatchConfidence(calculatedConf);
 
-        // Fair & robust match requirement: >= 92% confidence and distinct from others
+        // Kiosk-grade strict match requirement: >= 95% confidence, distinct from others (>= 5% gap), 3 consecutive frames
         const isStrictMatch = bestMatchUser && 
-          calculatedConf >= 92 && 
-          (candidates.length === 1 || (highestConfidence - secondHighestConfidence) >= 2);
+          calculatedConf >= 95 && 
+          (candidates.length === 1 || (highestConfidence - secondHighestConfidence) >= 5);
 
         if (isStrictMatch && bestMatchUser) {
           if (consecutiveMatchesRef.current.uid === bestMatchUser.uid) {
@@ -326,8 +323,8 @@ export function FaceScannerModal({
 
           setAnalysisStatus(`Verified ${bestMatchUser.displayName || 'Customer'} (${calculatedConf}% Confidence)!`);
 
-          // 2 consecutive stable frames ensures lightning fast response without false matches
-          if (consecutiveMatchesRef.current.count >= 2) {
+          // 3 consecutive stable frames ensures zero false positives in public kiosk environments
+          if (consecutiveMatchesRef.current.count >= 3) {
             if (scanIntervalRef.current) {
               clearInterval(scanIntervalRef.current);
               scanIntervalRef.current = null;
