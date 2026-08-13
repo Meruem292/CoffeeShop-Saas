@@ -309,21 +309,33 @@ export function FaceScannerModal({
         const calculatedConf = Math.max(0, highestConfidence);
         setMatchConfidence(calculatedConf);
 
-        // Enterprise-grade instant match: if confidence reaches >= 90%, immediately verify and log in
-        const isStrictMatch = bestMatchUser && calculatedConf >= 90;
+        // Enterprise-grade strict match: >= 95% confidence, distinct from others (>= 5% gap), 2 consecutive stable frames
+        const isStrictMatch = bestMatchUser && 
+          calculatedConf >= 95 && 
+          (candidates.length === 1 || (highestConfidence - secondHighestConfidence) >= 5);
 
         if (isStrictMatch && bestMatchUser) {
-          if (scanIntervalRef.current) {
-            clearInterval(scanIntervalRef.current);
-            scanIntervalRef.current = null;
+          if (consecutiveMatchesRef.current.uid === bestMatchUser.uid) {
+            consecutiveMatchesRef.current.count += 1;
+          } else {
+            consecutiveMatchesRef.current = { uid: bestMatchUser.uid, count: 1 };
           }
-          setMatchedUser(bestMatchUser);
-          setAnalysisStatus(`Welcome, ${bestMatchUser.displayName || 'Valued Customer'}! (${calculatedConf}%)`);
-          playSuccessBeep();
-          setTimeout(() => {
-            onFaceMatched(bestMatchUser!);
-            onClose();
-          }, 400);
+
+          setAnalysisStatus(`Verifying ${bestMatchUser.displayName || 'Customer'} (${calculatedConf}%)...`);
+
+          if (consecutiveMatchesRef.current.count >= 2) {
+            if (scanIntervalRef.current) {
+              clearInterval(scanIntervalRef.current);
+              scanIntervalRef.current = null;
+            }
+            setMatchedUser(bestMatchUser);
+            setAnalysisStatus(`Welcome, ${bestMatchUser.displayName || 'Valued Customer'}! (${calculatedConf}%)`);
+            playSuccessBeep();
+            setTimeout(() => {
+              onFaceMatched(bestMatchUser!);
+              onClose();
+            }, 600);
+          }
         } else {
           consecutiveMatchesRef.current = { uid: '', count: 0 };
           

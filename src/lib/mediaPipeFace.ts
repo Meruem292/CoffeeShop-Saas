@@ -239,20 +239,20 @@ export function calculateFaceMatchConfidence(vA: number[], vB: number[]): { conf
 
   const similarity = calculateCosineSimilarity(vA, vB);
 
-  // Stricter kiosk calibration for high precision and zero false positives:
-  // similarity >= 0.88 -> 95% - 100% confidence
-  // similarity in [0.80, 0.88] -> 65% - 94% confidence
-  // similarity in [0.70, 0.80] -> 20% - 64% confidence
-  // similarity < 0.70 -> 0% - 19% confidence
+  // Enterprise calibration for high security kiosks (zero false matches):
+  // - Cosine similarity >= 0.93: Extremely high probability of being the exact same person. Maps to [95% - 100%] confidence.
+  // - Cosine similarity in [0.88, 0.93]: Potential match but with posture/pose/lighting shift. Maps to [70% - 94%] confidence.
+  // - Cosine similarity in [0.75, 0.88]: Resemblance or general human face baseline. Maps to [20% - 69%] confidence.
+  // - Cosine similarity < 0.75: Different facial structures. Maps to [0% - 19%] confidence.
   let confidence = 0;
-  if (similarity >= 0.88) {
-    confidence = Math.min(100, 95 + ((similarity - 0.88) / 0.12) * 5);
-  } else if (similarity >= 0.80) {
-    confidence = 65 + ((similarity - 0.80) / 0.08) * 29;
-  } else if (similarity >= 0.70) {
-    confidence = 20 + ((similarity - 0.70) / 0.10) * 44;
+  if (similarity >= 0.93) {
+    confidence = Math.min(100, 95 + ((similarity - 0.93) / 0.07) * 5);
+  } else if (similarity >= 0.88) {
+    confidence = 70 + ((similarity - 0.88) / 0.05) * 24;
+  } else if (similarity >= 0.75) {
+    confidence = 20 + ((similarity - 0.75) / 0.13) * 49;
   } else {
-    confidence = Math.max(0, (similarity / 0.70) * 19);
+    confidence = Math.max(0, (similarity / 0.75) * 19);
   }
 
   return {
