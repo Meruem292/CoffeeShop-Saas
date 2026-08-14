@@ -229,17 +229,8 @@ export function FaceScannerModal({
           return;
         }
 
-        const qualityRes = assessFaceQuality(videoRef.current, landmarks || []);
-        if (!qualityRes.isGoodQuality) {
-          setIsFaceDetected(false);
-          setMatchConfidence(0);
-          setAnalysisStatus(qualityRes.feedback);
-          return;
-        }
-
         // Face detected!
         setIsFaceDetected(true);
-        setAnalysisStatus('Face detected! Verifying match...');
 
         const candidates = allProfiles.filter(
           (p) =>
@@ -284,7 +275,7 @@ export function FaceScannerModal({
           // Sort descending to get best matching vectors
           confidences.sort((a, b) => b - a);
 
-          // Unbiased representative score: peak best matching vector confidence
+          // Peak best matching vector confidence
           const candidateScore = confidences[0];
 
           if (candidateScore > highestConfidence) {
@@ -299,12 +290,12 @@ export function FaceScannerModal({
         const calculatedConf = Math.max(0, highestConfidence);
         setMatchConfidence(calculatedConf);
 
-        // Enterprise-grade strict match: >= 95% confidence, distinct from others (>= 5% gap), 2 consecutive stable frames
-        const isStrictMatch = bestMatchUser && 
-          calculatedConf >= 95 && 
-          (candidates.length === 1 || (highestConfidence - secondHighestConfidence) >= 5);
+        // Fast & Accurate Match: >= 90% confidence, distinct from other candidates by >= 4% gap
+        const isMatchCandidate = bestMatchUser && 
+          calculatedConf >= 90 && 
+          (candidates.length === 1 || (highestConfidence - secondHighestConfidence) >= 4);
 
-        if (isStrictMatch && bestMatchUser) {
+        if (isMatchCandidate && bestMatchUser) {
           if (consecutiveMatchesRef.current.uid === bestMatchUser.uid) {
             consecutiveMatchesRef.current.count += 1;
           } else {
@@ -313,7 +304,8 @@ export function FaceScannerModal({
 
           setAnalysisStatus(`Verifying ${bestMatchUser.displayName || 'Customer'} (${calculatedConf}%)...`);
 
-          if (consecutiveMatchesRef.current.count >= 2) {
+          // Fast 1-2 frame response (~200ms)
+          if (consecutiveMatchesRef.current.count >= 1) {
             if (scanIntervalRef.current) {
               clearInterval(scanIntervalRef.current);
               scanIntervalRef.current = null;
@@ -324,10 +316,13 @@ export function FaceScannerModal({
             setTimeout(() => {
               onFaceMatched(bestMatchUser!);
               onClose();
-            }, 600);
+            }, 400);
           }
         } else {
-          consecutiveMatchesRef.current = { uid: '', count: 0 };
+          // Soft reset match count only if confidence falls significantly below 80%
+          if (calculatedConf < 80) {
+            consecutiveMatchesRef.current = { uid: '', count: 0 };
+          }
           
           // Provide real-time head positioning guidance to help user reach 95%+ confidence
           let guidance = '';

@@ -403,26 +403,26 @@ export function calculateDistanceSimilarity(vA: number[], vB: number[]): number 
  * Calibrate cosine similarity of 3D facial landmark vectors to intuitive [0, 100]% match confidence
  */
 export function calculateFaceMatchConfidence(vA: number[], vB: number[]): { confidence: number; similarity: number } {
-  if (!vA || !vB || vA.length === 0 || vB.length === 0 || vA.length !== vB.length) {
+  if (!vA || !vB || vA.length === 0 || vB.length === 0) {
     return { confidence: 0, similarity: 0 };
   }
 
   const similarity = calculateCosineSimilarity(vA, vB);
 
-  // Enterprise calibration for high security kiosks (zero false matches):
-  // - Cosine similarity >= 0.93: Extremely high probability of being the exact same person. Maps to [95% - 100%] confidence.
-  // - Cosine similarity in [0.88, 0.93]: Potential match but with posture/pose/lighting shift. Maps to [70% - 94%] confidence.
-  // - Cosine similarity in [0.75, 0.88]: Resemblance or general human face baseline. Maps to [20% - 69%] confidence.
-  // - Cosine similarity < 0.75: Different facial structures. Maps to [0% - 19%] confidence.
+  // Responsive & High-Accuracy Kiosk Calibration:
+  // - Cosine similarity >= 0.88: High match probability. Maps to [90% - 100%] confidence.
+  // - Cosine similarity in [0.80, 0.88]: Potential match / posture shift. Maps to [65% - 89%] confidence.
+  // - Cosine similarity in [0.70, 0.80]: Resemblance baseline. Maps to [20% - 64%] confidence.
+  // - Cosine similarity < 0.70: Different face. Maps to [0% - 19%] confidence.
   let confidence = 0;
-  if (similarity >= 0.93) {
-    confidence = Math.min(100, 95 + ((similarity - 0.93) / 0.07) * 5);
-  } else if (similarity >= 0.88) {
-    confidence = 70 + ((similarity - 0.88) / 0.05) * 24;
-  } else if (similarity >= 0.75) {
-    confidence = 20 + ((similarity - 0.75) / 0.13) * 49;
+  if (similarity >= 0.88) {
+    confidence = Math.min(100, 90 + ((similarity - 0.88) / 0.12) * 10);
+  } else if (similarity >= 0.80) {
+    confidence = 65 + ((similarity - 0.80) / 0.08) * 24;
+  } else if (similarity >= 0.70) {
+    confidence = 20 + ((similarity - 0.70) / 0.10) * 44;
   } else {
-    confidence = Math.max(0, (similarity / 0.75) * 19);
+    confidence = Math.max(0, (similarity / 0.70) * 19);
   }
 
   return {

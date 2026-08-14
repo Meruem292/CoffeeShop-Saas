@@ -43,7 +43,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     // Shop Settings Sync
     const unsubSettings = onSnapshot(doc(db, 'settings', 'shop'), (snapshot) => {
       if (snapshot.exists()) {
-        setShopSettings({ id: snapshot.id, kioskPin: '0000', pointsEarnedPer100Pesos: 10, gcashQrUrl: '', gcashNumber: '', ...snapshot.data() } as ShopSettings);
+        setShopSettings({ id: snapshot.id, kioskPin: '0000', pointsEarnedPer10Pesos: 1, pointsEarnedPer100Pesos: 10, gcashQrUrl: '', gcashNumber: '', ...snapshot.data() } as ShopSettings);
       } else {
         setShopSettings({
           id: 'shop',
@@ -52,6 +52,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
           logoUrl: '',
           themeColor: '#4b2c20',
           kioskPin: '0000',
+          pointsEarnedPer10Pesos: 1,
           pointsEarnedPer100Pesos: 10,
           gcashQrUrl: '',
           gcashNumber: '0917-123-4567'

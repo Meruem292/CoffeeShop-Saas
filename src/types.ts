@@ -105,6 +105,7 @@ export interface ShopSettings {
   kioskPin?: string;
   adminPin?: string;
   pointsEarnedPer100Pesos?: number;
+  pointsEarnedPer10Pesos?: number;
   gcashQrUrl?: string;
   gcashNumber?: string;
   footerContent?: string;

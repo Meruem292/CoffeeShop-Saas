@@ -43,6 +43,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     tagline: '',
     speakCustomerName: false,
     kioskPin: '0000',
+    pointsEarnedPer10Pesos: 1,
     pointsEarnedPer100Pesos: 10,
     gcashQrUrl: '',
     gcashNumber: '',
@@ -98,6 +99,7 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         speakCustomerName: shopSettings.speakCustomerName || false,
         kioskPin: shopSettings.kioskPin || '0000',
         adminPin: shopSettings.adminPin || shopSettings.kioskPin || '0000',
+        pointsEarnedPer10Pesos: shopSettings.pointsEarnedPer10Pesos ?? (shopSettings.pointsEarnedPer100Pesos ? Math.max(1, Math.round(shopSettings.pointsEarnedPer100Pesos / 10)) : 1),
         pointsEarnedPer100Pesos: shopSettings.pointsEarnedPer100Pesos || 10,
         gcashQrUrl: shopSettings.gcashQrUrl || '',
         gcashNumber: shopSettings.gcashNumber || '',
@@ -548,17 +550,24 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                   <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">Required by cashier/admin to activate vouchers on orders.</p>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Points Earned per 100 Pesos Spent</label>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Points Earned per 10 Pesos Spent</label>
                   <div className="relative">
                     <input 
                       type="number" 
-                      value={shopData.pointsEarnedPer100Pesos || 10}
-                      onChange={e => setShopData({ ...shopData, pointsEarnedPer100Pesos: parseInt(e.target.value) })}
+                      value={shopData.pointsEarnedPer10Pesos ?? 1}
+                      onChange={e => {
+                        const val = parseInt(e.target.value) || 0;
+                        setShopData({ 
+                          ...shopData, 
+                          pointsEarnedPer10Pesos: val,
+                          pointsEarnedPer100Pesos: val * 10
+                        });
+                      }}
                       className="w-full px-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
-                      placeholder="e.g. 10"
+                      placeholder="e.g. 1"
                     />
                   </div>
-                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">Configure how many loyalty points a user receives for every 100 pesos spent.</p>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">Configure how many loyalty points a user receives for every 10 pesos spent (allows points on small orders).</p>
                 </div>
               </div>
 

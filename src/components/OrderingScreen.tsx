@@ -309,13 +309,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
     if (!user || customerOrders.length === 0) return 0;
     
-    const earnRate = shopSettings?.pointsEarnedPer100Pesos || 10;
+    const earnRate = shopSettings?.pointsEarnedPer10Pesos ?? (shopSettings?.pointsEarnedPer100Pesos ? Math.max(1, Math.round(shopSettings.pointsEarnedPer100Pesos / 10)) : 1);
     
     const totalEarned = customerOrders
       .filter(o => o.status !== 'cancelled')
       .reduce((sum, o) => {
         if (o.pointsEarned !== undefined) return sum + o.pointsEarned;
-        return sum + Math.floor((o.total || 0) / 100) * earnRate;
+        return sum + Math.floor((o.total || 0) / 10) * earnRate;
       }, 0);
       
     const totalSpent = customerOrders
@@ -323,7 +323,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       .reduce((sum, o) => sum + (o.pointsSpent || 0), 0);
       
     return Math.max(0, totalEarned - totalSpent);
-  }, [customerOrders, user, shopSettings?.pointsEarnedPer100Pesos, userProfile, mode, accountId, scannedAccountProfile]);
+  }, [customerOrders, user, shopSettings?.pointsEarnedPer10Pesos, shopSettings?.pointsEarnedPer100Pesos, userProfile, mode, accountId, scannedAccountProfile]);
 
   // Compute customer's favorites: count item occurrences and sort descending
   const customerFavorites = useMemo(() => {
@@ -1015,8 +1015,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       }
     }
     
-    const earnRate = shopSettings?.pointsEarnedPer100Pesos || 10;
-    const pointsEarned = Math.floor(total / 100) * earnRate;
+    const earnRate = shopSettings?.pointsEarnedPer10Pesos ?? (shopSettings?.pointsEarnedPer100Pesos ? Math.max(1, Math.round(shopSettings.pointsEarnedPer100Pesos / 10)) : 1);
+    const pointsEarned = Math.floor(total / 10) * earnRate;
 
     onPlaceOrder({
       items: cart,
