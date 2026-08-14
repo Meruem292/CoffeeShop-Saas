@@ -23,9 +23,17 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
   // Filter orders by category
   const unpaidOrders = orders.filter((o) => o.status === 'unpaid').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const pendingVerificationOrders = orders.filter((o) => o.status === 'pending-verification').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const awaitingPaymentOrders = orders.filter((o) => o.status === 'unpaid' || o.status === 'pending-verification').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   const pendingOrders = orders.filter((o) => o.status === 'pending' || o.status === 'preparing' || o.status === 'ready' || o.status === 'completed').sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-  const [activeTab, setActiveTab] = useState<'unpaid' | 'pending-verification' | 'history'>('unpaid');
+  const [activeTab, setActiveTab] = useState<'unpaid' | 'history'>('unpaid');
+  const [paymentSubFilter, setPaymentSubFilter] = useState<'all' | 'unpaid' | 'verification'>('all');
+
+  const displayAwaitingOrders = awaitingPaymentOrders.filter((o) => {
+    if (paymentSubFilter === 'unpaid') return o.status === 'unpaid';
+    if (paymentSubFilter === 'verification') return o.status === 'pending-verification';
+    return true;
+  });
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const [printingOrder, setPrintingOrder] = useState<Order | null>(null);
@@ -867,18 +875,16 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                 onClick={() => setActiveTab('unpaid')}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'unpaid' ? 'bg-amber-600 text-slate-900 dark:text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-slate-900 dark:hover:text-white'}`}
               >
-                Awaiting Payment
-                {unpaidOrders.length > 0 && (
-                  <span className="ml-2 bg-slate-100 dark:bg-black/20 px-2.5 py-0.5 rounded-full text-[10px]">{unpaidOrders.length}</span>
-                )}
-              </button>
-              <button 
-                onClick={() => setActiveTab('pending-verification')}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all shrink-0 ${activeTab === 'pending-verification' ? 'bg-rose-500 text-white shadow-lg scale-105' : 'text-coffee-500 hover:text-slate-900 dark:hover:text-white'}`}
-              >
-                Pending Verification
-                {pendingVerificationOrders.length > 0 && (
-                  <span className="ml-2 bg-white text-rose-500 font-black px-2.5 py-0.5 rounded-full text-[10px] animate-pulse">{pendingVerificationOrders.length}</span>
+                Awaiting Payment & Verification
+                {awaitingPaymentOrders.length > 0 && (
+                  <span className="ml-2 flex items-center gap-1.5">
+                    <span className="bg-slate-100 dark:bg-black/20 px-2.5 py-0.5 rounded-full text-[10px]">{awaitingPaymentOrders.length}</span>
+                    {pendingVerificationOrders.length > 0 && (
+                      <span className="bg-rose-500 text-white font-black px-2 py-0.5 rounded-full text-[10px] animate-pulse">
+                        {pendingVerificationOrders.length} Verify
+                      </span>
+                    )}
+                  </span>
                 )}
               </button>
               <button 
@@ -1157,9 +1163,47 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                 )}
               </div>
             )}
+          {/* Sub-filters for Awaiting Payment & Verification */}
+          {activeTab === 'unpaid' && awaitingPaymentOrders.length > 0 && (
+            <div className="flex items-center gap-2 mb-4">
+              <button
+                onClick={() => setPaymentSubFilter('all')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                  paymentSubFilter === 'all'
+                    ? 'bg-amber-500 text-slate-900 shadow-md scale-105'
+                    : 'bg-black/5 dark:bg-white/5 text-coffee-500 hover:text-slate-900 dark:hover:text-white border border-black/10 dark:border-white/10'
+                }`}
+              >
+                All Awaiting ({awaitingPaymentOrders.length})
+              </button>
+              <button
+                onClick={() => setPaymentSubFilter('unpaid')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                  paymentSubFilter === 'unpaid'
+                    ? 'bg-amber-500 text-slate-900 shadow-md scale-105'
+                    : 'bg-black/5 dark:bg-white/5 text-coffee-500 hover:text-slate-900 dark:hover:text-white border border-black/10 dark:border-white/10'
+                }`}
+              >
+                Unpaid Cash ({unpaidOrders.length})
+              </button>
+              <button
+                onClick={() => setPaymentSubFilter('verification')}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                  paymentSubFilter === 'verification'
+                    ? 'bg-rose-500 text-white shadow-md scale-105'
+                    : 'bg-black/5 dark:bg-white/5 text-rose-500 hover:text-rose-400 border border-rose-500/20'
+                }`}
+              >
+                Pending Verification ({pendingVerificationOrders.length})
+                {pendingVerificationOrders.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping" />
+                )}
+              </button>
+            </div>
+          )}
+
           {viewMode === 'table' && (
-            (activeTab === 'unpaid' && unpaidOrders.length > 0) ||
-            (activeTab === 'pending-verification' && pendingVerificationOrders.length > 0) ||
+            (activeTab === 'unpaid' && displayAwaitingOrders.length > 0) ||
             (activeTab === 'history' && pendingOrders.length > 0)
           ) && (
             <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-coffee-600 mb-2">
@@ -1175,26 +1219,26 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
 
           <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" : "flex flex-col gap-3"}>
             {activeTab === 'unpaid' ? (
-              unpaidOrders.length === 0 ? (
+              displayAwaitingOrders.length === 0 ? (
                 <div className="col-span-full flex flex-col items-center justify-center py-24 text-coffee-700 bg-black/5 dark:bg-white/5 rounded-[2.5rem] border-2 border-dashed border-black/10 dark:border-white/5">
                   <CheckCircle className="w-16 h-16 mb-4 opacity-20" />
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">No Unpaid Orders</h3>
-                  <p className="text-xs font-bold uppercase tracking-widest opacity-50">All kiosk and mobile orders have been settled.</p>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">No Pending Payments or Verifications</h3>
+                  <p className="text-xs font-bold uppercase tracking-widest opacity-50">All orders have been settled and processed.</p>
                 </div>
               ) : (
-                unpaidOrders.map((order) => {
+                displayAwaitingOrders.map((order) => {
                   const isExpanded = !!expandedOrders[order.id!];
                   const toggleExpand = () => setExpandedOrders(prev => ({ ...prev, [order.id!]: !prev[order.id!] }));
 
                   if (viewMode === 'table') {
                     return (
-                      <div key={order.id} className="bg-black/5 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 overflow-hidden transition-all hover:border-black/20 dark:hover:border-white/20">
+                      <div key={order.id} className={`bg-black/5 dark:bg-white/5 rounded-2xl border ${order.status === 'pending-verification' ? 'border-rose-500/40 bg-rose-500/5' : 'border-black/10 dark:border-white/10'} overflow-hidden transition-all hover:border-black/20 dark:hover:border-white/20`}>
                         <div 
                           onClick={toggleExpand}
                           className="p-4 md:px-6 md:py-4 flex flex-col md:grid md:grid-cols-12 gap-4 items-center cursor-pointer select-none"
                         >
                           <div className="col-span-2 flex items-center gap-2 min-w-0">
-                            <span className="p-1 rounded bg-black/5 dark:bg-white/5 text-amber-500 shrink-0">
+                            <span className={`p-1 rounded bg-black/5 dark:bg-white/5 shrink-0 ${order.status === 'pending-verification' ? 'text-rose-500' : 'text-amber-500'}`}>
                               {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             </span>
                             <span className="text-base font-black text-slate-900 dark:text-white font-display truncate">
@@ -1218,8 +1262,18 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                             {getSourceBadge(order.source)}
                           </div>
 
-                          <div className="col-span-2 min-w-0 text-xs font-bold text-coffee-600 truncate">
-                            {order.items.length} {order.items.length === 1 ? 'item' : 'items'} ({order.items.reduce((acc, item) => acc + item.quantity, 0)} qty)
+                          <div className="col-span-2 min-w-0 text-xs font-bold text-coffee-600 truncate flex items-center gap-2">
+                            <span>{order.items.length} {order.items.length === 1 ? 'item' : 'items'} ({order.items.reduce((acc, item) => acc + item.quantity, 0)} qty)</span>
+                            {order.status === 'pending-verification' && order.receiptUrl && (
+                              <img 
+                                src={order.receiptUrl} 
+                                onClick={(e) => { e.stopPropagation(); setZoomedReceiptUrl(order.receiptUrl || null); }}
+                                className="w-8 h-8 object-cover rounded border border-rose-500/40 cursor-zoom-in hover:scale-110 transition-all shadow-sm shrink-0" 
+                                alt="Receipt" 
+                                referrerPolicy="no-referrer"
+                                title="Click to inspect receipt screenshot"
+                              />
+                            )}
                           </div>
 
                           <div className="col-span-1 min-w-0 text-right flex md:block items-center justify-between">
@@ -1228,7 +1282,15 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                           </div>
 
                           <div className="col-span-1 min-w-0 flex justify-center">
-                            <span className="text-[9px] font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 uppercase tracking-widest shrink-0">Unpaid</span>
+                            {order.status === 'pending-verification' ? (
+                              <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/30 uppercase tracking-widest animate-pulse shrink-0 flex items-center gap-1">
+                                <Receipt className="w-3 h-3" /> Verify
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-black text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 uppercase tracking-widest shrink-0">
+                                Unpaid
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -1252,34 +1314,190 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                                   ))}
                                 </ul>
                               </div>
-                              <div className="lg:col-span-5 bg-white dark:bg-black/15 border border-black/10 dark:border-white/5 rounded-2xl p-4 space-y-3">
-                                <span className="block text-[9px] font-black uppercase tracking-widest text-coffee-500">Console Actions</span>
-                                <div className="flex gap-2">
+
+                              {order.status === 'pending-verification' ? (
+                                <div className="lg:col-span-5 space-y-4">
+                                  <div className="p-4 bg-rose-500/5 rounded-2xl border border-rose-500/15 space-y-3">
+                                    <span className="block text-[9px] font-black uppercase tracking-widest text-rose-500 text-center">Screenshot Proof</span>
+                                    {order.receiptUrl ? (
+                                      <div className="flex items-center gap-3 bg-black/10 dark:bg-white/5 p-2 rounded-xl border border-black/5 dark:border-white/5">
+                                        <img 
+                                          src={order.receiptUrl} 
+                                          onClick={() => setZoomedReceiptUrl(order.receiptUrl || null)}
+                                          className="w-14 h-14 object-cover rounded-lg border border-black/10 dark:bg-white/10 cursor-zoom-in hover:scale-105 transition-all shadow-md shrink-0" 
+                                          alt="Receipt Preview" 
+                                          referrerPolicy="no-referrer"
+                                          title="Click to view full receipt"
+                                        />
+                                        <div className="flex flex-col justify-center min-w-0">
+                                          <span className="text-[9px] font-black uppercase text-coffee-500">Proof of Payment</span>
+                                          <span className="text-[8px] font-bold text-slate-400 truncate uppercase mt-0.5">Click image to inspect receipt</span>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-[10px] text-center text-red-400 font-bold py-2 bg-red-500/5 rounded-xl uppercase tracking-wider border border-red-500/10">
+                                        ⚠️ No receipt uploaded
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="bg-white dark:bg-black/15 border border-black/10 dark:border-white/5 rounded-2xl p-4 space-y-3">
+                                    <span className="block text-[9px] font-black uppercase tracking-widest text-coffee-500">Console Actions</span>
+                                    <button 
+                                      onClick={() => {
+                                        onUpdateStatus(order.id!, 'pending');
+                                        if (printMode === 'serial') {
+                                          printToSerial(order);
+                                        } else {
+                                          setPrintingOrder(order);
+                                          setTimeout(() => {
+                                            window.print();
+                                            setPrintingOrder(null);
+                                          }, 250);
+                                        }
+                                      }}
+                                      className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
+                                    >
+                                      <CheckCircle className="w-4 h-4" />
+                                      Confirm Payment & Send to Kitchen
+                                    </button>
+                                    <button 
+                                      onClick={() => setOrderToCancel({ order, action: "status", title: "Refuse GCash Payment", message: `Are you sure you want to refuse this GCash payment and cancel order #${order.id?.slice(-4)}?` })}
+                                      className="w-full mt-2 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 active:scale-95"
+                                    >
+                                      <X className="w-4 h-4" />
+                                      Refuse GCash Payment
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="lg:col-span-5 bg-white dark:bg-black/15 border border-black/10 dark:border-white/5 rounded-2xl p-4 space-y-3">
+                                  <span className="block text-[9px] font-black uppercase tracking-widest text-coffee-500">Console Actions</span>
+                                  <div className="flex gap-2">
+                                    <button 
+                                      onClick={() => setEditingOrder(order)}
+                                      className="flex-1 py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-900 dark:text-white border border-black/10 dark:border-white/10 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5 text-amber-500" />
+                                      Edit Order
+                                    </button>
+                                    <button 
+                                      onClick={() => setOrderToCancel({order, action: 'delete'})}
+                                      className="py-2.5 px-4 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-slate-900 dark:hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
                                   <button 
-                                    onClick={() => setEditingOrder(order)}
-                                    className="flex-1 py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-900 dark:text-white border border-black/10 dark:border-white/10 rounded-xl font-black uppercase tracking-widest text-[9px] transition-all flex items-center justify-center gap-1.5 active:scale-95"
+                                    onClick={() => handleInitiatePayment(order)}
+                                    className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
                                   >
-                                    <Edit3 className="w-3.5 h-3.5 text-amber-500" />
-                                    Edit Order
-                                  </button>
-                                  <button 
-                                    onClick={() => setOrderToCancel({order, action: 'delete'})}
-                                    className="py-2.5 px-4 bg-red-600/15 hover:bg-red-600 text-red-400 hover:text-slate-900 dark:hover:text-white rounded-xl font-black uppercase tracking-widest text-[9px] border border-red-500/20 transition-all flex items-center justify-center gap-1.5 active:scale-95"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Banknote className="w-4 h-4" />
+                                    Collect Payment
                                   </button>
                                 </div>
-                                <button 
-                                  onClick={() => handleInitiatePayment(order)}
-                                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
-                                >
-                                  <Banknote className="w-4 h-4" />
-                                  Collect Payment
-                                </button>
-                              </div>
+                              )}
                             </div>
                           </div>
                         )}
+                      </div>
+                    );
+                  }
+
+                  if (order.status === 'pending-verification') {
+                    return (
+                      <div key={order.id} className="bg-black/5 dark:bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border-2 border-rose-500/50 flex flex-col h-full relative overflow-hidden group animate-in fade-in zoom-in-95 duration-300">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 blur-[50px] -mr-16 -mt-16" />
+                        
+                        <div className="flex justify-between items-start mb-6 relative z-10">
+                          <div>
+                            <span className="text-4xl font-black text-slate-900 dark:text-white block leading-none mb-2 font-display">
+                              #{order.id?.slice(-4)}
+                            </span>
+                            <div className="text-[10px] font-black text-coffee-500 uppercase tracking-[0.2em]">{order.customerName}</div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            {getSourceBadge(order.source)}
+                            <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/20 uppercase tracking-widest animate-pulse flex items-center gap-1">
+                              <Receipt className="w-3 h-3" /> Verify GCash
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl p-4 mb-6 overflow-y-auto min-h-[120px] relative z-10 scrollbar-hide">
+                          <ul className="space-y-4">
+                            {order.items.map((item, idx) => (
+                              <li key={idx} className="flex justify-between text-xs items-start">
+                                <div className="flex-1 pr-4">
+                                  <div className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.quantity}x {item.name}</div>
+                                  {item.selectedSize && <div className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest mt-1">Size: {item.selectedSize.name}</div>}
+                                  {item.notes && <div className="text-[9px] text-amber-500/70 font-bold italic mt-1 uppercase tracking-widest">"{item.notes}"</div>}
+                                </div>
+                                <span className="font-black text-slate-900 dark:text-white opacity-40 whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {/* GCash Verification Section */}
+                        <div className="p-4 bg-rose-500/5 rounded-2xl border border-rose-500/15 mb-6 relative z-10 space-y-3">
+                          <div className="text-center">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-rose-500">Manual Screenshot Verification</span>
+                          </div>
+                          
+                          {order.receiptUrl ? (
+                            <div className="flex items-center gap-3 bg-black/10 dark:bg-white/5 p-2 rounded-xl border border-black/5 dark:border-white/5">
+                              <img 
+                                src={order.receiptUrl} 
+                                onClick={() => setZoomedReceiptUrl(order.receiptUrl || null)}
+                                className="w-14 h-14 object-cover rounded-lg border border-black/10 dark:bg-white/10 cursor-zoom-in hover:scale-105 transition-all shadow-md shrink-0" 
+                                alt="Receipt Preview" 
+                                referrerPolicy="no-referrer"
+                                title="Click to view full receipt"
+                              />
+                              <div className="flex flex-col justify-center min-w-0">
+                                <span className="text-[9px] font-black uppercase text-coffee-500">Proof of Payment</span>
+                                <span className="text-[8px] font-bold text-slate-400 truncate uppercase mt-0.5">Click image to inspect receipt</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-center text-red-400 font-bold py-2 bg-red-500/5 rounded-xl uppercase tracking-wider border border-red-500/10">
+                              ⚠️ No receipt uploaded
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-auto relative z-10">
+                          <div className="flex justify-between items-end mb-6 border-t border-black/10 dark:border-white/5 pt-4">
+                            <span className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Total Received</span>
+                            <span className="text-3xl font-black text-slate-900 dark:text-white">₱{order.total.toLocaleString()}</span>
+                          </div>
+
+                          <button 
+                            onClick={() => {
+                              onUpdateStatus(order.id!, 'pending');
+                              if (printMode === 'serial') {
+                                printToSerial(order);
+                              } else {
+                                setPrintingOrder(order);
+                                setTimeout(() => {
+                                  window.print();
+                                  setPrintingOrder(null);
+                                }, 250);
+                              }
+                            }}
+                            className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95"
+                          >
+                            <CheckCircle className="w-5 h-5 text-white" />
+                            Confirm Payment & Send to Kitchen
+                          </button>
+                          <button 
+                            onClick={() => setOrderToCancel({ order, action: "status", title: "Refuse GCash Payment", message: `Are you sure you want to refuse this GCash payment and cancel order #${order.id?.slice(-4)}?` })}
+                            className="w-full mt-3 py-3.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 active:scale-95"
+                          >
+                            <X className="w-4 h-4" />
+                            Refuse GCash Payment
+                          </button>
+                        </div>
                       </div>
                     );
                   }
@@ -1345,240 +1563,6 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                         >
                           <Banknote className="w-5 h-5" />
                           Collect Payment
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )
-            ) : activeTab === 'pending-verification' ? (
-              pendingVerificationOrders.length === 0 ? (
-                <div className="col-span-full flex flex-col items-center justify-center py-24 text-coffee-700 bg-black/5 dark:bg-white/5 rounded-[2.5rem] border-2 border-dashed border-black/10 dark:border-white/5">
-                  <Receipt className="w-16 h-16 mb-4 opacity-20 text-rose-500 animate-bounce" />
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-widest mb-2">No Pending Verifications</h3>
-                  <p className="text-xs font-bold uppercase tracking-widest opacity-50">All mobile GCash uploads have been verified.</p>
-                </div>
-              ) : (
-                pendingVerificationOrders.map((order) => {
-                  const isExpanded = !!expandedOrders[order.id!];
-                  const toggleExpand = () => setExpandedOrders(prev => ({ ...prev, [order.id!]: !prev[order.id!] }));
-
-                  if (viewMode === 'table') {
-                    return (
-                      <div key={order.id} className="bg-black/5 dark:bg-white/5 rounded-2xl border border-rose-500/30 overflow-hidden transition-all hover:border-rose-500/50">
-                        <div 
-                          onClick={toggleExpand}
-                          className="p-4 md:px-6 md:py-4 flex flex-col md:grid md:grid-cols-12 gap-4 items-center cursor-pointer select-none"
-                        >
-                          <div className="col-span-2 flex items-center gap-2 min-w-0">
-                            <span className="p-1 rounded bg-black/5 dark:bg-white/5 text-rose-500 shrink-0">
-                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                            </span>
-                            <span className="text-base font-black text-slate-900 dark:text-white font-display truncate">
-                              #{order.id?.slice(-4)}
-                            </span>
-                          </div>
-
-                          <div className="col-span-2 min-w-0">
-                            <div className="text-xs font-black text-slate-900 dark:text-white uppercase truncate">{order.customerName}</div>
-                            <div className="text-[9px] text-coffee-500 font-bold uppercase tracking-wider truncate">{order.orderType || 'Standard'}</div>
-                          </div>
-
-                          <div className="col-span-2 min-w-0 flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-coffee-500 shrink-0" />
-                            <span className="text-xs font-bold text-coffee-500 truncate">
-                              {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-
-                          <div className="col-span-2 min-w-0 flex items-center gap-2">
-                            {getSourceBadge(order.source)}
-                          </div>
-
-                          <div className="col-span-2 min-w-0 text-xs font-bold text-coffee-600 truncate">
-                            {order.items.length} {order.items.length === 1 ? 'item' : 'items'} ({order.items.reduce((acc, item) => acc + item.quantity, 0)} qty)
-                          </div>
-
-                          <div className="col-span-1 min-w-0 text-right flex md:block items-center justify-between">
-                            <span className="md:hidden text-[10px] font-black text-coffee-500 uppercase tracking-widest">Total Due</span>
-                            <span className="text-base font-black text-slate-900 dark:text-white truncate">₱{order.total.toLocaleString()}</span>
-                          </div>
-
-                          <div className="col-span-1 min-w-0 flex justify-center">
-                            <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/20 uppercase tracking-widest animate-pulse shrink-0">Verify</span>
-                          </div>
-                        </div>
-
-                        {isExpanded && (
-                          <div className="px-6 pb-6 pt-2 border-t border-black/15 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.01] animate-in fade-in slide-in-from-top-1 duration-150">
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mt-2">
-                              <div className="lg:col-span-7 bg-white dark:bg-black/15 border border-black/10 dark:border-white/5 rounded-2xl p-4">
-                                <span className="block text-[9px] font-black uppercase tracking-widest text-coffee-500 mb-3">Order Details</span>
-                                <ul className="space-y-4">
-                                  {order.items.map((item, idx) => (
-                                    <li key={idx} className="flex justify-between text-xs items-start border-b border-black/5 dark:border-white/5 last:border-0 pb-3 last:pb-0">
-                                      <div className="flex-1 pr-4">
-                                        <div className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.quantity}x {item.name}</div>
-                                        <div className="flex flex-wrap gap-1.5 mt-1">
-                                          {item.selectedSize && <span className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest">Size: {item.selectedSize.name}</span>}
-                                          {item.notes && <span className="text-[9px] text-amber-500/70 font-bold italic uppercase tracking-widest">"{item.notes}"</span>}
-                                        </div>
-                                      </div>
-                                      <span className="font-black text-slate-900 dark:text-white opacity-40 whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                              <div className="lg:col-span-5 space-y-4">
-                                <div className="p-4 bg-rose-500/5 rounded-2xl border border-rose-500/15 space-y-3">
-                                  <span className="block text-[9px] font-black uppercase tracking-widest text-rose-500 text-center">Screenshot Proof</span>
-                                  {order.receiptUrl ? (
-                                    <div className="flex items-center gap-3 bg-black/10 dark:bg-white/5 p-2 rounded-xl border border-black/5 dark:border-white/5">
-                                      <img 
-                                        src={order.receiptUrl} 
-                                        onClick={() => setZoomedReceiptUrl(order.receiptUrl || null)}
-                                        className="w-14 h-14 object-cover rounded-lg border border-black/10 dark:bg-white/10 cursor-zoom-in hover:scale-105 transition-all shadow-md shrink-0" 
-                                        alt="Receipt Preview" 
-                                        referrerPolicy="no-referrer"
-                                        title="Click to view full receipt"
-                                      />
-                                      <div className="flex flex-col justify-center min-w-0">
-                                        <span className="text-[9px] font-black uppercase text-coffee-500">Proof of Payment</span>
-                                        <span className="text-[8px] font-bold text-slate-400 truncate uppercase mt-0.5">Click image to inspect receipt</span>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="text-[10px] text-center text-red-400 font-bold py-2 bg-red-500/5 rounded-xl uppercase tracking-wider border border-red-500/10">
-                                      ⚠️ No receipt uploaded
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="bg-white dark:bg-black/15 border border-black/10 dark:border-white/5 rounded-2xl p-4 space-y-3">
-                                  <span className="block text-[9px] font-black uppercase tracking-widest text-coffee-500">Console Actions</span>
-                                  <button 
-                                    onClick={() => {
-                                      onUpdateStatus(order.id!, 'pending');
-                                      if (printMode === 'serial') {
-                                        printToSerial(order);
-                                      } else {
-                                        setPrintingOrder(order);
-                                        setTimeout(() => {
-                                          window.print();
-                                          setPrintingOrder(null);
-                                        }, 250);
-                                      }
-                                    }}
-                                    className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
-                                  >
-                                    <CheckCircle className="w-4 h-4" />
-                                    Confirm Payment & Send to Kitchen
-                                  </button>
-                                   <button 
-                                     onClick={() => setOrderToCancel({ order, action: "status", title: "Refuse GCash Payment", message: `Are you sure you want to refuse this GCash payment and cancel order #${order.id?.slice(-4)}?` })}
-                                     className="w-full mt-2 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2 active:scale-95"
-                                   >
-                                     <X className="w-4 h-4" />
-                                     Refuse GCash Payment
-                                   </button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div key={order.id} className="bg-black/5 dark:bg-white/5 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border-2 border-rose-500/50 flex flex-col h-full relative overflow-hidden group animate-in fade-in zoom-in-95 duration-300">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/10 blur-[50px] -mr-16 -mt-16" />
-                      
-                      <div className="flex justify-between items-start mb-6 relative z-10">
-                        <div>
-                          <span className="text-4xl font-black text-slate-900 dark:text-white block leading-none mb-2 font-display">
-                            #{order.id?.slice(-4)}
-                          </span>
-                          <div className="text-[10px] font-black text-coffee-500 uppercase tracking-[0.2em]">{order.customerName}</div>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          {getSourceBadge(order.source)}
-                          <span className="text-[9px] font-black text-rose-500 bg-rose-500/10 px-3 py-1 rounded-full border border-rose-500/20 uppercase tracking-widest animate-pulse">Verify GCash</span>
-                        </div>
-                      </div>
-
-                      <div className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl p-4 mb-6 overflow-y-auto min-h-[120px] relative z-10 scrollbar-hide">
-                        <ul className="space-y-4">
-                          {order.items.map((item, idx) => (
-                            <li key={idx} className="flex justify-between text-xs items-start">
-                              <div className="flex-1 pr-4">
-                                <div className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.quantity}x {item.name}</div>
-                                {item.selectedSize && <div className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest mt-1">Size: {item.selectedSize.name}</div>}
-                                {item.notes && <div className="text-[9px] text-amber-500/70 font-bold italic mt-1 uppercase tracking-widest">"{item.notes}"</div>}
-                              </div>
-                              <span className="font-black text-slate-900 dark:text-white opacity-40 whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {/* GCash Verification Section */}
-                      <div className="p-4 bg-rose-500/5 rounded-2xl border border-rose-500/15 mb-6 relative z-10 space-y-3">
-                        <div className="text-center">
-                          <span className="text-[9px] font-black uppercase tracking-widest text-rose-500">Manual Screenshot Verification</span>
-                        </div>
-                        
-                        {order.receiptUrl ? (
-                          <div className="flex items-center gap-3 bg-black/10 dark:bg-white/5 p-2 rounded-xl border border-black/5 dark:border-white/5">
-                            <img 
-                              src={order.receiptUrl} 
-                              onClick={() => setZoomedReceiptUrl(order.receiptUrl || null)}
-                              className="w-14 h-14 object-cover rounded-lg border border-black/10 dark:bg-white/10 cursor-zoom-in hover:scale-105 transition-all shadow-md shrink-0" 
-                              alt="Receipt Preview" 
-                              referrerPolicy="no-referrer"
-                              title="Click to view full receipt"
-                            />
-                            <div className="flex flex-col justify-center min-w-0">
-                              <span className="text-[9px] font-black uppercase text-coffee-500">Proof of Payment</span>
-                              <span className="text-[8px] font-bold text-slate-400 truncate uppercase mt-0.5">Click image to inspect receipt</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-[10px] text-center text-red-400 font-bold py-2 bg-red-500/5 rounded-xl uppercase tracking-wider border border-red-500/10">
-                            ⚠️ No receipt uploaded
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mt-auto relative z-10">
-                        <div className="flex justify-between items-end mb-6 border-t border-black/10 dark:border-white/5 pt-4">
-                          <span className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Total Received</span>
-                          <span className="text-3xl font-black text-slate-900 dark:text-white">₱{order.total.toLocaleString()}</span>
-                        </div>
-
-                        <button 
-                          onClick={() => {
-                            onUpdateStatus(order.id!, 'pending');
-                            if (printMode === 'serial') {
-                              printToSerial(order);
-                            } else {
-                              setPrintingOrder(order);
-                              setTimeout(() => {
-                                window.print();
-                                setPrintingOrder(null);
-                              }, 250);
-                            }
-                          }}
-                          className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-900 dark:text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95"
-                        >
-                          <CheckCircle className="w-5 h-5 text-white" />
-                          Confirm Payment & Send to Kitchen
-                        </button>
-                        <button 
-                          onClick={() => setOrderToCancel({ order, action: "status", title: "Refuse GCash Payment", message: `Are you sure you want to refuse this GCash payment and cancel order #${order.id?.slice(-4)}?` })}
-                          className="w-full mt-3 py-3.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-2xl font-black uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 active:scale-95"
-                        >
-                          <X className="w-4 h-4" />
-                          Refuse GCash Payment
                         </button>
                       </div>
                     </div>
