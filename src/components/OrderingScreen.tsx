@@ -68,8 +68,20 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       }
     }
     
-    // Show all configured categories, plus any implied by products
-    return list;
+    // Deduplicate case-insensitively to prevent duplicate React keys
+    const uniqueList: string[] = [];
+    const seen = new Set<string>();
+    for (const item of list) {
+      if (!item || !item.trim()) continue;
+      const cleanItem = item.trim();
+      const lower = cleanItem.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        uniqueList.push(cleanItem);
+      }
+    }
+
+    return uniqueList;
   }, [categoriesData, menu]);
 
   const [activeCategory, setActiveCategory] = useState<string>(categories[0] || '');

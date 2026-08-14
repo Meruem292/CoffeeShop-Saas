@@ -95,7 +95,7 @@ export const CategorySidebar = React.memo(({
           const isActive = activeCategory === cat;
           return (
             <button
-              key={cat}
+              key={`${cat}-${idx}`}
               onClick={() => setActiveCategory(cat)}
               className="flex flex-col items-center py-2 px-1 rounded-2xl transition-all relative group animate-in fade-in slide-in-from-left-4 duration-500 shrink-0"
               style={{ animationDelay: `${idx * 40}ms` }}

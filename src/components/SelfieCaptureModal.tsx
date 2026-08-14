@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, X, RefreshCw, Check, Sparkles, Upload, ScanFace, AlertCircle, ArrowLeft, ArrowRight, Smile, UserCheck, ShieldCheck } from 'lucide-react';
-import { detectHeadPoseAndExpression, getFaceLandmarker, extractFaceVector, detectFaceLandmarks, KEY_LANDMARK_INDICES } from '../lib/mediaPipeFace';
+import { detectHeadPoseAndExpression, getFaceLandmarker, extractFaceVector, detectFaceLandmarks, KEY_LANDMARK_INDICES, assessFaceQuality } from '../lib/mediaPipeFace';
 
 interface SelfieCaptureModalProps {
   isOpen: boolean;
@@ -181,21 +181,12 @@ export function SelfieCaptureModal({
           return;
         }
 
-        if (landmarks && landmarks.length > 0) {
-          const pLeft = landmarks[33];
-          const pRight = landmarks[263];
-          if (pLeft && pRight) {
-            const eyeDist = Math.hypot(pRight.x - pLeft.x, pRight.y - pLeft.y);
-            if (eyeDist < 0.15) {
-              setPoseStatusText('⚠️ Move closer to camera');
-              setIsPoseMatched(false);
-              return;
-            } else if (eyeDist > 0.45) {
-              setPoseStatusText('⚠️ Move back from camera');
-              setIsPoseMatched(false);
-              return;
-            }
-          }
+        const qualityRes = assessFaceQuality(videoRef.current, landmarks || []);
+        if (!qualityRes.isGoodQuality) {
+          setPoseStatusText(qualityRes.feedback);
+          setIsPoseMatched(false);
+          holdCountRef.current = 0;
+          return;
         }
 
         let matched = false;

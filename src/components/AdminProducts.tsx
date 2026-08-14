@@ -109,7 +109,20 @@ export function AdminProducts({
       }
     });
     
-    return list;
+    // Deduplicate case-insensitively
+    const uniqueList: string[] = [];
+    const seen = new Set<string>();
+    for (const item of list) {
+      if (!item || !item.trim()) continue;
+      const cleanItem = item.trim();
+      const lower = cleanItem.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        uniqueList.push(cleanItem);
+      }
+    }
+
+    return uniqueList;
   }, [categories, products]);
 
   const filteredProducts = useMemo(() => {

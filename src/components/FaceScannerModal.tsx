@@ -12,6 +12,7 @@ import {
   parseStoredFaceVectors,
   detectFaceLandmarks,
   KEY_LANDMARK_INDICES,
+  assessFaceQuality,
 } from '../lib/mediaPipeFace';
 
 interface FaceScannerModalProps {
@@ -228,23 +229,12 @@ export function FaceScannerModal({
           return;
         }
 
-        if (landmarks && landmarks.length > 0) {
-          const pLeft = landmarks[33];
-          const pRight = landmarks[263];
-          if (pLeft && pRight) {
-            const eyeDist = Math.hypot(pRight.x - pLeft.x, pRight.y - pLeft.y);
-            if (eyeDist < 0.15) {
-              setIsFaceDetected(false);
-              setMatchConfidence(0);
-              setAnalysisStatus('⚠️ Move closer to camera');
-              return;
-            } else if (eyeDist > 0.45) {
-              setIsFaceDetected(false);
-              setMatchConfidence(0);
-              setAnalysisStatus('⚠️ Move back from camera');
-              return;
-            }
-          }
+        const qualityRes = assessFaceQuality(videoRef.current, landmarks || []);
+        if (!qualityRes.isGoodQuality) {
+          setIsFaceDetected(false);
+          setMatchConfidence(0);
+          setAnalysisStatus(qualityRes.feedback);
+          return;
         }
 
         // Face detected!

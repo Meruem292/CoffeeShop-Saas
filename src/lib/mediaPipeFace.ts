@@ -108,6 +108,59 @@ export function normalizeL2(vec: number[]): number[] {
 }
 
 /**
+ * Calculate scale- and rotation-invariant facial landmark ratios
+ * (Inter-ocular distance, nose length, mouth width, facial symmetry, etc.)
+ */
+export function calculateBiometricRatios(landmarks: any[]): number[] {
+  if (!landmarks || landmarks.length < 468) return [];
+
+  const pLeftEye = landmarks[33] || landmarks[0];
+  const pRightEye = landmarks[263] || landmarks[1];
+  const pNoseTip = landmarks[1] || landmarks[2];
+  const pNoseBridge = landmarks[168] || landmarks[6];
+  const pMouthLeft = landmarks[61];
+  const pMouthRight = landmarks[291];
+  const pLeftCheek = landmarks[234];
+  const pRightCheek = landmarks[454];
+  const pChin = landmarks[152];
+  const pTopLip = landmarks[0] || landmarks[13];
+
+  const eyeDist =
+    Math.hypot(
+      pRightEye.x - pLeftEye.x,
+      pRightEye.y - pLeftEye.y,
+      pRightEye.z - pLeftEye.z
+    ) || 0.1;
+  const noseLength =
+    Math.hypot(
+      pNoseTip.x - pNoseBridge.x,
+      pNoseTip.y - pNoseBridge.y,
+      pNoseTip.z - pNoseBridge.z
+    ) || 0.05;
+  const noseToChin =
+    Math.hypot(pChin.x - pNoseTip.x, pChin.y - pNoseTip.y, pChin.z - pNoseTip.z) || 0.1;
+  const mouthWidth =
+    Math.hypot(pMouthRight.x - pMouthLeft.x, pMouthRight.y - pMouthLeft.y) || 0.08;
+  const cheekWidth =
+    Math.hypot(pRightCheek.x - pLeftCheek.x, pRightCheek.y - pLeftCheek.y) || 0.2;
+  const lipToChin = Math.hypot(pChin.x - pTopLip.x, pChin.y - pTopLip.y) || 0.08;
+
+  // Invariant biometric ratio features
+  return [
+    eyeDist / noseLength,
+    eyeDist / noseToChin,
+    eyeDist / mouthWidth,
+    eyeDist / cheekWidth,
+    mouthWidth / noseLength,
+    cheekWidth / noseToChin,
+    mouthWidth / cheekWidth,
+    lipToChin / noseToChin,
+    (pNoseTip.y - pNoseBridge.y) / (pChin.y - pNoseTip.y || 0.1),
+    Math.abs(pMouthLeft.y - pMouthRight.y) / eyeDist,
+  ];
+}
+
+/**
  * Helper to build normalized 3D feature vector directly from Mediapipe landmarks
  */
 export function createVectorFromLandmarks(landmarks: any[]): number[] | null {
@@ -152,6 +205,15 @@ export function createVectorFromLandmarks(landmarks: any[]): number[] | null {
     }
   }
 
+  // Append invariant biometric ratios for discrimination boost
+  const biometricRatios = calculateBiometricRatios(landmarks);
+  if (biometricRatios.length > 0) {
+    // Weight biometric ratios appropriately
+    for (const ratio of biometricRatios) {
+      vector.push(Number.isFinite(ratio) ? ratio * 0.5 : 0);
+    }
+  }
+
   return normalizeL2(vector);
 }
 
@@ -193,20 +255,128 @@ export function loadImageElement(url: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Calculate Cosine Similarity between two feature vectors with L2 normalization
+ * Calculate Cosine Similarity between two feature vectors with L2 normalization.
+ * Automatically handles variable length vectors by matching common dimensions.
  */
 export function calculateCosineSimilarity(vA: number[], vB: number[]): number {
-  if (!vA || !vB || vA.length === 0 || vB.length === 0 || vA.length !== vB.length) return 0;
+  if (!vA || !vB || vA.length === 0 || vB.length === 0) return 0;
 
-  const nA = normalizeL2(vA);
-  const nB = normalizeL2(vB);
+  const minLen = Math.min(vA.length, vB.length);
+  if (minLen === 0) return 0;
+
+  const sliceA = vA.length > minLen ? vA.slice(0, minLen) : vA;
+  const sliceB = vB.length > minLen ? vB.slice(0, minLen) : vB;
+
+  const nA = normalizeL2(sliceA);
+  const nB = normalizeL2(sliceB);
 
   let dotProduct = 0;
-  for (let i = 0; i < nA.length; i++) {
+  for (let i = 0; i < minLen; i++) {
     dotProduct += nA[i] * nB[i];
   }
 
   return Math.max(-1, Math.min(1, dotProduct));
+}
+
+/**
+ * Assess real-time video frame face quality, ambient lighting, position, and head stability.
+ */
+export function assessFaceQuality(
+  element: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement,
+  landmarks?: any[]
+): {
+  isGoodQuality: boolean;
+  brightness: number;
+  qualityScore: number;
+  feedback: string;
+} {
+  let brightness = 128;
+  let feedback = 'Good Quality';
+  let isGoodQuality = true;
+  let qualityScore = 100;
+
+  try {
+    // 1. Evaluate Canvas / Video Pixel Luminance
+    let canvas: HTMLCanvasElement | null = null;
+    let ctx: CanvasRenderingContext2D | null = null;
+
+    if (element instanceof HTMLCanvasElement) {
+      canvas = element;
+      ctx = canvas.getContext('2d');
+    } else if (element instanceof HTMLVideoElement && element.videoWidth > 0) {
+      canvas = document.createElement('canvas');
+      canvas.width = 160;
+      canvas.height = 120;
+      ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(element, 0, 0, 160, 120);
+      }
+    }
+
+    if (ctx && canvas && canvas.width > 0 && canvas.height > 0) {
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+      let totalLuminance = 0;
+      const count = data.length / 4;
+
+      for (let i = 0; i < data.length; i += 16) { // Sample every 4th pixel
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        // Standard perceived luminance formula
+        totalLuminance += 0.299 * r + 0.587 * g + 0.114 * b;
+      }
+      brightness = Math.round(totalLuminance / (count / 4));
+    }
+
+    if (brightness < 45) {
+      isGoodQuality = false;
+      qualityScore -= 40;
+      feedback = '⚠️ Lighting too dim - Face light source';
+    } else if (brightness > 230) {
+      isGoodQuality = false;
+      qualityScore -= 30;
+      feedback = '⚠️ Harsh glare / Backlit illumination';
+    }
+
+    // 2. Evaluate Landmarks Coverage, Roll Angle, Centering
+    if (landmarks && landmarks.length > 0) {
+      const pLeft = landmarks[33];
+      const pRight = landmarks[263];
+      if (pLeft && pRight) {
+        const eyeDist = Math.hypot(pRight.x - pLeft.x, pRight.y - pLeft.y);
+        const eyeAngle = Math.atan2(pRight.y - pLeft.y, pRight.x - pLeft.x) * (180 / Math.PI);
+
+        if (eyeDist < 0.15) {
+          isGoodQuality = false;
+          qualityScore -= 30;
+          feedback = '⚠️ Step closer to camera';
+        } else if (eyeDist > 0.45) {
+          isGoodQuality = false;
+          qualityScore -= 30;
+          feedback = '⚠️ Step back slightly';
+        } else if (Math.abs(eyeAngle) > 22) {
+          isGoodQuality = false;
+          qualityScore -= 20;
+          feedback = '⚠️ Keep head level and upright';
+        }
+      }
+    }
+
+    return {
+      isGoodQuality,
+      brightness,
+      qualityScore: Math.max(0, qualityScore),
+      feedback,
+    };
+  } catch (err) {
+    return {
+      isGoodQuality: true,
+      brightness: 120,
+      qualityScore: 90,
+      feedback: 'Good Quality',
+    };
+  }
 }
 
 /**
