@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { ChatThread, ChatMessage } from '../types';
-import { playNotificationSound } from './audio';
+import { playNotificationSound, playChatNotificationSound } from './audio';
 
 enum OperationType {
   CREATE = 'create',
@@ -60,8 +60,9 @@ export function useChat(params: {
   customerName?: string;
   customerEmail?: string;
   customerPhoto?: string;
+  onNewMessageNotification?: (info: { senderName: string; text: string; threadId: string; role: 'admin' | 'customer' }) => void;
 }) {
-  const { userId, isAdmin, guestId, customerName, customerEmail, customerPhoto } = params;
+  const { userId, isAdmin, guestId, customerName, customerEmail, customerPhoto, onNewMessageNotification } = params;
 
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
@@ -73,9 +74,12 @@ export function useChat(params: {
   const currentCustomerId = userId || guestId || 'guest_user';
   const effectiveName = customerName || (userId ? 'Customer' : 'Guest');
 
-  // Initial sound notification ref to prevent sound on first load
+  // Track previous unread counts & initial load
   const isInitialLoadAdmin = useRef(true);
   const isInitialLoadCustomer = useRef(true);
+  const prevUnreadAdminTotal = useRef<number>(-1);
+  const prevUnreadCustomerTotal = useRef<number>(-1);
+  const prevLatestMessageAtRef = useRef<number>(0);
 
   // 1. Listen for Threads
   useEffect(() => {
@@ -99,22 +103,51 @@ export function useChat(params: {
           ...d.data(),
         })) as ChatThread[];
 
-        // Check for new incoming messages for sound alert
-        if (isAdmin && !isInitialLoadAdmin.current) {
-          const hasNewAdminUnread = loadedThreads.some((t) => t.unreadCountAdmin > 0);
-          if (hasNewAdminUnread) {
-            try { playNotificationSound(); } catch (e) {}
+        // Calculate current unread totals
+        const currentUnreadAdmin = loadedThreads.reduce((acc, t) => acc + (t.unreadCountAdmin || 0), 0);
+        const myThread = loadedThreads.find((t) => t.customerId === currentCustomerId);
+        const currentUnreadCustomer = myThread?.unreadCountCustomer || 0;
+
+        const latestThreadWithActivity = loadedThreads[0];
+        const latestTime = latestThreadWithActivity?.lastMessageAt || 0;
+
+        // Check for new incoming messages for Admin
+        if (isAdmin) {
+          if (!isInitialLoadAdmin.current) {
+            if (currentUnreadAdmin > prevUnreadAdminTotal.current || (currentUnreadAdmin > 0 && latestTime > prevLatestMessageAtRef.current)) {
+              try { playChatNotificationSound(); } catch (e) {}
+              if (latestThreadWithActivity && onNewMessageNotification) {
+                onNewMessageNotification({
+                  senderName: latestThreadWithActivity.customerName || 'Customer',
+                  text: latestThreadWithActivity.lastMessage || 'Sent a message',
+                  threadId: latestThreadWithActivity.id,
+                  role: 'admin'
+                });
+              }
+            }
           }
-        }
-        if (!isAdmin && !isInitialLoadCustomer.current) {
-          const myThread = loadedThreads.find((t) => t.customerId === currentCustomerId);
-          if (myThread && myThread.unreadCountCustomer > 0) {
-            try { playNotificationSound(); } catch (e) {}
+          prevUnreadAdminTotal.current = currentUnreadAdmin;
+          isInitialLoadAdmin.current = false;
+        } else {
+          // Check for new incoming messages for Customer
+          if (!isInitialLoadCustomer.current) {
+            if (currentUnreadCustomer > prevUnreadCustomerTotal.current || (currentUnreadCustomer > 0 && latestTime > prevLatestMessageAtRef.current)) {
+              try { playChatNotificationSound(); } catch (e) {}
+              if (myThread && onNewMessageNotification) {
+                onNewMessageNotification({
+                  senderName: 'Live Support',
+                  text: myThread.lastMessage || 'Sent a message',
+                  threadId: myThread.id,
+                  role: 'customer'
+                });
+              }
+            }
           }
+          prevUnreadCustomerTotal.current = currentUnreadCustomer;
+          isInitialLoadCustomer.current = false;
         }
 
-        isInitialLoadAdmin.current = false;
-        isInitialLoadCustomer.current = false;
+        prevLatestMessageAtRef.current = latestTime;
 
         setThreads(loadedThreads);
         setLoadingThreads(false);

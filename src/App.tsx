@@ -149,6 +149,13 @@ export default function App() {
     customerName: userProfile?.displayName || user?.displayName || 'Customer',
     customerEmail: userProfile?.email || user?.email || undefined,
     customerPhoto: userProfile?.photoURL || user?.photoURL || undefined,
+    onNewMessageNotification: ({ senderName, text, role }) => {
+      if (role === 'admin') {
+        toast.info(`💬 Live Chat from ${senderName}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}"`, 6000);
+      } else {
+        toast.info(`💬 Live Support: "${text.length > 50 ? text.slice(0, 50) + '...' : text}"`, 6000);
+      }
+    }
   });
 
   const handleInitiateChatWithCustomer = async (cust: { id: string; name: string; email?: string }) => {
@@ -775,7 +782,15 @@ export default function App() {
                       <div className={`transition-colors ${isActive ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:hover:text-white'}`}>
                         {item.icon}
                       </div>
-                      <span className="text-xs tracking-tight">{item.label}</span>{((item.id === 'cashier' && (unpaidOrdersCount > 0 || pendingVerificationOrdersCount > 0)) || (item.id === 'queue' && pendingOrdersCount > 0) || (item.id === 'admin-chat' && totalUnreadAdmin > 0)) && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2" />}
+                      <span className="text-xs tracking-tight">{item.label}</span>
+                      {item.id === 'admin-chat' && totalUnreadAdmin > 0 && (
+                        <span className="ml-auto px-2 py-0.5 text-[10px] font-black bg-rose-500 text-white rounded-full animate-bounce shadow-lg shadow-rose-500/50 flex items-center justify-center">
+                          {totalUnreadAdmin}
+                        </span>
+                      )}
+                      {((item.id === 'cashier' && (unpaidOrdersCount > 0 || pendingVerificationOrdersCount > 0)) || (item.id === 'queue' && pendingOrdersCount > 0)) && (
+                        <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse ml-2" />
+                      )}
                     </div>
                     {isActive && <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
                   </button>
@@ -980,7 +995,15 @@ export default function App() {
                       >
                         <div className="flex items-center gap-3">
                           <span className={isActive ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400'}>{item.icon}</span>
-                          <span className="text-xs tracking-tight">{item.label}</span>{((item.id === 'cashier' && (unpaidOrdersCount > 0 || pendingVerificationOrdersCount > 0)) || (item.id === 'queue' && pendingOrdersCount > 0)) && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2" />}
+                          <span className="text-xs tracking-tight">{item.label}</span>
+                          {item.id === 'admin-chat' && totalUnreadAdmin > 0 && (
+                            <span className="ml-2 px-2 py-0.5 text-[10px] font-black bg-rose-500 text-white rounded-full animate-bounce shadow-lg shadow-rose-500/50">
+                              {totalUnreadAdmin}
+                            </span>
+                          )}
+                          {((item.id === 'cashier' && (unpaidOrdersCount > 0 || pendingVerificationOrdersCount > 0)) || (item.id === 'queue' && pendingOrdersCount > 0)) && (
+                            <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse ml-2" />
+                          )}
                         </div>
                         <ChevronRight className="w-3 h-3 text-slate-500" />
                       </button>

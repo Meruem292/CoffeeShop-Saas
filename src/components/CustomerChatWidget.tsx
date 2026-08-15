@@ -23,6 +23,7 @@ import {
   Smile,
   Search,
   ExternalLink,
+  ChevronRight,
   ChevronDown
 } from 'lucide-react';
 import { ChatMessage, Product, Order } from '../types';
@@ -315,17 +316,36 @@ export function CustomerChatWidget({
       />
 
       {/* Floating Toggle Button */}
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
         {!isOpen && unreadCount > 0 && (
-          <div className="hidden sm:flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-full shadow-2xl text-xs font-black uppercase tracking-wider animate-bounce border border-amber-500/30">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Admin sent a message</span>
+          <div 
+            onClick={() => setIsOpen(true)}
+            className="mb-3 max-w-[280px] sm:max-w-xs bg-slate-900/95 dark:bg-[#090d16]/95 border-2 border-amber-500 text-white p-3.5 rounded-2xl shadow-2xl backdrop-blur-xl cursor-pointer hover:border-amber-400 transition-all group relative animate-bounce"
+          >
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-1.5 text-amber-400 font-black text-[10px] uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Live Support Message</span>
+              </div>
+              <span className="px-2 py-0.5 bg-rose-500 text-white font-black text-[9px] rounded-full shadow-md">
+                {unreadCount} New
+              </span>
+            </div>
+            <p className="text-xs font-semibold text-slate-100 line-clamp-2 leading-snug">
+              "{messages.length > 0 ? (messages[messages.length - 1].text || 'Sent a message') : 'Admin sent a message'}"
+            </p>
+            <div className="mt-2 flex items-center justify-between text-[10px] font-bold text-amber-400 group-hover:text-amber-300">
+              <span>Tap to reply now</span>
+              <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
           </div>
         )}
 
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="relative w-14 h-14 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-400 text-slate-900 shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center border-2 border-white/20 group"
+          className={`relative w-14 h-14 rounded-full bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-400 text-slate-900 shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 flex items-center justify-center border-2 border-white/20 group ${
+            !isOpen && unreadCount > 0 ? 'ring-4 ring-rose-500 animate-pulse' : ''
+          }`}
           aria-label="Open Chat with Admin"
         >
           {isOpen ? (
@@ -334,7 +354,7 @@ export function CustomerChatWidget({
             <>
               <MessageSquare className="w-6 h-6 text-slate-900 fill-slate-900" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-rose-500 text-white font-black text-[11px] flex items-center justify-center border-2 border-slate-900 animate-pulse shadow-lg">
+                <span className="absolute -top-1.5 -right-1.5 min-w-[22px] h-5 px-1 rounded-full bg-rose-500 text-white font-black text-[11px] flex items-center justify-center border-2 border-slate-900 animate-bounce shadow-xl">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
