@@ -92,9 +92,52 @@
         "lastLoginAt": { "type": "number" }
       },
       "required": ["uid", "email", "displayName", "points", "createdAt"]
+    },
+    "ChatThread": {
+      "title": "Chat Thread",
+      "description": "Conversation thread between customer and admin",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string" },
+        "customerPhoto": { "type": "string" },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "number" },
+        "unreadCountAdmin": { "type": "number" },
+        "unreadCountCustomer": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["customerId", "customerName", "lastMessage", "lastMessageAt", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Individual chat message inside a chat thread",
+      "type": "object",
+      "properties": {
+        "threadId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderRole": { "type": "string" },
+        "senderName": { "type": "string" },
+        "text": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["threadId", "senderId", "senderRole", "text", "createdAt"]
     }
   },
   "firestore": {
+    "/chat_threads/{threadId}": {
+      "schema": "ChatThread",
+      "description": "Collection of chat threads between customers and admin"
+    },
+    "/chat_threads/{threadId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Subcollection of chat messages for a specific thread"
+    },
     "/products/{productId}": {
       "schema": "Product",
       "description": "Collection of products"

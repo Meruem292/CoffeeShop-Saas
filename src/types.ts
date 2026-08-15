@@ -1,5 +1,49 @@
-export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'admin-vouchers' | 'admin-customers' | 'settings' | 'cashier' | 'reports' | 'profile' | 'order-history' | 'rewards-store';
+export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'admin-vouchers' | 'admin-customers' | 'settings' | 'cashier' | 'reports' | 'profile' | 'order-history' | 'rewards-store' | 'admin-chat';
 export type Category = 'Hot Coffee' | 'Cold Coffee' | 'Tea' | 'Food';
+
+export interface ChatThread {
+  id: string;
+  customerId: string;
+  customerName: string;
+  customerEmail?: string;
+  customerPhoto?: string;
+  lastMessage: string;
+  lastMessageAt: number;
+  unreadCountAdmin: number;
+  unreadCountCustomer: number;
+  status: 'active' | 'archived' | 'closed';
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  senderRole: 'customer' | 'admin';
+  senderName: string;
+  text: string;
+  imageUrl?: string;
+  audioUrl?: string;
+  audioDuration?: number;
+  productCard?: {
+    id: string;
+    name: string;
+    price: number;
+    image: string;
+    category?: string;
+  };
+  orderCard?: {
+    id: string;
+    total: number;
+    status: string;
+    itemSummary: string;
+    createdAt: number;
+  };
+  reactions?: Record<string, string[]>;
+  createdAt: number;
+  read?: boolean;
+}
 
 export interface FaceAnglesMap {
   front?: number[];
@@ -22,6 +66,7 @@ export interface UserProfile {
   faceVector_smile?: number[];
   points: number;
   isAdmin?: boolean;
+  role?: string;
   phoneNumber?: string;
   createdAt: number;
   lastLoginAt?: number;
@@ -184,6 +229,7 @@ export interface Order {
   gcashReference?: string;
   receiptUrl?: string;
   customerId?: string;
+  customerEmail?: string;
   claimedVoucherId?: string;
   accountId?: string;
   voidReason?: string;

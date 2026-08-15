@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { UserProfile } from '../types';
-import { Search, User, Mail, Calendar, Coins, Edit2, X, Check, Trash2, Filter, ArrowUpDown, ShieldAlert, ShieldOff, Clock, Ban, AlertTriangle, ShieldCheck, Maximize2, ScanFace, Camera } from 'lucide-react';
+import { Search, User, Mail, Calendar, Coins, Edit2, X, Check, Trash2, Filter, ArrowUpDown, ShieldAlert, ShieldOff, Clock, Ban, AlertTriangle, ShieldCheck, Maximize2, ScanFace, Camera, MessageSquare } from 'lucide-react';
 import { useToast } from '../lib/ToastContext';
 
 interface AdminCustomersProps {
   profiles: UserProfile[];
   onUpdateProfile: (uid: string, updates: Partial<UserProfile>) => Promise<void>;
+  onInitiateChat?: (customer: { id: string; name: string; email?: string }) => void;
 }
 
-export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomersProps) {
+export function AdminCustomers({ profiles = [], onUpdateProfile, onInitiateChat }: AdminCustomersProps) {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUid, setEditingUid] = useState<string | null>(null);
@@ -377,6 +378,18 @@ export function AdminCustomers({ profiles = [], onUpdateProfile }: AdminCustomer
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {/* Direct Chat Button */}
+                        {onInitiateChat && !profile.isAdmin && profile.role !== 'admin' && (
+                          <button
+                            onClick={() => onInitiateChat({ id: profile.uid, name: profile.displayName || profile.email || 'Customer', email: profile.email })}
+                            className="p-2 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-1.5 text-xs font-black"
+                            title="Start / Open Chat Conversation"
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                            <span className="hidden sm:inline">Chat</span>
+                          </button>
+                        )}
+
                         {/* Suspend/Unsuspend Button */}
                         <button
                           onClick={() => {

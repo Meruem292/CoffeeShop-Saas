@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'rea
 import { ViewMode, Order, Product, OrderStatus } from './types';
 import { SplashScreen } from './components/SplashScreen';
 import { UnifiedAuthModal } from './components/UnifiedAuthModal';
-import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag, User, Coins, Download, ShoppingBag } from 'lucide-react';
+import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag, User, Coins, Download, ShoppingBag, MessageSquare } from 'lucide-react';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { useFirebase } from './lib/useFirebase';
+import { useChat } from './lib/useChat';
 import { useAuth } from './lib/AuthContext';
 import { useTheme } from './lib/ThemeProvider';
 import { useToast } from './lib/ToastContext';
@@ -26,6 +27,8 @@ import { TransactionReports } from './components/TransactionReports';
 import { ProfilePage } from './components/ProfilePage';
 import { OrderHistoryPage } from './components/OrderHistoryPage';
 import { RewardsStorePage } from './components/RewardsStorePage';
+import { AdminChatView } from './components/AdminChatView';
+import { CustomerChatWidget } from './components/CustomerChatWidget';
 import { AdminPageSkeleton } from './components/AdminPageSkeleton';
 
 export default function App() {
@@ -128,6 +131,44 @@ export default function App() {
     updateUserProfile
   } = useFirebase(user?.uid, isAdmin);
 
+  const {
+    threads: chatThreads,
+    messages: chatMessages,
+    activeThreadId,
+    setActiveThreadId,
+    totalUnreadAdmin,
+    totalUnreadCustomer,
+    sendMessage: sendChatMessage,
+    startNewThread,
+    toggleReaction,
+    updateThreadStatus,
+    deleteThread
+  } = useChat({
+    userId: user?.uid,
+    isAdmin,
+    customerName: userProfile?.displayName || user?.displayName || 'Customer',
+    customerEmail: userProfile?.email || user?.email || undefined,
+    customerPhoto: userProfile?.photoURL || user?.photoURL || undefined,
+  });
+
+  const handleInitiateChatWithCustomer = async (cust: { id: string; name: string; email?: string }) => {
+    const existingThread = chatThreads.find(
+      (t) => t.customerId === cust.id || (cust.name && t.customerName.toLowerCase() === cust.name.toLowerCase())
+    );
+    if (existingThread) {
+      setActiveThreadId(existingThread.id);
+    } else {
+      const threadId = await startNewThread({
+        customerId: cust.id,
+        customerName: cust.name,
+        customerEmail: cust.email,
+        initialMessage: 'Hello! How can we assist you with your order today?',
+      });
+      setActiveThreadId(threadId);
+    }
+    setCurrentView('admin-chat');
+  };
+
   const [isStarted, setIsStarted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -156,6 +197,7 @@ export default function App() {
     { id: 'kiosk', label: 'Kiosk', icon: <Tablet className="w-4 h-4" />, adminOnly: true },
     { id: 'pos', label: 'POS', icon: <MonitorSmartphone className="w-4 h-4" />, adminOnly: true },
     { id: 'cashier', label: 'Cashier', icon: <Banknote className="w-4 h-4" />, adminOnly: true },
+    { id: 'admin-chat', label: 'Chat', icon: <MessageSquare className="w-4 h-4" />, adminOnly: true },
     { id: 'queue', label: 'Kitchen', icon: <ChefHat className="w-4 h-4" />, adminOnly: true },
     { id: 'inventory', label: 'Inventory', icon: <Package className="w-4 h-4" />, adminOnly: true },
     { id: 'admin-products', label: 'Products', icon: <Package className="w-4 h-4" />, adminOnly: true },
@@ -733,7 +775,7 @@ export default function App() {
                       <div className={`transition-colors ${isActive ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:hover:text-white'}`}>
                         {item.icon}
                       </div>
-                      <span className="text-xs tracking-tight">{item.label}</span>{((item.id === 'cashier' && (unpaidOrdersCount > 0 || pendingVerificationOrdersCount > 0)) || (item.id === 'queue' && pendingOrdersCount > 0)) && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2" />}
+                      <span className="text-xs tracking-tight">{item.label}</span>{((item.id === 'cashier' && (unpaidOrdersCount > 0 || pendingVerificationOrdersCount > 0)) || (item.id === 'queue' && pendingOrdersCount > 0) || (item.id === 'admin-chat' && totalUnreadAdmin > 0)) && <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse ml-2" />}
                     </div>
                     {isActive && <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
                   </button>
@@ -1116,10 +1158,27 @@ export default function App() {
                       />
                     )
                   )}
-                  {['reports', 'queue', 'inventory', 'admin-products', 'admin-vouchers', 'admin-customers', 'settings', 'profile', 'order-history', 'rewards-store'].includes(currentView) && dbLoading ? (
+                  {['reports', 'queue', 'inventory', 'admin-products', 'admin-vouchers', 'admin-customers', 'admin-chat', 'settings', 'profile', 'order-history', 'rewards-store'].includes(currentView) && dbLoading ? (
                     <AdminPageSkeleton />
                   ) : (
                     <>
+                      {currentView === 'admin-chat' && (
+                        <AdminChatView
+                          threads={chatThreads}
+                          messages={chatMessages}
+                          activeThreadId={activeThreadId}
+                          setActiveThreadId={setActiveThreadId}
+                          onSendMessage={(payload) => sendChatMessage({ ...payload, senderRole: 'admin', senderId: user?.uid || 'admin', senderName: 'Admin' })}
+                          onStartNewThread={startNewThread}
+                          onToggleReaction={(messageId, emoji) => toggleReaction(messageId, emoji, user?.uid || 'admin')}
+                          onUpdateThreadStatus={updateThreadStatus}
+                          onDeleteThread={deleteThread}
+                          orders={orders}
+                          products={products}
+                          currentUserId={user?.uid || 'admin'}
+                          profiles={profiles}
+                        />
+                      )}
                       {currentView === 'reports' && (
                         <TransactionReports orders={orders} onDeleteOrder={deleteOrder} onClearOrders={clearOrders} />
                       )}
@@ -1163,6 +1222,7 @@ export default function App() {
                         <AdminCustomers 
                           profiles={profiles}
                           onUpdateProfile={updateUserProfile}
+                          onInitiateChat={handleInitiateChatWithCustomer}
                         />
                       )}
                       {currentView === 'settings' && (
@@ -1265,6 +1325,27 @@ export default function App() {
               </div>
             </div>
           </div>
+        )}
+        {!isAdmin && (
+          <CustomerChatWidget
+            messages={chatMessages}
+            unreadCount={totalUnreadCustomer}
+            onSendMessage={(payload) =>
+              sendChatMessage({
+                ...payload,
+                senderRole: 'customer',
+                senderId: user?.uid || 'guest',
+                senderName: userProfile?.displayName || user?.displayName || 'Customer'
+              })
+            }
+            onToggleReaction={(messageId, emoji) => toggleReaction(messageId, emoji, user?.uid || 'guest')}
+            customerName={userProfile?.displayName || user?.displayName || 'Customer'}
+            shopName={shopSettings?.name || 'CAIDOZ'}
+            shopLogo={shopSettings?.logoUrl}
+            products={products}
+            orders={orders.filter(o => o.customerId === (user?.uid || 'guest') || o.customerName === (userProfile?.displayName || user?.displayName || 'Customer'))}
+            currentUserId={user?.uid || 'guest'}
+          />
         )}
         <Footer shopSettings={shopSettings} />
       </div>
