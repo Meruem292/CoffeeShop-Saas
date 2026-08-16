@@ -233,10 +233,15 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     try {
       const batch = writeBatch(db);
       
+      // Generate a short, unique, easily manual-typable code for the claimed voucher
+      const parentPart = voucher.code.replace(/[^A-Z0-9]/gi, '').slice(0, 8).toUpperCase();
+      const uniquePart = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const uniqueClaimedCode = `${parentPart}-${uniquePart}`;
+      
       const claimedData: Omit<ClaimedVoucher, 'id'> = {
         userId: userUid,
         voucherId: voucher.id,
-        code: voucher.code,
+        code: uniqueClaimedCode,
         type: voucher.type,
         value: voucher.value,
         minSpend: voucher.minSpend || 0,

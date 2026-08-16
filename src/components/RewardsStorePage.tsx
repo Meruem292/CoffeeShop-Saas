@@ -318,12 +318,7 @@ export function RewardsStorePage({
             <div className="bg-white p-5 rounded-2xl shadow-inner border-2 border-amber-500/30 inline-block mx-auto relative group">
               <QRCodeSVG
                 id={`qr-code-${selectedVoucherForQR.id || selectedVoucherForQR.code}`}
-                value={JSON.stringify({
-                  type: 'claimed_voucher',
-                  code: selectedVoucherForQR.code,
-                  userId: selectedVoucherForQR.userId,
-                  claimedVoucherId: selectedVoucherForQR.id || ''
-                })}
+                value={selectedVoucherForQR.code}
                 size={190}
                 level="H"
                 includeMargin={true}
