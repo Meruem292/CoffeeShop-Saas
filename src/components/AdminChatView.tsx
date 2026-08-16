@@ -22,6 +22,7 @@ import {
   Check,
   CheckCheck,
   ChevronRight,
+  ChevronLeft,
   ExternalLink,
   Info,
   UserPlus,
@@ -683,7 +684,7 @@ export function AdminChatView({
 
       <div className="grid grid-cols-12 h-full divide-x divide-black/10 dark:divide-white/10">
         {/* Left Sidebar - Thread List */}
-        <div className="col-span-12 md:col-span-4 lg:col-span-3 flex flex-col h-full bg-slate-900/60 dark:bg-black/20">
+        <div className={`col-span-12 md:col-span-4 lg:col-span-3 flex flex-col h-full bg-slate-900/60 dark:bg-black/20 ${activeThreadId ? 'hidden md:flex' : 'flex'}`}>
           {/* Header & Search */}
           <div className="p-4 border-b border-black/10 dark:border-white/10 space-y-3">
             <div className="flex items-center justify-between">
@@ -793,12 +794,20 @@ export function AdminChatView({
         </div>
 
         {/* Center Main Conversation Panel */}
-        <div className={`col-span-12 ${showCustomerDetails ? 'md:col-span-8 lg:col-span-6' : 'md:col-span-8 lg:col-span-9'} flex flex-col h-full bg-slate-900/20`}>
+        <div className={`col-span-12 ${showCustomerDetails ? 'md:col-span-8 lg:col-span-6' : 'md:col-span-8 lg:col-span-9'} flex flex-col h-full bg-slate-900/20 ${!activeThreadId ? 'hidden md:flex' : 'flex'}`}>
           {activeThread ? (
             <>
               {/* Active Conversation Header */}
               <div className="p-4 bg-black/10 dark:bg-white/5 border-b border-black/10 dark:border-white/10 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
+                  {/* Back button on mobile */}
+                  <button
+                    onClick={() => setActiveThreadId(null)}
+                    className="md:hidden p-2 text-slate-500 dark:text-slate-400 hover:text-amber-500 bg-black/5 hover:bg-black/10 rounded-xl transition-all mr-1.5 shrink-0 flex items-center justify-center border border-black/10 dark:border-white/10"
+                    title="Back to List"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-slate-900 dark:text-slate-100" />
+                  </button>
                   <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center font-black text-sm uppercase shrink-0 border border-amber-500/30">
                     {activeThread.customerName.charAt(0)}
                   </div>
