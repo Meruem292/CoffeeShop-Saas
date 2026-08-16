@@ -64,15 +64,16 @@ export function useChat(params: {
 }) {
   const { userId, isAdmin, guestId, customerName, customerEmail, customerPhoto, onNewMessageNotification } = params;
 
-  const [threads, setThreads] = useState<ChatThread[]>([]);
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loadingThreads, setLoadingThreads] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-
   // Determine actual customer identifier
   const currentCustomerId = userId || guestId || 'guest_user';
   const effectiveName = customerName || (userId ? 'Customer' : 'Guest');
+
+  const defaultCustomerThreadId = !isAdmin ? `thread_${currentCustomerId}` : null;
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(defaultCustomerThreadId);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loadingThreads, setLoadingThreads] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   // Track previous unread counts & initial load
   const isInitialLoadAdmin = useRef(true);
@@ -152,11 +153,15 @@ export function useChat(params: {
         setThreads(loadedThreads);
         setLoadingThreads(false);
 
-        // Auto-select first thread for admin if none selected
+        // Auto-select thread ID for admin and customer
         if (isAdmin && loadedThreads.length > 0 && !activeThreadId) {
           setActiveThreadId(loadedThreads[0].id);
-        } else if (!isAdmin && loadedThreads.length > 0) {
-          setActiveThreadId(loadedThreads[0].id);
+        } else if (!isAdmin) {
+          if (loadedThreads.length > 0) {
+            setActiveThreadId(loadedThreads[0].id);
+          } else if (!activeThreadId) {
+            setActiveThreadId(`thread_${currentCustomerId}`);
+          }
         }
       },
       (err) => {

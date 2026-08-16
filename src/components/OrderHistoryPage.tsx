@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Clock, Receipt, ChevronDown, ChevronUp, User, Tag, Award, Search, Filter, ArrowLeft } from 'lucide-react';
+import { ShoppingBag, Clock, Receipt, ChevronDown, ChevronUp, User, Tag, Award, Search, Filter, ArrowLeft, MessageSquare } from 'lucide-react';
 import { Order, ViewMode } from '../types';
 
 interface OrderHistoryPageProps {
@@ -68,6 +68,12 @@ export function OrderHistoryPage({ orders = [], onNavigate }: OrderHistoryPagePr
               className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1 sm:gap-1.5 shrink-0"
             >
               <Tag className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Rewards
+            </button>
+            <button
+              onClick={() => onNavigate('customer-chat')}
+              className="flex-1 sm:flex-none px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-500 hover:text-amber-500 transition-all flex items-center justify-center gap-1 sm:gap-1.5 shrink-0"
+            >
+              <MessageSquare className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Chat
             </button>
           </div>
         )}

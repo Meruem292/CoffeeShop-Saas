@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { User, Copy, Tag, Clock, ShoppingBag, Award, ArrowUpRight, ArrowDownRight, Coins, ArrowRight, QrCode, Camera, ScanFace, Sparkles, Upload, CheckCircle2, RefreshCw, Download, Maximize2, X } from 'lucide-react';
+import { User, Copy, Tag, Clock, ShoppingBag, Award, ArrowUpRight, ArrowDownRight, Coins, ArrowRight, QrCode, Camera, ScanFace, Sparkles, Upload, CheckCircle2, RefreshCw, Download, Maximize2, X, MessageSquare } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -426,9 +426,9 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
         </div>
       </div>
 
-      {/* Direct Shortcuts to Order History & Rewards Store Pages */}
+      {/* Direct Shortcuts to Order History, Rewards Store & Live Customer Chat Pages */}
       {onNavigate && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Order History Shortcut Card */}
           <div 
             onClick={() => onNavigate('order-history')}
@@ -483,6 +483,36 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
 
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-500 pt-2 border-t border-black/5 dark:border-white/5">
               <span>Open Rewards Store</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+
+          {/* Live Customer Chat Page Card */}
+          <div 
+            onClick={() => onNavigate('customer-chat')}
+            className="p-5 bg-white dark:bg-[#0a0a0c] rounded-3xl border border-amber-500/30 dark:border-amber-500/20 shadow-md hover:border-amber-500 transition-all cursor-pointer group flex flex-col justify-between space-y-4 relative overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black group-hover:scale-110 transition-transform shadow-lg">
+                <MessageSquare className="w-6 h-6 fill-slate-950" />
+              </div>
+              <span className="text-xs font-black uppercase bg-green-500/10 text-green-500 px-3 py-1 rounded-full flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Live Barista
+              </span>
+            </div>
+
+            <div>
+              <h3 className="text-base font-black uppercase italic tracking-tight text-slate-900 dark:text-white group-hover:text-amber-500 transition-colors">
+                Barista Support Chat
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                Chat live with store staff for custom orders, GCash payment help, and assistance.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-500 pt-2 border-t border-black/5 dark:border-white/5">
+              <span>Open Live Chat Page</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>

@@ -29,6 +29,7 @@ import { OrderHistoryPage } from './components/OrderHistoryPage';
 import { RewardsStorePage } from './components/RewardsStorePage';
 import { AdminChatView } from './components/AdminChatView';
 import { CustomerChatWidget } from './components/CustomerChatWidget';
+import { CustomerChatPage } from './components/CustomerChatPage';
 import { AdminPageSkeleton } from './components/AdminPageSkeleton';
 
 export default function App() {
@@ -198,6 +199,7 @@ export default function App() {
 
   const navigationItems: { id: ViewMode; label: string; icon: React.ReactNode; adminOnly?: boolean; userOnly?: boolean }[] = [
     { id: 'mobile', label: 'App', icon: <Smartphone className="w-4 h-4" /> },
+    { id: 'customer-chat', label: 'Support Chat', icon: <MessageSquare className="w-4 h-4" /> },
     { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" />, userOnly: true },
     { id: 'order-history', label: 'History', icon: <ShoppingBag className="w-4 h-4" />, userOnly: true },
     { id: 'rewards-store', label: 'Rewards', icon: <Tag className="w-4 h-4" />, userOnly: true },
@@ -1181,7 +1183,7 @@ export default function App() {
                       />
                     )
                   )}
-                  {['reports', 'queue', 'inventory', 'admin-products', 'admin-vouchers', 'admin-customers', 'admin-chat', 'settings', 'profile', 'order-history', 'rewards-store'].includes(currentView) && dbLoading ? (
+                  {['reports', 'queue', 'inventory', 'admin-products', 'admin-vouchers', 'admin-customers', 'admin-chat', 'customer-chat', 'settings', 'profile', 'order-history', 'rewards-store'].includes(currentView) && dbLoading ? (
                     <AdminPageSkeleton />
                   ) : (
                     <>
@@ -1282,6 +1284,33 @@ export default function App() {
                           onNavigate={(view) => setCurrentView(view)}
                         />
                       )}
+                      {currentView === 'customer-chat' && (
+                        <CustomerChatPage
+                          messages={chatMessages}
+                          unreadCount={totalUnreadCustomer}
+                          onSendMessage={(payload) =>
+                            sendChatMessage({
+                              ...payload,
+                              senderRole: 'customer',
+                              senderId: user?.uid || 'guest',
+                              senderName: userProfile?.displayName || user?.displayName || 'Customer'
+                            })
+                          }
+                          onToggleReaction={(messageId, emoji) => toggleReaction(messageId, emoji, user?.uid || 'guest')}
+                          customerName={userProfile?.displayName || user?.displayName || 'Customer'}
+                          customerEmail={userProfile?.email || user?.email || undefined}
+                          customerPhoto={userProfile?.photoURL || user?.photoURL || undefined}
+                          shopName={shopSettings?.name || 'CAIDOZ'}
+                          shopLogo={shopSettings?.logoUrl}
+                          products={products}
+                          orders={orders.filter(o => o.customerId === (user?.uid || 'guest') || o.customerName === (userProfile?.displayName || user?.displayName || 'Customer'))}
+                          onAddToCart={(prod) => {
+                            toast.success(`${prod.name} added to your basket!`);
+                          }}
+                          currentUserId={user?.uid || 'guest'}
+                          onBack={() => setCurrentView('mobile')}
+                        />
+                      )}
                     </>
                   )}
                 </div>
@@ -1349,7 +1378,7 @@ export default function App() {
             </div>
           </div>
         )}
-        {!isAdmin && (
+        {!isAdmin && currentView !== 'customer-chat' && (
           <CustomerChatWidget
             messages={chatMessages}
             unreadCount={totalUnreadCustomer}
