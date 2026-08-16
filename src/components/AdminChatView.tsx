@@ -521,7 +521,7 @@ export function AdminChatView({
   };
 
   return (
-    <div className="h-[calc(100vh-6rem)] min-h-[600px] flex flex-col bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-black/10 dark:border-white/10 overflow-hidden shadow-2xl relative">
+    <div className="flex-1 flex flex-col h-full min-h-0 bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-black/10 dark:border-white/10 overflow-hidden shadow-2xl relative">
       {/* Hidden File Input for Image Upload */}
       <input
         ref={fileInputRef}
@@ -684,9 +684,9 @@ export function AdminChatView({
         </div>
       )}
 
-      <div className="grid grid-cols-12 h-full divide-x divide-black/5 dark:divide-white/5 bg-slate-50 dark:bg-[#090d16]">
+      <div className="grid grid-cols-12 h-full min-h-0 divide-x divide-black/5 dark:divide-white/5 bg-slate-50 dark:bg-[#090d16] overflow-hidden">
         {/* Left Sidebar - Thread List (Facebook Messenger Style) */}
-        <div className={`col-span-12 md:col-span-4 lg:col-span-3 flex flex-col h-full bg-white dark:bg-[#0c1220] border-r border-black/5 dark:border-white/5 shadow-sm transition-all ${activeThreadId ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`col-span-12 md:col-span-4 lg:col-span-3 flex flex-col h-full min-h-0 overflow-hidden bg-white dark:bg-[#0c1220] border-r border-black/5 dark:border-white/5 shadow-sm transition-all ${activeThreadId ? 'hidden md:flex' : 'flex'}`}>
           {/* Header & Search */}
           <div className="p-4 space-y-4">
             <div className="flex items-center justify-between">
@@ -821,11 +821,11 @@ export function AdminChatView({
         </div>
 
         {/* Center Main Conversation Panel (Messenger Style Stream) */}
-        <div className={`col-span-12 ${showCustomerDetails ? 'md:col-span-8 lg:col-span-6' : 'md:col-span-8 lg:col-span-9'} flex flex-col h-full bg-white dark:bg-[#0c1220] ${!activeThreadId ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`col-span-12 ${showCustomerDetails ? 'md:col-span-8 lg:col-span-6' : 'md:col-span-8 lg:col-span-9'} flex flex-col h-full min-h-0 overflow-hidden bg-white dark:bg-[#0c1220] ${!activeThreadId ? 'hidden md:flex' : 'flex'}`}>
           {activeThread ? (
             <>
               {/* Active Conversation Header (Clean, minimal, with actions) */}
-              <div className="px-6 py-3 border-b border-black/5 dark:border-white/5 flex items-center justify-between shrink-0 bg-white dark:bg-[#0c1220]">
+              <div className="px-6 py-3 border-b border-black/5 dark:border-white/5 flex items-center justify-between shrink-0 bg-white dark:bg-[#0c1220] z-20 sticky top-0">
                 <div className="flex items-center gap-3 min-w-0">
                   {/* Back button on mobile */}
                   <button
@@ -983,7 +983,7 @@ export function AdminChatView({
               )}
 
               {/* Messages Stream (Facebook Messenger Rounded-Grouping Layout) */}
-              <div className="flex-1 p-6 overflow-y-auto space-y-1 bg-slate-50/50 dark:bg-[#0c1220]/50 scrollbar-hide">
+              <div className="flex-1 min-h-0 p-6 overflow-y-auto space-y-1 bg-slate-50/50 dark:bg-[#0c1220]/50 scrollbar-hide">
                 {activeMessages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-slate-400">
                     <MessageSquare className="w-12 h-12 mb-2 opacity-20 text-amber-500" />
@@ -1383,7 +1383,7 @@ export function AdminChatView({
 
         {/* Right Collapsible Panel - Customer Profiles & CRM context (Facebook Messenger Style) */}
         {showCustomerDetails && activeThread && (
-          <div className="hidden lg:flex lg:col-span-3 flex-col h-full bg-white dark:bg-[#0c1220] p-6 overflow-y-auto space-y-6 shadow-sm border-l border-black/5 dark:border-white/5">
+          <div className="hidden lg:flex lg:col-span-3 flex-col h-full min-h-0 overflow-y-auto p-6 space-y-6 shadow-sm border-l border-black/5 dark:border-white/5 bg-white dark:bg-[#0c1220]">
             <div className="text-center pb-6 border-b border-slate-100 dark:border-white/5">
               <div className="w-20 h-20 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center font-black text-2xl uppercase mx-auto mb-3 border border-amber-500/20 shadow-inner overflow-hidden">
                 {activeThread.customerPhoto ? (

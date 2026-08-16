@@ -215,9 +215,9 @@ export function useChat(params: {
       try {
         const threadRef = doc(db, 'chat_threads', threadId);
         if (role === 'admin') {
-          await updateDoc(threadRef, { unreadCountAdmin: 0, updatedAt: Date.now() });
+          await setDoc(threadRef, { unreadCountAdmin: 0, updatedAt: Date.now() }, { merge: true });
         } else {
-          await updateDoc(threadRef, { unreadCountCustomer: 0, updatedAt: Date.now() });
+          await setDoc(threadRef, { unreadCountCustomer: 0, updatedAt: Date.now() }, { merge: true });
         }
       } catch (err) {
         handleFirestoreError(err, OperationType.UPDATE, `chat_threads/${threadId}`);
@@ -404,7 +404,7 @@ export function useChat(params: {
   const updateThreadStatus = async (threadId: string, status: 'active' | 'archived' | 'closed') => {
     try {
       const threadRef = doc(db, 'chat_threads', threadId);
-      await updateDoc(threadRef, { status, updatedAt: Date.now() });
+      await setDoc(threadRef, { status, updatedAt: Date.now() }, { merge: true });
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `chat_threads/${threadId}`);
     }

@@ -306,7 +306,7 @@ export function CustomerChatPage({
   );
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#0c1220] text-slate-900 dark:text-slate-100 overflow-hidden relative">
+    <div className="flex-1 flex flex-col h-full min-h-0 bg-white dark:bg-[#0c1220] text-slate-900 dark:text-slate-100 overflow-hidden relative">
       {/* Hidden File Input */}
       <input
         ref={fileInputRef}
@@ -317,7 +317,7 @@ export function CustomerChatPage({
       />
 
       {/* Main Top Facebook Messenger Header */}
-      <div className="px-4 py-3 bg-white dark:bg-[#0c1220] border-b border-black/5 dark:border-white/5 flex items-center justify-between shrink-0 shadow-sm z-20">
+      <div className="px-4 py-3 bg-white dark:bg-[#0c1220] border-b border-black/5 dark:border-white/5 flex items-center justify-between shrink-0 shadow-sm z-20 sticky top-0">
         <div className="flex items-center gap-3 min-w-0">
           {onBack && (
             <button
@@ -385,9 +385,9 @@ export function CustomerChatPage({
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
         {/* Main Conversation Column */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/50 dark:bg-[#0c1220]">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-slate-50/50 dark:bg-[#0c1220]">
           {/* Internal Search bar */}
           {messages.length > 3 && (
             <div className="px-4 py-2 bg-white dark:bg-slate-900 border-b border-black/5 dark:border-white/5 flex items-center gap-2 text-xs shrink-0">
@@ -408,7 +408,7 @@ export function CustomerChatPage({
           )}
 
           {/* Conversation Messages Stream (Full Messenger Rounded Corner Grouping) */}
-          <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-1 bg-slate-50/50 dark:bg-[#0c1220]/50 scrollbar-hide">
+          <div className="flex-1 min-h-0 p-4 md:p-6 overflow-y-auto space-y-1 bg-slate-50/50 dark:bg-[#0c1220]/50 scrollbar-hide">
             {filteredMessages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
                 <div className="w-20 h-20 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center font-black text-2xl uppercase mb-4 border border-amber-500/20 shadow-inner">
