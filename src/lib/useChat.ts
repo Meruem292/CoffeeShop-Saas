@@ -75,6 +75,23 @@ export function useChat(params: {
   const [loadingThreads, setLoadingThreads] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
+  // Sync activeThreadId when the current customer changes (e.g., login, logout, switch between users)
+  useEffect(() => {
+    if (!isAdmin) {
+      setActiveThreadId(`thread_${currentCustomerId}`);
+      setMessages([]); // Clear previous messages immediately on customer switch
+    } else {
+      setActiveThreadId(null);
+      setMessages([]);
+    }
+    // Reset initial load references
+    isInitialLoadAdmin.current = true;
+    isInitialLoadCustomer.current = true;
+    prevUnreadAdminTotal.current = -1;
+    prevUnreadCustomerTotal.current = -1;
+    prevLatestMessageAtRef.current = 0;
+  }, [currentCustomerId, isAdmin]);
+
   // Track previous unread counts & initial load
   const isInitialLoadAdmin = useRef(true);
   const isInitialLoadCustomer = useRef(true);

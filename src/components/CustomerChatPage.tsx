@@ -51,6 +51,7 @@ interface SendMessagePayload {
 interface CustomerChatPageProps {
   messages: ChatMessage[];
   unreadCount: number;
+  isLoading?: boolean;
   onSendMessage: (payload: SendMessagePayload) => Promise<any>;
   onToggleReaction?: (messageId: string, emoji: string) => void;
   customerName: string;
@@ -131,6 +132,7 @@ function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
 export function CustomerChatPage({
   messages,
   unreadCount,
+  isLoading,
   onSendMessage,
   onToggleReaction,
   customerName,
@@ -409,7 +411,27 @@ export function CustomerChatPage({
 
           {/* Conversation Messages Stream (Full Messenger Rounded Corner Grouping) */}
           <div className="flex-1 min-h-0 p-4 md:p-6 overflow-y-auto space-y-1 bg-slate-50/50 dark:bg-[#0c1220]/50 scrollbar-hide">
-            {filteredMessages.length === 0 ? (
+            {isLoading ? (
+              <div className="space-y-4 py-8 animate-pulse">
+                <div className="flex items-start gap-2.5 max-w-[80%]">
+                  <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0" />
+                  <div className="space-y-2">
+                    <div className="h-9 w-48 bg-slate-200 dark:bg-slate-800 rounded-2xl rounded-tl-sm" />
+                    <div className="h-6 w-24 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+                  </div>
+                </div>
+                <div className="flex items-start justify-end gap-2.5 max-w-[80%] ml-auto">
+                  <div className="space-y-2 flex flex-col items-end">
+                    <div className="h-9 w-36 bg-amber-500/10 dark:bg-amber-500/5 rounded-2xl rounded-tr-sm border border-amber-500/20" />
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 shrink-0" />
+                </div>
+                <div className="flex items-start gap-2.5 max-w-[80%]">
+                  <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0" />
+                  <div className="h-9 w-56 bg-slate-200 dark:bg-slate-800 rounded-2xl rounded-tl-sm" />
+                </div>
+              </div>
+            ) : filteredMessages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
                 <div className="w-20 h-20 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center font-black text-2xl uppercase mb-4 border border-amber-500/20 shadow-inner">
                   {shopLogo ? (

@@ -139,6 +139,7 @@ export default function App() {
     setActiveThreadId,
     totalUnreadAdmin,
     totalUnreadCustomer,
+    loadingMessages: chatLoadingMessages,
     sendMessage: sendChatMessage,
     startNewThread,
     toggleReaction,
@@ -1288,6 +1289,7 @@ export default function App() {
                         <CustomerChatPage
                           messages={chatMessages}
                           unreadCount={totalUnreadCustomer}
+                          isLoading={chatLoadingMessages}
                           onSendMessage={(payload) =>
                             sendChatMessage({
                               ...payload,
@@ -1382,6 +1384,7 @@ export default function App() {
           <CustomerChatWidget
             messages={chatMessages}
             unreadCount={totalUnreadCustomer}
+            isLoading={chatLoadingMessages}
             onSendMessage={(payload) =>
               sendChatMessage({
                 ...payload,

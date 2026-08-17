@@ -56,6 +56,7 @@ interface SendMessagePayload {
 interface CustomerChatWidgetProps {
   messages: ChatMessage[];
   unreadCount: number;
+  isLoading?: boolean;
   onSendMessage: (payload: SendMessagePayload) => Promise<any>;
   onToggleReaction?: (messageId: string, emoji: string) => void;
   customerName: string;
@@ -133,6 +134,7 @@ function AudioPlayer({ src, duration }: { src: string; duration?: number }) {
 export function CustomerChatWidget({
   messages,
   unreadCount,
+  isLoading,
   onSendMessage,
   onToggleReaction,
   customerName,
@@ -478,7 +480,23 @@ export function CustomerChatWidget({
 
               {/* Message List Stream (Fidelity Bubble Grouping layout) */}
               <div className="flex-1 min-h-0 p-4 overflow-y-auto space-y-1 bg-slate-50/50 dark:bg-[#0c1220]/30 scrollbar-hide">
-                {filteredMessages.length === 0 ? (
+                {isLoading ? (
+                  <div className="space-y-4 py-8 animate-pulse">
+                    <div className="flex items-start gap-2 max-w-[85%]">
+                      <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0" />
+                      <div className="space-y-1.5">
+                        <div className="h-8 w-40 bg-slate-200 dark:bg-slate-800 rounded-2xl rounded-tl-sm" />
+                        <div className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+                      </div>
+                    </div>
+                    <div className="flex items-start justify-end gap-2 max-w-[85%] ml-auto">
+                      <div className="space-y-1.5 flex flex-col items-end">
+                        <div className="h-8 w-32 bg-amber-500/10 dark:bg-amber-500/5 rounded-2xl rounded-tr-sm border border-amber-500/20" />
+                      </div>
+                      <div className="w-7 h-7 rounded-full bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20 shrink-0" />
+                    </div>
+                  </div>
+                ) : filteredMessages.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
                     <Coffee className="w-12 h-12 mb-3 text-amber-500/30 animate-bounce" />
                     <h4 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider mb-1">
