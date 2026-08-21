@@ -659,6 +659,63 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
     }
   };
 
+  const renderItemCustomizations = (item: any) => {
+    const hasAddons = item.selectedAddons && item.selectedAddons.length > 0;
+    const hasSize = !!item.selectedSize;
+    const hasSugar = !!item.sugarLevel;
+    const hasIce = !!item.iceLevel;
+    const hasNotes = !!item.notes;
+    const hasMix = !!item.mixtureGuide;
+
+    if (!hasSize && !hasSugar && !hasIce && !hasAddons && !hasNotes && !hasMix) {
+      return null;
+    }
+
+    return (
+      <div className="flex flex-col gap-1.5 mt-1.5 pt-1 border-t border-black/5 dark:border-white/5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {hasSize && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              Size: {item.selectedSize.name}
+            </span>
+          )}
+          {hasSugar && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+              Sugar: {item.sugarLevel}
+            </span>
+          )}
+          {hasIce && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+              Ice: {item.iceLevel}
+            </span>
+          )}
+        </div>
+
+        {hasAddons && (
+          <div className="flex flex-wrap items-center gap-1">
+            {item.selectedAddons.map((addon: any, aIdx: number) => (
+              <span key={aIdx} className="inline-flex items-center px-2 py-0.5 rounded-md text-[8.5px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                + {addon.name} {addon.price ? `(₱${addon.price})` : ''}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {hasNotes && (
+          <div className="text-[9.5px] font-bold text-amber-600 dark:text-amber-400 italic bg-amber-500/5 dark:bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
+            "{item.notes}"
+          </div>
+        )}
+
+        {hasMix && (
+          <div className="text-[8.5px] font-medium text-slate-500 dark:text-slate-400 bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-md">
+            <span className="font-bold text-slate-700 dark:text-slate-300">Mix Guide:</span> {item.mixtureGuide}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex-1 overflow-hidden flex flex-col bg-transparent">
       <style>
@@ -1304,10 +1361,7 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                                     <li key={idx} className="flex justify-between text-xs items-start border-b border-black/5 dark:border-white/5 last:border-0 pb-3 last:pb-0">
                                       <div className="flex-1 pr-4">
                                         <div className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.quantity}x {item.name}</div>
-                                        <div className="flex flex-wrap gap-1.5 mt-1">
-                                          {item.selectedSize && <span className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest">Size: {item.selectedSize.name}</span>}
-                                          {item.notes && <span className="text-[9px] text-amber-500/70 font-bold italic uppercase tracking-widest">"{item.notes}"</span>}
-                                        </div>
+                                        {renderItemCustomizations(item)}
                                       </div>
                                       <span className="font-black text-slate-900 dark:text-white opacity-40 whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
                                     </li>
@@ -1426,11 +1480,10 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                         <div className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl p-4 mb-6 overflow-y-auto min-h-[120px] relative z-10 scrollbar-hide">
                           <ul className="space-y-4">
                             {order.items.map((item, idx) => (
-                              <li key={idx} className="flex justify-between text-xs items-start">
+                              <li key={idx} className="flex justify-between text-xs items-start border-b border-black/5 dark:border-white/5 last:border-0 pb-3 last:pb-0">
                                 <div className="flex-1 pr-4">
                                   <div className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.quantity}x {item.name}</div>
-                                  {item.selectedSize && <div className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest mt-1">Size: {item.selectedSize.name}</div>}
-                                  {item.notes && <div className="text-[9px] text-amber-500/70 font-bold italic mt-1 uppercase tracking-widest">"{item.notes}"</div>}
+                                  {renderItemCustomizations(item)}
                                 </div>
                                 <span className="font-black text-slate-900 dark:text-white opacity-40 whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
                               </li>
@@ -1522,11 +1575,10 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                       <div className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl p-4 mb-6 overflow-y-auto min-h-[120px] relative z-10 scrollbar-hide">
                         <ul className="space-y-4">
                           {order.items.map((item, idx) => (
-                            <li key={idx} className="flex justify-between text-xs items-start">
+                            <li key={idx} className="flex justify-between text-xs items-start border-b border-black/5 dark:border-white/5 last:border-0 pb-3 last:pb-0">
                               <div className="flex-1 pr-4">
                                 <div className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.quantity}x {item.name}</div>
-                                {item.selectedSize && <div className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest mt-1">Size: {item.selectedSize.name}</div>}
-                                {item.notes && <div className="text-[9px] text-amber-500/70 font-bold italic mt-1 uppercase tracking-widest">"{item.notes}"</div>}
+                                {renderItemCustomizations(item)}
                               </div>
                               <span className="font-black text-slate-900 dark:text-white opacity-40 whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
                             </li>
@@ -1637,10 +1689,7 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                                     <li key={idx} className="flex justify-between text-xs items-start border-b border-black/5 dark:border-white/5 last:border-0 pb-3 last:pb-0">
                                       <div className="flex-1 pr-4">
                                         <div className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.quantity}x {item.name}</div>
-                                        <div className="flex flex-wrap gap-1.5 mt-1">
-                                          {item.selectedSize && <span className="text-[9px] text-coffee-600 font-bold uppercase tracking-widest">Size: {item.selectedSize.name}</span>}
-                                          {item.notes && <span className="text-[9px] text-amber-500/70 font-bold italic uppercase tracking-widest">"{item.notes}"</span>}
-                                        </div>
+                                        {renderItemCustomizations(item)}
                                       </div>
                                       <span className="font-black text-slate-900 dark:text-white opacity-40 whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
                                     </li>
@@ -1709,6 +1758,20 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                           {getSourceBadge(order.source)}
                           <span className="text-[9px] font-black text-green-400 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20 uppercase tracking-widest">Paid</span>
                         </div>
+                      </div>
+
+                      <div className="flex-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl p-4 mb-6 overflow-y-auto min-h-[100px] max-h-[220px] relative z-10 scrollbar-hide">
+                        <ul className="space-y-3">
+                          {order.items.map((item, idx) => (
+                            <li key={idx} className="flex justify-between text-xs items-start border-b border-black/5 dark:border-white/5 last:border-0 pb-2.5 last:pb-0">
+                              <div className="flex-1 pr-4">
+                                <div className="font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.quantity}x {item.name}</div>
+                                {renderItemCustomizations(item)}
+                              </div>
+                              <span className="font-black text-slate-900 dark:text-white opacity-40 whitespace-nowrap">₱{(item.price * item.quantity).toLocaleString()}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                       
                       <div className="flex justify-between items-end mt-auto pt-4 border-t border-black/10 dark:border-white/5 relative z-10">

@@ -162,7 +162,7 @@ export default function App() {
 
   const handleInitiateChatWithCustomer = async (cust: { id: string; name: string; email?: string }) => {
     const existingThread = chatThreads.find(
-      (t) => t.customerId === cust.id || (cust.name && t.customerName.toLowerCase() === cust.name.toLowerCase())
+      (t) => t.customerId === cust.id || t.id === `thread_${cust.id}` || (cust.name && t.customerName.toLowerCase() === cust.name.toLowerCase())
     );
     if (existingThread) {
       setActiveThreadId(existingThread.id);

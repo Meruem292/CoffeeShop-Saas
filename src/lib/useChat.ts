@@ -109,8 +109,14 @@ export function useChat(params: {
       // Admin listens to all threads sorted by latest activity
       q = query(threadsRef, orderBy('lastMessageAt', 'desc'));
     } else {
-      // Customer listens only to their own thread
-      q = query(threadsRef, where('customerId', '==', currentCustomerId));
+      // Customer listens to their own thread (supporting direct UID, thread_UID, or guest variations)
+      const possibleIds = Array.from(new Set([
+        currentCustomerId,
+        `thread_${currentCustomerId}`,
+        currentCustomerId.replace(/^thread_/, '')
+      ].filter(Boolean)));
+
+      q = query(threadsRef, where('customerId', 'in', possibleIds));
     }
 
     const unsubscribe = onSnapshot(
@@ -303,27 +309,47 @@ export function useChat(params: {
     try {
       // Ensure thread exists or update thread summary
       const isCustomerSending = payload.senderRole === 'customer';
-      const custName = payload.recipientCustomerName || effectiveName;
-      const custEmail = payload.recipientCustomerEmail || customerEmail;
+      const existingThread = threads.find((t) => t.id === targetThreadId);
 
-      await setDoc(
-        threadRef,
-        {
-          id: targetThreadId,
-          customerId: targetCustomerId,
-          customerName: custName,
-          ...(custEmail ? { customerEmail: custEmail } : {}),
-          ...(customerPhoto ? { customerPhoto } : {}),
-          lastMessage: snippet,
-          lastMessageAt: now,
-          unreadCountAdmin: isCustomerSending ? increment(1) : 0,
-          unreadCountCustomer: isCustomerSending ? 0 : increment(1),
-          status: 'active',
-          updatedAt: now,
-          createdAt: now,
-        },
-        { merge: true }
-      );
+      const threadData: Record<string, any> = {
+        id: targetThreadId,
+        lastMessage: snippet,
+        lastMessageAt: now,
+        unreadCountAdmin: isCustomerSending ? increment(1) : 0,
+        unreadCountCustomer: isCustomerSending ? 0 : increment(1),
+        status: 'active',
+        updatedAt: now,
+      };
+
+      if (isCustomerSending) {
+        // Customer sending: set their own customer metadata
+        threadData.customerId = currentCustomerId;
+        threadData.customerName = effectiveName;
+        if (customerEmail) threadData.customerEmail = customerEmail;
+        if (customerPhoto) threadData.customerPhoto = customerPhoto;
+        threadData.createdAt = now;
+      } else {
+        // Admin sending: Preserve or set customer info, NEVER overwrite customerName with Admin's name
+        const custId = payload.recipientCustomerId || existingThread?.customerId || (targetThreadId.startsWith('thread_') ? targetThreadId.replace(/^thread_/, '') : undefined);
+        const custName = payload.recipientCustomerName || existingThread?.customerName;
+        const custEmail = payload.recipientCustomerEmail || existingThread?.customerEmail;
+        const custPhoto = existingThread?.customerPhoto;
+
+        if (custId && custId !== userId) {
+          threadData.customerId = custId;
+        }
+        if (custName && custName.toLowerCase() !== 'admin' && custName.toLowerCase() !== 'store admin') {
+          threadData.customerName = custName;
+        }
+        if (custEmail) {
+          threadData.customerEmail = custEmail;
+        }
+        if (custPhoto) {
+          threadData.customerPhoto = custPhoto;
+        }
+      }
+
+      await setDoc(threadRef, threadData, { merge: true });
 
       // Add message to subcollection
       const messagesRef = collection(db, 'chat_threads', targetThreadId, 'messages');

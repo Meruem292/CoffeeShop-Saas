@@ -188,19 +188,85 @@ export function AdminChatView({
         id: p.uid,
         name: p.displayName || p.email || 'Customer',
         email: p.email,
-        orderCount: orders.filter((o) => o.customerId === p.uid || o.customerName === p.displayName).length,
-        hasThread: threads.some((t) => t.customerId === p.uid || (t.customerName && p.displayName && t.customerName.toLowerCase() === p.displayName.toLowerCase())),
+        orderCount: orders.filter((o) => o.customerId === p.uid || (p.displayName && o.customerName === p.displayName)).length,
+        hasThread: threads.some((t) => t.customerId === p.uid || t.id === `thread_${p.uid}` || (t.customerName && p.displayName && t.customerName.toLowerCase() === p.displayName.toLowerCase())),
       });
     }
   });
 
+  // Dynamic Customer Resolver: Resolves true customer info using thread, profiles, and order data
+  const getThreadCustomerInfo = (thread?: ChatThread | null) => {
+    if (!thread) {
+      return {
+        name: 'Customer',
+        photo: undefined,
+        email: undefined,
+        id: '',
+        profile: null,
+        shortId: ''
+      };
+    }
+
+    const rawCustId = thread.customerId || (thread.id.startsWith('thread_') ? thread.id.replace(/^thread_/, '') : '');
+    
+    // Look up by profile
+    const profile = profiles.find((p) => 
+      (rawCustId && p.uid === rawCustId) || 
+      (thread.customerEmail && p.email && p.email.toLowerCase() === thread.customerEmail.toLowerCase())
+    );
+
+    // Look up by order
+    const matchingOrder = orders.find((o) => 
+      (rawCustId && o.customerId === rawCustId) || 
+      (thread.customerEmail && o.customerEmail && o.customerEmail.toLowerCase() === thread.customerEmail.toLowerCase()) ||
+      (thread.customerName && o.customerName && o.customerName.toLowerCase() === thread.customerName.toLowerCase() && o.customerName.toLowerCase() !== 'admin')
+    );
+
+    // Check if stored customerName is an admin placeholder or admin account name
+    const isAdminName = !thread.customerName ||
+      thread.customerName.toLowerCase() === 'admin' ||
+      thread.customerName.toLowerCase() === 'store admin' ||
+      profiles.some((p) => (p.isAdmin || p.role === 'admin') && p.displayName && p.displayName.toLowerCase() === thread.customerName.toLowerCase());
+
+    let resolvedName = thread.customerName;
+    if (isAdminName || !resolvedName || resolvedName.toLowerCase() === 'customer') {
+      if (profile?.displayName) {
+        resolvedName = profile.displayName;
+      } else if (matchingOrder?.customerName && matchingOrder.customerName.toLowerCase() !== 'admin') {
+        resolvedName = matchingOrder.customerName;
+      } else if (profile?.email) {
+        resolvedName = profile.email.split('@')[0];
+      } else if (thread.customerEmail) {
+        resolvedName = thread.customerEmail.split('@')[0];
+      } else if (rawCustId.startsWith('guest_') || rawCustId === 'guest_user') {
+        resolvedName = 'Guest Customer';
+      } else {
+        resolvedName = profile?.displayName || thread.customerName || 'Customer';
+      }
+    }
+
+    const resolvedPhoto = (!isAdminName ? thread.customerPhoto : undefined) || profile?.photoURL;
+    const resolvedEmail = (!isAdminName ? thread.customerEmail : undefined) || profile?.email || matchingOrder?.customerEmail;
+    const resolvedId = rawCustId || profile?.uid || matchingOrder?.customerId || thread.id;
+
+    return {
+      name: resolvedName,
+      photo: resolvedPhoto,
+      email: resolvedEmail,
+      id: resolvedId,
+      profile,
+      shortId: profile?.shortId || (resolvedId && resolvedId.length > 5 ? resolvedId.slice(0, 5).toUpperCase() : resolvedId)
+    };
+  };
+
   threads.forEach((t) => {
-    if (t.customerId && t.customerId !== currentUserId && t.customerName.toLowerCase() !== 'admin') {
-      customerMap.set(t.customerId, {
-        id: t.customerId,
-        name: t.customerName,
-        email: t.customerEmail,
-        orderCount: orders.filter((o) => o.customerId === t.customerId || o.customerName === t.customerName).length,
+    const custInfo = getThreadCustomerInfo(t);
+    if (custInfo.id && custInfo.id !== currentUserId && custInfo.name.toLowerCase() !== 'admin') {
+      customerMap.set(custInfo.id, {
+        id: custInfo.id,
+        name: custInfo.name,
+        email: custInfo.email,
+        orderCount: orders.filter((o) => o.customerId === custInfo.id || o.customerName === custInfo.name).length,
         hasThread: true,
       });
     }
@@ -214,7 +280,7 @@ export function AdminChatView({
         name: o.customerName || 'Customer',
         email: o.customerEmail,
         orderCount: orders.filter((ord) => ord.customerId === o.customerId || ord.customerName === o.customerName).length,
-        hasThread: threads.some((t) => t.customerId === custId || t.customerName.toLowerCase() === o.customerName.toLowerCase()),
+        hasThread: threads.some((t) => t.customerId === custId || t.id === `thread_${custId}` || t.customerName.toLowerCase() === o.customerName.toLowerCase()),
       });
     }
   });
@@ -231,7 +297,7 @@ export function AdminChatView({
     try {
       setSending(true);
       const existingThread = threads.find(
-        (t) => t.customerId === cust.id || t.customerName.toLowerCase() === cust.name.toLowerCase()
+        (t) => t.customerId === cust.id || t.id === `thread_${cust.id}` || (t.customerName && cust.name && t.customerName.toLowerCase() === cust.name.toLowerCase())
       );
 
       const messageText = greeting?.trim() || 'Hello! How can we assist you with your order today?';
@@ -245,6 +311,9 @@ export function AdminChatView({
             senderRole: 'admin',
             senderId: currentUserId || 'admin',
             senderName: 'Admin',
+            recipientCustomerId: cust.id,
+            recipientCustomerName: cust.name,
+            recipientCustomerEmail: cust.email,
           });
         }
       } else {
@@ -308,12 +377,14 @@ export function AdminChatView({
   }, [messages, activeThreadId]);
 
   const activeThread = threads.find((t) => t.id === activeThreadId);
+  const activeCustInfo = getThreadCustomerInfo(activeThread);
 
   // Filter threads based on search and status
   const filteredThreads = threads.filter((t) => {
+    const custInfo = getThreadCustomerInfo(t);
     const matchesSearch = 
-      t.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.customerEmail && t.customerEmail.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      custInfo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (custInfo.email && custInfo.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
       t.lastMessage.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (!matchesSearch) return false;
@@ -332,8 +403,9 @@ export function AdminChatView({
   // Find customer's recent orders
   const customerOrders = orders.filter((o) => {
     if (!activeThread) return false;
-    if (activeThread.customerId && o.customerId === activeThread.customerId) return true;
-    if (o.customerName.toLowerCase().trim() === activeThread.customerName.toLowerCase().trim()) return true;
+    if (activeCustInfo.id && (o.customerId === activeCustInfo.id || o.customerId === activeThread.customerId)) return true;
+    if (activeCustInfo.email && o.customerEmail && o.customerEmail.toLowerCase() === activeCustInfo.email.toLowerCase()) return true;
+    if (activeCustInfo.name && o.customerName && o.customerName.toLowerCase().trim() === activeCustInfo.name.toLowerCase().trim()) return true;
     return false;
   }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
@@ -381,7 +453,10 @@ export function AdminChatView({
               threadId: activeThreadId || undefined,
               text: '',
               audioUrl: base64Audio,
-              audioDuration: recordingSeconds || 3
+              audioDuration: recordingSeconds || 3,
+              recipientCustomerId: activeCustInfo.id,
+              recipientCustomerName: activeCustInfo.name,
+              recipientCustomerEmail: activeCustInfo.email,
             });
           } catch (e) {
             console.error('Failed to send voice recording:', e);
@@ -440,7 +515,10 @@ export function AdminChatView({
       await onSendMessage({
         threadId: activeThreadId,
         text: textToSend,
-        imageUrl: imgToSend || undefined
+        imageUrl: imgToSend || undefined,
+        recipientCustomerId: activeCustInfo.id,
+        recipientCustomerName: activeCustInfo.name,
+        recipientCustomerEmail: activeCustInfo.email,
       });
     } catch (err) {
       console.error('Failed to send admin chat message:', err);
@@ -458,6 +536,9 @@ export function AdminChatView({
       await onSendMessage({
         threadId: activeThreadId,
         text: `We recommend trying our ${product.name}!`,
+        recipientCustomerId: activeCustInfo.id,
+        recipientCustomerName: activeCustInfo.name,
+        recipientCustomerEmail: activeCustInfo.email,
         productCard: {
           id: product.id,
           name: product.name,
@@ -483,6 +564,9 @@ export function AdminChatView({
       await onSendMessage({
         threadId: activeThreadId,
         text: `Here are the details for Order #${order.id?.slice(-4)}:`,
+        recipientCustomerId: activeCustInfo.id,
+        recipientCustomerName: activeCustInfo.name,
+        recipientCustomerEmail: activeCustInfo.email,
         orderCard: {
           id: order.id || 'ORDER',
           total: order.total,
@@ -511,12 +595,12 @@ export function AdminChatView({
     const lines = messages.map(
       (m) => `[${new Date(m.createdAt).toLocaleString()}] ${m.senderName} (${m.senderRole}): ${m.text}`
     );
-    const textContent = `Chat Transcript for ${activeThread.customerName}\nCustomer ID: ${activeThread.customerId}\n-----------------------------------\n${lines.join('\n')}`;
+    const textContent = `Chat Transcript for ${activeCustInfo.name}\nCustomer ID: ${activeCustInfo.id}\nCustomer Email: ${activeCustInfo.email || 'N/A'}\n-----------------------------------\n${lines.join('\n')}`;
     const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `chat_${activeThread.customerName.replace(/\s+/g, '_')}_${Date.now()}.txt`;
+    a.download = `chat_${activeCustInfo.name.replace(/\s+/g, '_')}_${Date.now()}.txt`;
     a.click();
   };
 
@@ -750,6 +834,7 @@ export function AdminChatView({
                 const hasUnread = thread.unreadCountAdmin > 0;
                 // Mock online status: active if last message within 24 hours
                 const isOnline = new Date().getTime() - new Date(thread.lastMessageAt).getTime() < 3600000 * 24;
+                const custInfo = getThreadCustomerInfo(thread);
 
                 return (
                   <div
@@ -764,10 +849,10 @@ export function AdminChatView({
                     {/* Avatar with Status Badge */}
                     <div className="relative shrink-0">
                       <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-white/5 text-slate-800 dark:text-slate-200 flex items-center justify-center font-black text-sm uppercase border border-black/5 dark:border-white/10 overflow-hidden shadow-inner">
-                        {thread.customerPhoto ? (
-                          <img src={thread.customerPhoto} alt={thread.customerName} className="w-full h-full object-cover" />
+                        {custInfo.photo ? (
+                          <img src={custInfo.photo} alt={custInfo.name} className="w-full h-full object-cover" />
                         ) : (
-                          thread.customerName.charAt(0) || 'C'
+                          custInfo.name.charAt(0) || 'C'
                         )}
                       </div>
                       {isOnline && (
@@ -779,7 +864,7 @@ export function AdminChatView({
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline mb-0.5">
                         <h4 className={`text-xs font-bold text-slate-900 dark:text-white truncate ${hasUnread ? 'font-extrabold' : ''}`}>
-                          {thread.customerName}
+                          {custInfo.name}
                         </h4>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
                           {new Date(thread.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -838,22 +923,27 @@ export function AdminChatView({
 
                   <div className="relative">
                     <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center font-black text-sm uppercase shrink-0 border border-amber-500/20 overflow-hidden shadow-inner">
-                      {activeThread.customerPhoto ? (
-                        <img src={activeThread.customerPhoto} alt={activeThread.customerName} className="w-full h-full object-cover" />
+                      {activeCustInfo.photo ? (
+                        <img src={activeCustInfo.photo} alt={activeCustInfo.name} className="w-full h-full object-cover" />
                       ) : (
-                        activeThread.customerName.charAt(0)
+                        activeCustInfo.name.charAt(0) || 'C'
                       )}
                     </div>
                     <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-[#0c1220]" />
                   </div>
 
                   <div className="min-w-0">
-                    <h3 className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
-                      {activeThread.customerName}
+                    <h3 className="font-extrabold text-sm text-slate-900 dark:text-white truncate flex items-center gap-1.5">
+                      <span>{activeCustInfo.name}</span>
+                      {activeCustInfo.shortId && (
+                        <span className="text-[9px] font-mono font-black bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1.5 py-0.2 rounded uppercase">
+                          #{activeCustInfo.shortId}
+                        </span>
+                      )}
                     </h3>
                     <p className="text-[10px] text-green-500 dark:text-green-400 font-bold flex items-center gap-1 mt-0.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                      <span>Active Now</span>
+                      <span>Active Customer</span>
                     </p>
                   </div>
                 </div>
@@ -1040,7 +1130,7 @@ export function AdminChatView({
                         {!isConsecutiveWithPrev && (
                           <div className="flex items-center gap-2 mb-1 px-1 text-[10px] font-bold text-slate-400">
                             <span>
-                              {isAdminMsg ? 'Store Staff' : msg.senderName || 'Customer'}
+                              {isAdminMsg ? 'Store Staff' : (msg.senderName && msg.senderName.toLowerCase() !== 'admin' ? msg.senderName : (activeCustInfo.name || 'Customer'))}
                             </span>
                             <span>•</span>
                             <span>
@@ -1386,17 +1476,17 @@ export function AdminChatView({
           <div className="hidden lg:flex lg:col-span-3 flex-col h-full min-h-0 overflow-y-auto p-6 space-y-6 shadow-sm border-l border-black/5 dark:border-white/5 bg-white dark:bg-[#0c1220]">
             <div className="text-center pb-6 border-b border-slate-100 dark:border-white/5">
               <div className="w-20 h-20 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center font-black text-2xl uppercase mx-auto mb-3 border border-amber-500/20 shadow-inner overflow-hidden">
-                {activeThread.customerPhoto ? (
-                  <img src={activeThread.customerPhoto} alt={activeThread.customerName} className="w-full h-full object-cover" />
+                {activeCustInfo.photo ? (
+                  <img src={activeCustInfo.photo} alt={activeCustInfo.name} className="w-full h-full object-cover" />
                 ) : (
-                  activeThread.customerName.charAt(0)
+                  activeCustInfo.name.charAt(0) || 'C'
                 )}
               </div>
               <h3 className="font-extrabold text-base text-slate-900 dark:text-white tracking-tight">
-                {activeThread.customerName}
+                {activeCustInfo.name}
               </h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
-                {activeThread.customerEmail || 'Walk-In Customer'}
+                {activeCustInfo.email || 'Walk-In Customer'}
               </p>
             </div>
 
@@ -1407,7 +1497,7 @@ export function AdminChatView({
               </h4>
               <button
                 type="button"
-                onClick={() => alert(`View complete customer loyalty profile for ${activeThread.customerName}`)}
+                onClick={() => alert(`View complete customer loyalty profile for ${activeCustInfo.name}`)}
                 className="w-full py-2 px-3 bg-slate-50 dark:bg-white/5 hover:bg-amber-500/10 hover:text-amber-500 rounded-xl text-left text-xs font-bold transition-all text-slate-700 dark:text-slate-300 flex items-center justify-between"
               >
                 <span>View Loyalty Profile</span>
@@ -1415,7 +1505,7 @@ export function AdminChatView({
               </button>
               <button
                 type="button"
-                onClick={() => alert(`Customize nickname template for ${activeThread.customerName}`)}
+                onClick={() => alert(`Customize nickname template for ${activeCustInfo.name}`)}
                 className="w-full py-2 px-3 bg-slate-50 dark:bg-white/5 hover:bg-amber-500/10 hover:text-amber-500 rounded-xl text-left text-xs font-bold transition-all text-slate-700 dark:text-slate-300 flex items-center justify-between"
               >
                 <span>Edit Nickname</span>

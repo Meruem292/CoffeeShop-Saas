@@ -285,8 +285,10 @@ export function AdminVouchers({ vouchers, categories = [], onAddVoucher, onUpdat
       </div>
 
       {(isAdding || editingId) && (
-        <div className="mb-8">
-          {renderForm()}
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto my-auto animate-in zoom-in-95 duration-200">
+            {renderForm()}
+          </div>
         </div>
       )}
 

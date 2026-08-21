@@ -406,337 +406,357 @@ export function AdminProducts({
         {activeTab === 'products' && (
           <>
             {(isAdding || isEditing) && (
-              <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-black/10 dark:border-white/10 mb-6 sm:mb-8 animate-in fade-in slide-in-from-top-4">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 uppercase tracking-widest">{isEditing ? 'Edit Product' : 'Add New Product'}</h2>
-                <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Name</label>
-                    <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#11141e] border border-black/10 dark:border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative animate-in zoom-in-95 duration-200 my-auto">
+                  <div className="flex items-center justify-between pb-4 mb-6 border-b border-black/10 dark:border-white/10 sticky -top-5 sm:-top-8 bg-white dark:bg-[#11141e] z-20 pt-1">
                     <div>
-                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Category</label>
-                      <select 
-                        value={formData.category} 
-                        onChange={e => setFormData({ ...formData, category: e.target.value })} 
-                        className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white appearance-none"
-                      >
-                        {availableCategories.map(cat => (
-                          <option key={cat} value={cat} className="bg-white dark:bg-[#111115]">{cat}</option>
-                        ))}
-                      </select>
+                      <h2 className="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-widest flex items-center gap-2.5">
+                        <Edit2 className="w-5 h-5 text-amber-500" />
+                        {isEditing ? 'Edit Product' : 'Add New Product'}
+                      </h2>
+                      <p className="text-xs text-coffee-500 font-bold uppercase tracking-wider mt-0.5">
+                        {isEditing ? `Configure parameters for "${formData.name || 'Product'}"` : 'Configure item for POS, Kiosk, and Mobile catalog'}
+                      </p>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={cancelEdit}
+                      className="p-2.5 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                      title="Close modal"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Name</label>
+                      <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Category</label>
+                        <select 
+                          value={formData.category} 
+                          onChange={e => setFormData({ ...formData, category: e.target.value })} 
+                          className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white appearance-none"
+                        >
+                          {availableCategories.map(cat => (
+                            <option key={cat} value={cat} className="bg-white dark:bg-[#111115]">{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Sub-Category</label>
+                        <select 
+                          value={formData.subCategory || ''} 
+                          onChange={e => setFormData({ ...formData, subCategory: e.target.value })} 
+                          className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white appearance-none"
+                        >
+                          <option value="" className="bg-white dark:bg-[#111115]">None (All)</option>
+                          {formData.category.toLowerCase().includes('food') || formData.category.toLowerCase().includes('pastry') ? (
+                            <>
+                              <option value="Pastry" className="bg-white dark:bg-[#111115]">Pastry</option>
+                              <option value="Dessert" className="bg-white dark:bg-[#111115]">Dessert</option>
+                              <option value="Meal" className="bg-white dark:bg-[#111115]">Meal</option>
+                              <option value="Snack" className="bg-white dark:bg-[#111115]">Snack</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="Classic" className="bg-white dark:bg-[#111115]">Classic</option>
+                              <option value="Premium" className="bg-white dark:bg-[#111115]">Premium</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Sub-Category</label>
-                      <select 
-                        value={formData.subCategory || ''} 
-                        onChange={e => setFormData({ ...formData, subCategory: e.target.value })} 
-                        className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white appearance-none"
-                      >
-                        <option value="" className="bg-white dark:bg-[#111115]">None (All)</option>
-                        {formData.category.toLowerCase().includes('food') || formData.category.toLowerCase().includes('pastry') ? (
-                          <>
-                            <option value="Pastry" className="bg-white dark:bg-[#111115]">Pastry</option>
-                            <option value="Dessert" className="bg-white dark:bg-[#111115]">Dessert</option>
-                            <option value="Meal" className="bg-white dark:bg-[#111115]">Meal</option>
-                            <option value="Snack" className="bg-white dark:bg-[#111115]">Snack</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="Classic" className="bg-white dark:bg-[#111115]">Classic</option>
-                            <option value="Premium" className="bg-white dark:bg-[#111115]">Premium</option>
-                          </>
-                        )}
-                      </select>
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Base Price (₱)</label>
+                      <input 
+                        required 
+                        type="number" 
+                        step="0.01" 
+                        min="0" 
+                        placeholder="0.00"
+                        value={formData.price || ''} 
+                        onFocus={(e) => e.target.select()} 
+                        onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })} 
+                        className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
+                      />
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Base Price (₱)</label>
-                    <input 
-                      required 
-                      type="number" 
-                      step="0.01" 
-                      min="0" 
-                      placeholder="0.00"
-                      value={formData.price || ''} 
-                      onFocus={(e) => e.target.select()} 
-                      onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })} 
-                      className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Product Cost (₱) <span className="text-[10px] text-amber-500 font-normal">(COGS)</span></label>
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      min="0" 
-                      placeholder="0.00"
-                      value={formData.cost !== undefined ? formData.cost : ''} 
-                      onFocus={(e) => e.target.select()} 
-                      onChange={e => setFormData({ ...formData, cost: parseFloat(e.target.value) || 0 })} 
-                      className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Product Image</label>
-                    <div className="flex gap-4 mb-4">
-                      <button
-                        type="button"
-                        onClick={() => setImageInputMode('upload')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${
-                          imageInputMode === 'upload' ? 'bg-amber-500 text-black shadow-md' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
-                        }`}
-                      >
-                        Upload Photo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setImageInputMode('url')}
-                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${
-                          imageInputMode === 'url' ? 'bg-amber-500 text-black shadow-md' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
-                        }`}
-                      >
-                        Image URL
-                      </button>
+                    <div>
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Product Cost (₱) <span className="text-[10px] text-amber-500 font-normal">(COGS)</span></label>
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        min="0" 
+                        placeholder="0.00"
+                        value={formData.cost !== undefined ? formData.cost : ''} 
+                        onFocus={(e) => e.target.select()} 
+                        onChange={e => setFormData({ ...formData, cost: parseFloat(e.target.value) || 0 })} 
+                        className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
+                      />
                     </div>
-
-                    {imageInputMode === 'upload' ? (
-                      <div className="space-y-4">
-                        <div 
-                          className={`relative border-2 border-dashed rounded-3xl p-6 text-center transition-all flex flex-col items-center justify-center min-h-[180px] ${
-                            uploading ? 'border-amber-500/50 bg-amber-500/5' : 
-                            uploadError ? 'border-red-500/30 bg-red-500/5' : 
-                            formData.image ? 'border-green-500/30 bg-green-500/5' : 
-                            'border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 bg-black/5 dark:bg-white/5'
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Product Image</label>
+                      <div className="flex gap-4 mb-4">
+                        <button
+                          type="button"
+                          onClick={() => setImageInputMode('upload')}
+                          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            imageInputMode === 'upload' ? 'bg-amber-500 text-black shadow-md' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
                           }`}
                         >
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            onChange={handleFileChange}
-                            disabled={uploading}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
-                          />
-                          
-                          {uploading ? (
-                            <div className="flex flex-col items-center gap-3">
-                              <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                              <p className="text-xs font-black text-amber-500 uppercase tracking-widest animate-pulse">Uploading to Supabase Storage...</p>
-                            </div>
-                          ) : formData.image ? (
-                            <div className="flex flex-col md:flex-row items-center gap-6 w-full p-2">
-                              <img 
-                                src={formData.image || undefined} 
-                                alt="Preview" 
-                                className="w-24 h-24 rounded-2xl object-cover border border-black/10 dark:border-white/10 shadow-lg shrink-0" 
-                                referrerPolicy="no-referrer"
-                              />
-                              <div className="text-left flex-1 min-w-0">
-                                <div className="flex items-center gap-2 text-green-500 font-bold text-xs uppercase tracking-wider mb-1">
-                                  <Check className="w-4 h-4" /> Uploaded Successfully
+                          Upload Photo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setImageInputMode('url')}
+                          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${
+                            imageInputMode === 'url' ? 'bg-amber-500 text-black shadow-md' : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
+                          }`}
+                        >
+                          Image URL
+                        </button>
+                      </div>
+
+                      {imageInputMode === 'upload' ? (
+                        <div className="space-y-4">
+                          <div 
+                            className={`relative border-2 border-dashed rounded-3xl p-6 text-center transition-all flex flex-col items-center justify-center min-h-[180px] ${
+                              uploading ? 'border-amber-500/50 bg-amber-500/5' : 
+                              uploadError ? 'border-red-500/30 bg-red-500/5' : 
+                              formData.image ? 'border-green-500/30 bg-green-500/5' : 
+                              'border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 bg-black/5 dark:bg-white/5'
+                            }`}
+                          >
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              onChange={handleFileChange}
+                              disabled={uploading}
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                            />
+                            
+                            {uploading ? (
+                              <div className="flex flex-col items-center gap-3">
+                                <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                                <p className="text-xs font-black text-amber-500 uppercase tracking-widest animate-pulse">Uploading to Supabase Storage...</p>
+                              </div>
+                            ) : formData.image ? (
+                              <div className="flex flex-col md:flex-row items-center gap-6 w-full p-2">
+                                <img 
+                                  src={formData.image || undefined} 
+                                  alt="Preview" 
+                                  className="w-24 h-24 rounded-2xl object-cover border border-black/10 dark:border-white/10 shadow-lg shrink-0" 
+                                  referrerPolicy="no-referrer"
+                                />
+                                <div className="text-left flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 text-green-500 font-bold text-xs uppercase tracking-wider mb-1">
+                                    <Check className="w-4 h-4" /> Uploaded Successfully
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 dark:text-white/40 break-all font-mono line-clamp-1">{formData.image}</p>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setFormData({ ...formData, image: '' })}
+                                    className="mt-3 text-[10px] font-black text-red-400 hover:text-red-300 uppercase tracking-widest bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 cursor-pointer"
+                                  >
+                                    Remove Photo
+                                  </button>
                                 </div>
-                                <p className="text-[10px] text-slate-500 dark:text-white/40 break-all font-mono line-clamp-1">{formData.image}</p>
-                                <button 
-                                  type="button" 
-                                  onClick={() => setFormData({ ...formData, image: '' })}
-                                  className="mt-3 text-[10px] font-black text-red-400 hover:text-red-300 uppercase tracking-widest bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 cursor-pointer"
-                                >
-                                  Remove Photo
-                                </button>
                               </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-3 py-4">
+                                <div className="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-white/60">
+                                  <Upload className="w-6 h-6" />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Drag & drop your product photo here</p>
+                                  <p className="text-[10px] text-slate-500 dark:text-white/40 font-bold mt-1 uppercase tracking-widest">or click to browse files (PNG, JPG, WEBP)</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {uploadError && (
+                            <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium space-y-2">
+                              <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
+                                <AlertTriangle className="w-4 h-4" /> Upload Failed
+                              </div>
+                              <p className="opacity-90 text-[11px] leading-relaxed">{uploadError}</p>
+                              
+                              {!isSupabaseConfigured() && (
+                                <div className="mt-4 p-4 rounded-xl bg-slate-200 dark:bg-black/40 border border-red-500/10 text-[10px] leading-relaxed text-slate-600 dark:text-white/70 space-y-2">
+                                  <p className="font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                                    <Info className="w-3.5 h-3.5 text-amber-500" /> SUPABASE ENVIRONMENT CONFIGURATION REQUIRED
+                                  </p>
+                                  <p>
+                                    To enable direct image uploads, you must configure your Supabase variables. Open the <strong>Secrets panel</strong> (or the <strong>Settings menu</strong>) in AI Studio and add:
+                                  </p>
+                                  <ul className="list-disc list-inside space-y-1 font-mono text-[9px] text-amber-300">
+                                    <li>VITE_SUPABASE_URL</li>
+                                    <li>VITE_SUPABASE_ANON_KEY</li>
+                                  </ul>
+                                  <p className="mt-2">
+                                    Also, remember to create a <strong>Public bucket</strong> named <code className="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-slate-900 dark:text-white font-mono">product-images</code> in your Supabase dashboard Storage settings!
+                                  </p>
+                                </div>
+                              )}
                             </div>
-                          ) : (
-                            <div className="flex flex-col items-center gap-3 py-4">
-                              <div className="w-12 h-12 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-white/60">
-                                <Upload className="w-6 h-6" />
-                              </div>
-                              <div>
-                                <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Drag & drop your product photo here</p>
-                                <p className="text-[10px] text-slate-500 dark:text-white/40 font-bold mt-1 uppercase tracking-widest">or click to browse files (PNG, JPG, WEBP)</p>
+                          )}
+
+                          {!isSupabaseConfigured() && !uploadError && (
+                            <div className="p-4 rounded-2xl bg-slate-50/50 dark:bg-[#131722]/50 border border-black/10 dark:border-white/5 text-[11px] leading-relaxed text-slate-600 dark:text-white/60 space-y-2">
+                              <p className="font-black text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
+                                <Info className="w-4 h-4" /> Supabase Storage Setup Checklist:
+                              </p>
+                              <ol className="list-decimal list-inside space-y-1.5 pl-1">
+                                <li>Log in to your <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-amber-500 underline hover:text-amber-400">Supabase Dashboard</a>.</li>
+                                <li>Go to <strong>Storage</strong> and create a new bucket named <code className="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-slate-900 dark:text-white font-mono text-[10px]">product-images</code>.</li>
+                                <li>Toggle <strong>"Public bucket"</strong> to <span className="text-green-500 font-bold">Enabled</span> so files can be accessed publicly.</li>
+                                <li>Define <code className="bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-slate-900 dark:text-white font-mono text-[10px]">VITE_SUPABASE_URL</code> and <code className="bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-slate-900 dark:text-white font-mono text-[10px]">VITE_SUPABASE_ANON_KEY</code> in your environment secrets.</li>
+                              </ol>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <input 
+                            required={imageInputMode === 'url'} 
+                            type="url" 
+                            value={formData.image} 
+                            onChange={e => setFormData({ ...formData, image: e.target.value })} 
+                            className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-white/25" 
+                            placeholder="https://example.com/image.jpg"
+                          />
+                          {formData.image && (
+                            <div className="mt-4 flex items-center gap-4 p-3 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/5">
+                              <img src={formData.image || undefined} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-black/10 dark:border-white/5" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=300&q=80' }} />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Image URL Preview</p>
+                                <p className="text-xs text-slate-600 dark:text-white/60 truncate font-mono mt-0.5">{formData.image}</p>
                               </div>
                             </div>
                           )}
                         </div>
-
-                        {uploadError && (
-                          <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium space-y-2">
-                            <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
-                              <AlertTriangle className="w-4 h-4" /> Upload Failed
-                            </div>
-                            <p className="opacity-90 text-[11px] leading-relaxed">{uploadError}</p>
-                            
-                            {!isSupabaseConfigured() && (
-                              <div className="mt-4 p-4 rounded-xl bg-slate-200 dark:bg-black/40 border border-red-500/10 text-[10px] leading-relaxed text-slate-600 dark:text-white/70 space-y-2">
-                                <p className="font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                                  <Info className="w-3.5 h-3.5 text-amber-500" /> SUPABASE ENVIRONMENT CONFIGURATION REQUIRED
-                                </p>
-                                <p>
-                                  To enable direct image uploads, you must configure your Supabase variables. Open the <strong>Secrets panel</strong> (or the <strong>Settings menu</strong>) in AI Studio and add:
-                                </p>
-                                <ul className="list-disc list-inside space-y-1 font-mono text-[9px] text-amber-300">
-                                  <li>VITE_SUPABASE_URL</li>
-                                  <li>VITE_SUPABASE_ANON_KEY</li>
-                                </ul>
-                                <p className="mt-2">
-                                  Also, remember to create a <strong>Public bucket</strong> named <code className="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-slate-900 dark:text-white font-mono">product-images</code> in your Supabase dashboard Storage settings!
-                                </p>
+                      )}
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Description</label>
+                      <textarea required value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white h-24" rows={2} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Barista Mixture Guide (Kitchen Only)</label>
+                      <textarea value={formData.mixtureGuide || ''} onChange={e => setFormData({ ...formData, mixtureGuide: e.target.value })} placeholder="e.g. 2 shots espresso, 1 pump vanilla, steamed milk" className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white h-24" rows={2} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Initial Stock</label>
+                      <input 
+                        required 
+                        type="number" 
+                        min="0" 
+                        placeholder="0"
+                        value={formData.stock || ''} 
+                        onFocus={(e) => e.target.select()} 
+                        onChange={e => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })} 
+                        className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Unit</label>
+                      <input required type="text" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" placeholder="e.g. cups, kg, pcs" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Low Stock Threshold</label>
+                      <input 
+                        required 
+                        type="number" 
+                        min="0" 
+                        placeholder="0"
+                        value={formData.lowStockThreshold || ''} 
+                        onFocus={(e) => e.target.select()} 
+                        onChange={e => setFormData({ ...formData, lowStockThreshold: parseInt(e.target.value) || 0 })} 
+                        className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
+                      />
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 pt-2 sm:pt-4 md:col-span-2">
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" id="isActive" checked={formData.isActive} onChange={e => setFormData({ ...formData, isActive: e.target.checked })} className="w-5 h-5 text-amber-600 rounded-lg focus:ring-amber-500 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5" />
+                        <label htmlFor="isActive" className="text-xs font-black text-coffee-500 uppercase tracking-widest">Available for Sale</label>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" id="isCustomizable" checked={formData.isCustomizable} onChange={e => setFormData({ ...formData, isCustomizable: e.target.checked })} className="w-5 h-5 text-purple-600 rounded-lg focus:ring-purple-500 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5" />
+                        <label htmlFor="isCustomizable" className="text-xs font-black text-coffee-500 uppercase tracking-widest">Allow Customization</label>
+                      </div>
+                    </div>
+                    
+                    <div className="md:col-span-2 bg-black/5 dark:bg-white/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-black/10 dark:border-white/5">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Sizes / Variants</h3>
+                        <button type="button" onClick={handleAddSize} className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 bg-black/10 dark:bg-white/10 border border-black/10 dark:border-white/10 px-4 py-2 rounded-xl hover:bg-black/20 dark:hover:bg-white/20 transition-all text-slate-900 dark:text-white">
+                          <Plus className="w-3.5 h-3.5" /> Add Size/Variant
+                        </button>
+                      </div>
+                      {formData.sizes && formData.sizes.length > 0 ? (
+                        <div className="space-y-4">
+                          {formData.sizes.map((size, index) => (
+                            <div key={index} className="flex gap-4 items-end animate-in fade-in slide-in-from-left-2">
+                              <div className="flex-1">
+                                <label className="block text-[10px] uppercase font-black text-coffee-600 mb-2 tracking-widest">Size Name</label>
+                                <input 
+                                  type="text" 
+                                  required
+                                  value={size.name} 
+                                  onChange={e => handleSizeChange(index, 'name', e.target.value)}
+                                  className="w-full p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-xl text-slate-900 dark:text-white font-bold"
+                                />
                               </div>
-                            )}
-                          </div>
-                        )}
-
-                        {!isSupabaseConfigured() && !uploadError && (
-                          <div className="p-4 rounded-2xl bg-slate-50/50 dark:bg-[#131722]/50 border border-black/10 dark:border-white/5 text-[11px] leading-relaxed text-slate-600 dark:text-white/60 space-y-2">
-                            <p className="font-black text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
-                              <Info className="w-4 h-4" /> Supabase Storage Setup Checklist:
-                            </p>
-                            <ol className="list-decimal list-inside space-y-1.5 pl-1">
-                              <li>Log in to your <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-amber-500 underline hover:text-amber-400">Supabase Dashboard</a>.</li>
-                              <li>Go to <strong>Storage</strong> and create a new bucket named <code className="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-slate-900 dark:text-white font-mono text-[10px]">product-images</code>.</li>
-                              <li>Toggle <strong>"Public bucket"</strong> to <span className="text-green-500 font-bold">Enabled</span> so files can be accessed publicly.</li>
-                              <li>Define <code className="bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-slate-900 dark:text-white font-mono text-[10px]">VITE_SUPABASE_URL</code> and <code className="bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-slate-900 dark:text-white font-mono text-[10px]">VITE_SUPABASE_ANON_KEY</code> in your environment secrets.</li>
-                            </ol>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div>
-                        <input 
-                          required={imageInputMode === 'url'} 
-                          type="url" 
-                          value={formData.image} 
-                          onChange={e => setFormData({ ...formData, image: e.target.value })} 
-                          className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white placeholder:text-white/25" 
-                          placeholder="https://example.com/image.jpg"
-                        />
-                        {formData.image && (
-                          <div className="mt-4 flex items-center gap-4 p-3 bg-black/5 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/5">
-                            <img src={formData.image || undefined} alt="Preview" className="w-16 h-16 rounded-xl object-cover border border-black/10 dark:border-white/5" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=300&q=80' }} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[10px] font-black text-coffee-500 uppercase tracking-widest">Image URL Preview</p>
-                              <p className="text-xs text-slate-600 dark:text-white/60 truncate font-mono mt-0.5">{formData.image}</p>
+                              <div className="w-32">
+                                <label className="block text-[10px] uppercase font-black text-coffee-600 mb-2 tracking-widest">Price (₱)</label>
+                                <input 
+                                  type="number" 
+                                  required
+                                  min="0"
+                                  step="0.01"
+                                  placeholder="0.00"
+                                  value={size.price || ''} 
+                                  onFocus={(e) => e.target.select()}
+                                  onChange={e => handleSizeChange(index, 'price', parseFloat(e.target.value) || 0)}
+                                  className="w-full p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-xl text-slate-900 dark:text-white font-bold"
+                                />
+                              </div>
+                              <div className="w-32">
+                                <label className="block text-[10px] uppercase font-black text-coffee-600 mb-2 tracking-widest">Cost (₱)</label>
+                                <input 
+                                  type="number" 
+                                  min="0" 
+                                  step="0.01" 
+                                  placeholder="0.00"
+                                  value={size.cost !== undefined ? size.cost : ''} 
+                                  onFocus={(e) => e.target.select()}
+                                  onChange={e => handleSizeChange(index, 'cost', parseFloat(e.target.value) || 0)}
+                                  className="w-full p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-xl text-slate-900 dark:text-white font-bold"
+                                />
+                              </div>
+                              <button type="button" onClick={() => handleRemoveSize(index)} className="p-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all">
+                                <Trash2 className="w-5 h-5" />
+                              </button>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Description</label>
-                    <textarea required value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white h-24" rows={2} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Barista Mixture Guide (Kitchen Only)</label>
-                    <textarea value={formData.mixtureGuide || ''} onChange={e => setFormData({ ...formData, mixtureGuide: e.target.value })} placeholder="e.g. 2 shots espresso, 1 pump vanilla, steamed milk" className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white h-24" rows={2} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Initial Stock</label>
-                    <input 
-                      required 
-                      type="number" 
-                      min="0" 
-                      placeholder="0"
-                      value={formData.stock || ''} 
-                      onFocus={(e) => e.target.select()} 
-                      onChange={e => setFormData({ ...formData, stock: parseInt(e.target.value) || 0 })} 
-                      className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Unit</label>
-                    <input required type="text" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" placeholder="e.g. cups, kg, pcs" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Low Stock Threshold</label>
-                    <input 
-                      required 
-                      type="number" 
-                      min="0" 
-                      placeholder="0"
-                      value={formData.lowStockThreshold || ''} 
-                      onFocus={(e) => e.target.select()} 
-                      onChange={e => setFormData({ ...formData, lowStockThreshold: parseInt(e.target.value) || 0 })} 
-                      className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
-                    />
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 pt-2 sm:pt-4 md:col-span-2">
-                    <div className="flex items-center gap-3">
-                      <input type="checkbox" id="isActive" checked={formData.isActive} onChange={e => setFormData({ ...formData, isActive: e.target.checked })} className="w-5 h-5 text-amber-600 rounded-lg focus:ring-amber-500 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5" />
-                      <label htmlFor="isActive" className="text-xs font-black text-coffee-500 uppercase tracking-widest">Available for Sale</label>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-coffee-700 italic uppercase tracking-widest">No sizes defined. Base price will be used.</p>
+                      )}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <input type="checkbox" id="isCustomizable" checked={formData.isCustomizable} onChange={e => setFormData({ ...formData, isCustomizable: e.target.checked })} className="w-5 h-5 text-purple-600 rounded-lg focus:ring-purple-500 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5" />
-                      <label htmlFor="isCustomizable" className="text-xs font-black text-coffee-500 uppercase tracking-widest">Allow Customization</label>
-                    </div>
-                  </div>
-                  
-                  <div className="md:col-span-2 bg-black/5 dark:bg-white/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-black/10 dark:border-white/5">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">Sizes / Variants</h3>
-                      <button type="button" onClick={handleAddSize} className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2 bg-black/10 dark:bg-white/10 border border-black/10 dark:border-white/10 px-4 py-2 rounded-xl hover:bg-black/20 dark:hover:bg-white/20 transition-all text-slate-900 dark:text-white">
-                        <Plus className="w-3.5 h-3.5" /> Add Size/Variant
+
+                    <div className="md:col-span-2 flex justify-end gap-4 mt-6 pt-4 border-t border-black/10 dark:border-white/10">
+                      <button type="button" onClick={cancelEdit} className="px-8 py-3.5 text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white transition-all font-black uppercase tracking-widest text-xs">Cancel</button>
+                      <button type="submit" className="px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-95">
+                        {isEditing ? 'Save Changes' : 'Create Product'}
                       </button>
                     </div>
-                    {formData.sizes && formData.sizes.length > 0 ? (
-                      <div className="space-y-4">
-                        {formData.sizes.map((size, index) => (
-                          <div key={index} className="flex gap-4 items-end animate-in fade-in slide-in-from-left-2">
-                            <div className="flex-1">
-                              <label className="block text-[10px] uppercase font-black text-coffee-600 mb-2 tracking-widest">Size Name</label>
-                              <input 
-                                type="text" 
-                                required
-                                value={size.name} 
-                                onChange={e => handleSizeChange(index, 'name', e.target.value)}
-                                className="w-full p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-xl text-slate-900 dark:text-white font-bold"
-                              />
-                            </div>
-                            <div className="w-32">
-                              <label className="block text-[10px] uppercase font-black text-coffee-600 mb-2 tracking-widest">Price (₱)</label>
-                              <input 
-                                type="number" 
-                                required
-                                min="0"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={size.price || ''} 
-                                onFocus={(e) => e.target.select()}
-                                onChange={e => handleSizeChange(index, 'price', parseFloat(e.target.value) || 0)}
-                                className="w-full p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-xl text-slate-900 dark:text-white font-bold"
-                              />
-                            </div>
-                            <div className="w-32">
-                              <label className="block text-[10px] uppercase font-black text-coffee-600 mb-2 tracking-widest">Cost (₱)</label>
-                              <input 
-                                type="number" 
-                                min="0"
-                                step="0.01"
-                                placeholder="0.00"
-                                value={size.cost !== undefined ? size.cost : ''} 
-                                onFocus={(e) => e.target.select()}
-                                onChange={e => handleSizeChange(index, 'cost', parseFloat(e.target.value) || 0)}
-                                className="w-full p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-xl text-slate-900 dark:text-white font-bold"
-                              />
-                            </div>
-                            <button type="button" onClick={() => handleRemoveSize(index)} className="p-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-all">
-                              <Trash2 className="w-5 h-5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-[10px] text-coffee-700 italic uppercase tracking-widest">No sizes defined. Base price will be used.</p>
-                    )}
-                  </div>
-
-                  <div className="md:col-span-2 flex justify-end gap-4 mt-6">
-                    <button type="button" onClick={cancelEdit} className="px-8 py-3.5 text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white transition-all font-black uppercase tracking-widest text-xs">Cancel</button>
-                    <button type="submit" className="px-8 py-3.5 bg-white text-black rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white/90 transition-all shadow-xl active:scale-95">
-                      {isEditing ? 'Save Changes' : 'Create Product'}
-                    </button>
-                  </div>
-                </form>
+                  </form>
+                </div>
               </div>
             )}
 
@@ -834,38 +854,58 @@ export function AdminProducts({
         {activeTab === 'addons' && (
           <>
             {(isAddingAddon || isEditingAddon) && (
-              <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-black/10 dark:border-white/10 mb-6 sm:mb-8 animate-in fade-in slide-in-from-top-4">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 uppercase tracking-widest">{isEditingAddon ? 'Edit Add-on' : 'Add New Add-on'}</h2>
-                <form onSubmit={handleAddonSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Add-on Name</label>
-                    <input required type="text" value={addonData.name} onChange={e => setAddonData({ ...addonData, name: e.target.value })} placeholder="e.g. Extra Shot, Almond Milk" className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Price (₱)</label>
-                    <input 
-                      required 
-                      type="number" 
-                      step="0.01" 
-                      min="0" 
-                      placeholder="0.00"
-                      value={addonData.price || ''} 
-                      onFocus={(e) => e.target.select()} 
-                      onChange={e => setAddonData({ ...addonData, price: parseFloat(e.target.value) || 0 })} 
-                      className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
-                    />
-                  </div>
-                  <div className="flex items-center gap-3 pt-2 md:col-span-2">
-                    <input type="checkbox" id="addonIsActive" checked={addonData.isActive} onChange={e => setAddonData({ ...addonData, isActive: e.target.checked })} className="w-5 h-5 text-amber-600 rounded-lg focus:ring-amber-500 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5" />
-                    <label htmlFor="addonIsActive" className="text-xs font-black text-coffee-500 uppercase tracking-widest">Available for Sale</label>
-                  </div>
-                  <div className="md:col-span-2 flex justify-end gap-4 mt-2">
-                    <button type="button" onClick={cancelAddonEdit} className="px-8 py-3.5 text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white transition-all font-black uppercase tracking-widest text-xs">Cancel</button>
-                    <button type="submit" className="px-8 py-3.5 bg-amber-600 text-slate-900 dark:text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-amber-500 transition-all shadow-xl active:scale-95">
-                      {isEditingAddon ? 'Save Add-on' : 'Create Add-on'}
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#11141e] border border-black/10 dark:border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto relative animate-in zoom-in-95 duration-200 my-auto">
+                  <div className="flex items-center justify-between pb-4 mb-6 border-b border-black/10 dark:border-white/10 sticky -top-5 sm:-top-8 bg-white dark:bg-[#11141e] z-20 pt-1">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-widest flex items-center gap-2.5">
+                        <Edit2 className="w-5 h-5 text-amber-500" />
+                        {isEditingAddon ? 'Edit Add-on' : 'Add New Add-on'}
+                      </h2>
+                      <p className="text-xs text-coffee-500 font-bold uppercase tracking-wider mt-0.5">
+                        {isEditingAddon ? `Configure "${addonData.name || 'Add-on'}" parameters` : 'Create optional customization for beverages/food'}
+                      </p>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={cancelAddonEdit}
+                      className="p-2.5 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                      title="Close modal"
+                    >
+                      <X className="w-5 h-5" />
                     </button>
                   </div>
-                </form>
+                  <form onSubmit={handleAddonSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Add-on Name</label>
+                      <input required type="text" value={addonData.name} onChange={e => setAddonData({ ...addonData, name: e.target.value })} placeholder="e.g. Extra Shot, Almond Milk" className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Price (₱)</label>
+                      <input 
+                        required 
+                        type="number" 
+                        step="0.01" 
+                        min="0" 
+                        placeholder="0.00"
+                        value={addonData.price || ''} 
+                        onFocus={(e) => e.target.select()} 
+                        onChange={e => setAddonData({ ...addonData, price: parseFloat(e.target.value) || 0 })} 
+                        className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
+                      />
+                    </div>
+                    <div className="flex items-center gap-3 pt-2 md:col-span-2">
+                      <input type="checkbox" id="addonIsActive" checked={addonData.isActive} onChange={e => setAddonData({ ...addonData, isActive: e.target.checked })} className="w-5 h-5 text-amber-600 rounded-lg focus:ring-amber-500 border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5" />
+                      <label htmlFor="addonIsActive" className="text-xs font-black text-coffee-500 uppercase tracking-widest">Available for Sale</label>
+                    </div>
+                    <div className="md:col-span-2 flex justify-end gap-4 mt-4 pt-4 border-t border-black/10 dark:border-white/10">
+                      <button type="button" onClick={cancelAddonEdit} className="px-8 py-3.5 text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white transition-all font-black uppercase tracking-widest text-xs">Cancel</button>
+                      <button type="submit" className="px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-95">
+                        {isEditingAddon ? 'Save Add-on' : 'Create Add-on'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             )}
 
@@ -924,68 +964,88 @@ export function AdminProducts({
         {activeTab === 'categories' && (
           <>
             {(isAddingCategory || isEditingCategory) && (
-              <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-8 rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-black/10 dark:border-white/10 mb-6 sm:mb-8 animate-in fade-in slide-in-from-top-4">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 uppercase tracking-widest">{isEditingCategory ? 'Edit Category' : 'Add New Category'}</h2>
-                <form onSubmit={handleCategorySubmit} className="flex flex-col gap-6">
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Category Name</label>
-                    <input 
-                      required 
-                      type="text" 
-                      value={categoryFormData.name} 
-                      onChange={e => setCategoryFormData({ ...categoryFormData, name: e.target.value })} 
-                      placeholder="e.g. Special Brews, Pastries" 
-                      className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-amber-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Assign Icon</label>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-9 gap-3 bg-slate-100 dark:bg-black/20 p-4 rounded-3xl border border-black/10 dark:border-white/5">
-                      {AVAILABLE_ICONS.map(iconItem => {
-                        const IconComponent = iconLookup[iconItem.name] || Coffee;
-                        const isSelected = categoryFormData.iconName === iconItem.name;
-                        return (
-                          <button
-                            key={iconItem.name}
-                            type="button"
-                            onClick={() => setCategoryFormData({ ...categoryFormData, iconName: iconItem.name })}
-                            className={`flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-all ${
-                              isSelected 
-                                ? 'bg-violet-600/20 border-violet-500 text-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.3)]' 
-                                : 'bg-black/5 dark:bg-white/5 border-transparent text-coffee-400 hover:bg-black/10 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
-                            }`}
-                            title={iconItem.label}
-                          >
-                            <IconComponent className="w-6 h-6 shrink-0" />
-                            <span className="text-[9px] font-black uppercase tracking-tight truncate max-w-full">{iconItem.name}</span>
-                          </button>
-                        );
-                      })}
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
+                <div className="bg-white dark:bg-[#11141e] border border-black/10 dark:border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative animate-in zoom-in-95 duration-200 my-auto">
+                  <div className="flex items-center justify-between pb-4 mb-6 border-b border-black/10 dark:border-white/10 sticky -top-5 sm:-top-8 bg-white dark:bg-[#11141e] z-20 pt-1">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-widest flex items-center gap-2.5">
+                        <Edit2 className="w-5 h-5 text-violet-500" />
+                        {isEditingCategory ? 'Edit Category' : 'Add New Category'}
+                      </h2>
+                      <p className="text-xs text-coffee-500 font-bold uppercase tracking-wider mt-0.5">
+                        {isEditingCategory ? `Configure "${categoryFormData.name || 'Category'}"` : 'Create menu category and assign navigation icon'}
+                      </p>
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/5">
                     <button 
                       type="button" 
-                      onClick={() => setCategoryFormData({ ...categoryFormData, isActive: !categoryFormData.isActive })}
-                      className={`w-12 h-6 rounded-full transition-colors relative ${categoryFormData.isActive !== false ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      onClick={cancelCategoryEdit}
+                      className="p-2.5 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                      title="Close modal"
                     >
-                      <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${categoryFormData.isActive !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                      <X className="w-5 h-5" />
                     </button>
+                  </div>
+                  <form onSubmit={handleCategorySubmit} className="flex flex-col gap-6">
                     <div>
-                      <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest block">Available on Sale</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-400">Toggle whether this category appears in the ordering menus</span>
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-2">Category Name</label>
+                      <input 
+                        required 
+                        type="text" 
+                        value={categoryFormData.name} 
+                        onChange={e => setCategoryFormData({ ...categoryFormData, name: e.target.value })} 
+                        placeholder="e.g. Special Brews, Pastries" 
+                        className="w-full p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl focus:border-violet-500 focus:bg-black/10 dark:focus:bg-white/10 outline-none transition-all font-bold text-slate-900 dark:text-white" 
+                      />
                     </div>
-                  </div>
+                    
+                    <div>
+                      <label className="block text-xs font-black text-coffee-500 uppercase tracking-widest mb-3">Assign Icon</label>
+                      <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-9 gap-3 bg-slate-100 dark:bg-black/20 p-4 rounded-3xl border border-black/10 dark:border-white/5">
+                        {AVAILABLE_ICONS.map(iconItem => {
+                          const IconComponent = iconLookup[iconItem.name] || Coffee;
+                          const isSelected = categoryFormData.iconName === iconItem.name;
+                          return (
+                            <button
+                              key={iconItem.name}
+                              type="button"
+                              onClick={() => setCategoryFormData({ ...categoryFormData, iconName: iconItem.name })}
+                              className={`flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border transition-all ${
+                                isSelected 
+                                  ? 'bg-violet-600/20 border-violet-500 text-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.3)]' 
+                                  : 'bg-black/5 dark:bg-white/5 border-transparent text-coffee-400 hover:bg-black/10 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                              title={iconItem.label}
+                            >
+                              <IconComponent className="w-6 h-6 shrink-0" />
+                              <span className="text-[9px] font-black uppercase tracking-tight truncate max-w-full">{iconItem.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                  <div className="flex justify-end gap-4 mt-2">
-                    <button type="button" onClick={cancelCategoryEdit} className="px-8 py-3.5 text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white transition-all font-black uppercase tracking-widest text-xs">Cancel</button>
-                    <button type="submit" className="px-8 py-3.5 bg-violet-600 text-slate-900 dark:text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-violet-500 transition-all shadow-xl active:scale-95">
-                      {isEditingCategory ? 'Save Category' : 'Create Category'}
-                    </button>
-                  </div>
-                </form>
+                    <div className="flex items-center gap-3 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/5">
+                      <button 
+                        type="button" 
+                        onClick={() => setCategoryFormData({ ...categoryFormData, isActive: !categoryFormData.isActive })}
+                        className={`w-12 h-6 rounded-full transition-colors relative ${categoryFormData.isActive !== false ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-700'}`}
+                      >
+                        <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${categoryFormData.isActive !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                      <div>
+                        <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest block">Available on Sale</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">Toggle whether this category appears in the ordering menus</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-4 mt-2 pt-4 border-t border-black/10 dark:border-white/10">
+                      <button type="button" onClick={cancelCategoryEdit} className="px-8 py-3.5 text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white transition-all font-black uppercase tracking-widest text-xs">Cancel</button>
+                      <button type="submit" className="px-8 py-3.5 bg-violet-600 hover:bg-violet-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-95">
+                        {isEditingCategory ? 'Save Category' : 'Create Category'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             )}
 
