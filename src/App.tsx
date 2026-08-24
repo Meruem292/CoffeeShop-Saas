@@ -187,7 +187,7 @@ export default function App() {
   useBackButton(isMobileMenuOpen, () => setIsMobileMenuOpen(false), 'app_mobile_menu');
   useBackButton(isSearchOpen, () => setIsSearchOpen(false), 'app_search');
   useBackButton(!!successOrder, () => setSuccessOrder(null), 'app_success_order');
-  useBackButton(currentView !== 'mobile' && !isKioskModeActive, () => setCurrentView('mobile'), 'app_view');
+  useBackButton(currentView !== (isAdmin ? 'pos' : 'mobile') && !isKioskModeActive, () => setCurrentView(isAdmin ? 'pos' : 'mobile'), 'app_view');
   useBackButton(isStarted && !isAdmin, () => setIsStarted(false), 'app_started');
 
   useEffect(() => {
@@ -198,15 +198,15 @@ export default function App() {
     }
   }, [shopSettings?.themeMode, setTheme]);
 
-  const navigationItems: { id: ViewMode; label: string; icon: React.ReactNode; adminOnly?: boolean; userOnly?: boolean }[] = [
-    { id: 'mobile', label: 'App', icon: <Smartphone className="w-4 h-4" /> },
-    { id: 'customer-chat', label: 'Support Chat', icon: <MessageSquare className="w-4 h-4" /> },
-    { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" />, userOnly: true },
-    { id: 'order-history', label: 'History', icon: <ShoppingBag className="w-4 h-4" />, userOnly: true },
-    { id: 'rewards-store', label: 'Rewards', icon: <Tag className="w-4 h-4" />, userOnly: true },
-    { id: 'kiosk', label: 'Kiosk', icon: <Tablet className="w-4 h-4" />, adminOnly: true },
+  const navigationItems: { id: ViewMode; label: string; icon: React.ReactNode; adminOnly?: boolean; userOnly?: boolean; customerOnly?: boolean }[] = [
+    { id: 'mobile', label: 'App', icon: <Smartphone className="w-4 h-4" />, customerOnly: true },
+    { id: 'customer-chat', label: 'Support Chat', icon: <MessageSquare className="w-4 h-4" />, customerOnly: true },
+    { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" />, userOnly: true, customerOnly: true },
+    { id: 'order-history', label: 'History', icon: <ShoppingBag className="w-4 h-4" />, userOnly: true, customerOnly: true },
+    { id: 'rewards-store', label: 'Rewards', icon: <Tag className="w-4 h-4" />, userOnly: true, customerOnly: true },
     { id: 'pos', label: 'POS', icon: <MonitorSmartphone className="w-4 h-4" />, adminOnly: true },
     { id: 'cashier', label: 'Cashier', icon: <Banknote className="w-4 h-4" />, adminOnly: true },
+    { id: 'kiosk', label: 'Kiosk', icon: <Tablet className="w-4 h-4" />, adminOnly: true },
     { id: 'admin-chat', label: 'Chat', icon: <MessageSquare className="w-4 h-4" />, adminOnly: true },
     { id: 'queue', label: 'Kitchen', icon: <ChefHat className="w-4 h-4" />, adminOnly: true },
     { id: 'inventory', label: 'Inventory', icon: <Package className="w-4 h-4" />, adminOnly: true },
@@ -223,7 +223,8 @@ export default function App() {
 
   const allowedNavigation = navigationItems.filter(item => 
     (!item.adminOnly || isAdmin || (item.id === 'kiosk' && isKioskModeActive)) &&
-    (!item.userOnly || user)
+    (!item.userOnly || user) &&
+    (!item.customerOnly || !isAdmin)
   );
 
   // Automatically switch to an allowed view if current is restricted
@@ -800,20 +801,22 @@ export default function App() {
                 );
               })}
 
-              <div className="pt-3 px-1">
-                <button
-                  onClick={handleInstallApp}
-                  className="w-full relative group overflow-hidden p-3 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-amber-600/15 hover:from-amber-500/20 hover:to-amber-500/10 border border-amber-500/30 hover:border-amber-400/70 shadow-[0_4px_20px_rgba(245,158,11,0.1)] hover:shadow-[0_6px_25px_rgba(245,158,11,0.25)] transition-all duration-300 active:scale-[0.98] flex items-center gap-3"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
-                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 shadow-inner group-hover:bg-amber-500 group-hover:text-slate-950 transition-all duration-300 shrink-0">
-                    <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-                  </div>
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-amber-100 group-hover:text-amber-500 transition-colors">
-                    Download App
-                  </span>
-                </button>
-              </div>
+              {!isAdmin && (
+                <div className="pt-3 px-1">
+                  <button
+                    onClick={handleInstallApp}
+                    className="w-full relative group overflow-hidden p-3 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-amber-600/15 hover:from-amber-500/20 hover:to-amber-500/10 border border-amber-500/30 hover:border-amber-400/70 shadow-[0_4px_20px_rgba(245,158,11,0.1)] hover:shadow-[0_6px_25px_rgba(245,158,11,0.25)] transition-all duration-300 active:scale-[0.98] flex items-center gap-3"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 shadow-inner group-hover:bg-amber-500 group-hover:text-slate-950 transition-all duration-300 shrink-0">
+                      <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                    </div>
+                    <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-amber-100 group-hover:text-amber-500 transition-colors">
+                      Download App
+                    </span>
+                  </button>
+                </div>
+              )}
             </nav>
 
             {/* Bottom Profile / Admin Portal Widget */}
@@ -929,17 +932,19 @@ export default function App() {
                 )}
 
                 {/* Top Header Download App Button */}
-                <button
-                  onClick={handleInstallApp}
-                  className="relative group overflow-hidden px-2.5 sm:px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-500/20 border border-amber-500/40 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] active:scale-95 transition-all duration-300 flex items-center gap-1.5 backdrop-blur-md shrink-0"
-                >
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 group-hover:scale-110 transition-transform shrink-0">
-                    <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-950 group-hover:translate-y-0.5 transition-transform" />
-                  </div>
-                  <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 group-hover:text-amber-500 transition-colors leading-none pr-0.5 hidden xs:inline">
-                    Install App
-                  </span>
-                </button>
+                {!isAdmin && (
+                  <button
+                    onClick={handleInstallApp}
+                    className="relative group overflow-hidden px-2.5 sm:px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-amber-600/20 hover:from-amber-500/30 hover:to-amber-500/20 border border-amber-500/40 hover:border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] active:scale-95 transition-all duration-300 flex items-center gap-1.5 backdrop-blur-md shrink-0"
+                  >
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 group-hover:scale-110 transition-transform shrink-0">
+                      <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-950 group-hover:translate-y-0.5 transition-transform" />
+                    </div>
+                    <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400 group-hover:text-amber-500 transition-colors leading-none pr-0.5 hidden xs:inline">
+                      Install App
+                    </span>
+                  </button>
+                )}
               </div>
             </header>
           )}
@@ -1013,22 +1018,24 @@ export default function App() {
                     );
                   })}
 
-                  <div className="pt-3">
-                    <button
-                      onClick={() => {
-                        setIsMobileMenuOpen(false);
-                        handleInstallApp();
-                      }}
-                      className="w-full relative group overflow-hidden p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-600/15 border border-amber-500/40 text-amber-500 font-black text-xs uppercase tracking-wider flex items-center gap-3 transition-all active:scale-95 shadow-lg shadow-amber-500/10"
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
-                        <Download className="w-4 h-4 text-slate-950" />
-                      </div>
-                      <span className="text-xs font-black text-slate-900 dark:text-amber-100 uppercase tracking-wider">
-                        Download App
-                      </span>
-                    </button>
-                  </div>
+                  {!isAdmin && (
+                    <div className="pt-3">
+                      <button
+                        onClick={() => {
+                          setIsMobileMenuOpen(false);
+                          handleInstallApp();
+                        }}
+                        className="w-full relative group overflow-hidden p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-600/15 border border-amber-500/40 text-amber-500 font-black text-xs uppercase tracking-wider flex items-center gap-3 transition-all active:scale-95 shadow-lg shadow-amber-500/10"
+                      >
+                        <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0">
+                          <Download className="w-4 h-4 text-slate-950" />
+                        </div>
+                        <span className="text-xs font-black text-slate-900 dark:text-amber-100 uppercase tracking-wider">
+                          Download App
+                        </span>
+                      </button>
+                    </div>
+                  )}
                 </nav>
 
                 <div className="pt-4 border-t border-black/10 dark:border-white/5 shrink-0 space-y-2">
