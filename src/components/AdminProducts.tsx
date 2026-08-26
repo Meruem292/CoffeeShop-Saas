@@ -159,6 +159,7 @@ export function AdminProducts({
     sizes: [] as ProductSize[],
     isCustomizable: false,
     mixtureGuide: '',
+    allowedAddonIds: [] as string[],
   };
 
   const initialAddonState = {
@@ -268,7 +269,10 @@ export function AdminProducts({
 
   const handleEdit = (product: Product) => {
     setIsEditing(product);
-    setFormData(product);
+    setFormData({
+      ...product,
+      allowedAddonIds: product.allowedAddonIds || [],
+    });
     setIsAdding(false);
     setUploadError(null);
     setUploading(false);
@@ -749,6 +753,100 @@ export function AdminProducts({
                       )}
                     </div>
 
+                    <div className="md:col-span-2 bg-black/5 dark:bg-white/5 p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-black/10 dark:border-white/5">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest">
+                              Applicable Add-ons for this Product
+                            </h3>
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                              {(formData.allowedAddonIds || []).length} Selected
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                            Check only the add-ons that fit this product. Customers will only see the selected add-ons during customization.
+                          </p>
+                        </div>
+                        
+                        {addons.length > 0 && (
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, allowedAddonIds: addons.map(a => a.id) }))}
+                              className="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 border border-black/10 dark:border-white/10 transition-all"
+                            >
+                              Select All
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormData(prev => ({ ...prev, allowedAddonIds: [] }))}
+                              className="text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 border border-black/10 dark:border-white/10 transition-all"
+                            >
+                              Clear All
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {addons.length > 0 ? (
+                        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2.5 pt-1">
+                          {addons.map((addon) => {
+                            const isChecked = (formData.allowedAddonIds || []).includes(addon.id);
+                            return (
+                              <button
+                                key={addon.id}
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => {
+                                    const current = prev.allowedAddonIds || [];
+                                    const next = current.includes(addon.id)
+                                      ? current.filter(id => id !== addon.id)
+                                      : [...current, addon.id];
+                                    return { ...prev, allowedAddonIds: next };
+                                  });
+                                }}
+                                className={`flex items-center justify-between p-3 rounded-xl border transition-all duration-200 text-left ${
+                                  isChecked
+                                    ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/15 shadow-sm'
+                                    : 'border-black/10 dark:border-white/5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 opacity-75 hover:opacity-100'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                                  <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all shrink-0 ${
+                                    isChecked
+                                      ? 'border-amber-500 bg-amber-500 text-black'
+                                      : 'border-slate-400 dark:border-slate-600 bg-transparent'
+                                  }`}>
+                                    {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <span className={`text-xs font-bold block truncate ${isChecked ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>
+                                      {addon.name}
+                                    </span>
+                                    {!addon.isActive && (
+                                      <span className="text-[8px] text-amber-500 font-bold uppercase tracking-wider block">
+                                        (Disabled in Store)
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <span className="text-[11px] font-black text-amber-500 shrink-0">
+                                  +₱{addon.price.toLocaleString()}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl bg-black/5 dark:bg-white/5 border border-dashed border-black/15 dark:border-white/10 text-center">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                            No store add-ons created yet. Go to the <strong>Add-ons</strong> tab to create add-ons first.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="md:col-span-2 flex justify-end gap-4 mt-6 pt-4 border-t border-black/10 dark:border-white/10">
                       <button type="button" onClick={cancelEdit} className="px-8 py-3.5 text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white transition-all font-black uppercase tracking-widest text-xs">Cancel</button>
                       <button type="submit" className="px-8 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-xl active:scale-95">
@@ -809,7 +907,15 @@ export function AdminProducts({
                               </div>
                               <div className="min-w-0">
                                 <div className="font-black text-slate-900 dark:text-white text-xs sm:text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors whitespace-normal break-words max-w-[130px] xs:max-w-[180px] sm:max-w-[250px]">{product.name}</div>
-                                <div className="text-[9px] sm:text-[10px] text-coffee-600 font-bold uppercase tracking-widest">{product.category}</div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[9px] sm:text-[10px] text-coffee-600 font-bold uppercase tracking-widest">{product.category}</span>
+                                  {product.allowedAddonIds && product.allowedAddonIds.length > 0 && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] sm:text-[9px] font-extrabold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                      <Tag className="w-2.5 h-2.5" />
+                                      {product.allowedAddonIds.length} Add-on{product.allowedAddonIds.length > 1 ? 's' : ''}
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="sm:hidden text-xs font-black text-amber-500 mt-1">₱{product.price.toLocaleString()}</div>
                               </div>
                             </div>

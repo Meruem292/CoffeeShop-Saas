@@ -711,6 +711,17 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     ) || !!product.isCustomizable;
   };
 
+  const getProductAllowedAddons = useCallback((product: Product) => {
+    if (Array.isArray(product.allowedAddonIds)) {
+      if (product.allowedAddonIds.length === 0) return [];
+      return addons.filter(a => product.allowedAddonIds!.includes(a.id) && a.isActive !== false);
+    }
+    if (isProductBeverage(product) || product.isCustomizable) {
+      return addons.filter(a => a.isActive !== false);
+    }
+    return [];
+  }, [addons]);
+
   const addToCart = useCallback((product: Product, size?: ProductSize, sugarLevel?: SugarLevel, selectedAddons?: Addon[]) => {
     if (shopSettings?.isClosed) {
       toast.error('The shop is currently closed. Ordering is unavailable.');
@@ -760,24 +771,32 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       toast.error(`Your account is suspended from ordering for another ${accountSuspensionTimeLeft || 'duration'}. Reason: ${activeCustomerProfile?.orderingDisabledReason || 'Spam prevention'}`);
       return;
     }
-    if ((product.sizes && product.sizes.length > 0) || product.isCustomizable || isProductBeverage(product)) {
+    const productAddons = getProductAllowedAddons(product);
+    const hasSizes = !!(product.sizes && product.sizes.length > 0);
+    const isBev = isProductBeverage(product);
+    const hasAddons = productAddons.length > 0;
+
+    if (hasSizes || isBev || hasAddons || product.isCustomizable) {
       setSelectedProductForConfig(product);
-      setSelectedSizeConfig(product.sizes && product.sizes.length > 0 ? product.sizes[0] : null);
+      setSelectedSizeConfig(hasSizes ? product.sizes![0] : null);
       setSelectedSugarConfig('100%');
       setSelectedAddonsConfig([]);
     } else {
       addToCart(product);
     }
-  }, [addToCart, shopSettings?.isClosed, isAccountSuspended, accountSuspensionTimeLeft, activeCustomerProfile?.orderingDisabledReason, toast]);
+  }, [addToCart, getProductAllowedAddons, shopSettings?.isClosed, isAccountSuspended, accountSuspensionTimeLeft, activeCustomerProfile?.orderingDisabledReason, toast]);
 
   const handleConfigSubmit = () => {
     if (selectedProductForConfig) {
       const isBev = isProductBeverage(selectedProductForConfig);
+      const applicableAddons = getProductAllowedAddons(selectedProductForConfig);
+      const validAddons = selectedAddonsConfig.filter(sa => applicableAddons.some(a => a.id === sa.id));
+
       addToCart(
         selectedProductForConfig, 
         selectedSizeConfig || undefined, 
         isBev ? selectedSugarConfig : undefined, 
-        isBev ? selectedAddonsConfig : undefined
+        validAddons.length > 0 ? validAddons : undefined
       );
       setSelectedProductForConfig(null);
     }
@@ -2274,52 +2293,61 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                 )}
                 
                 {isProductBeverage(selectedProductForConfig) && (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Sugar Level</label>
+                    <div className="grid grid-cols-5 bg-black/5 dark:bg-white/5 p-0.5 rounded-xl border border-black/10 dark:border-white/5 gap-1">
+                      {(['0%', '25%', '50%', '75%', '100%'] as SugarLevel[]).map((level) => {
+                        const isSelected = selectedSugarConfig === level;
+                        return (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => setSelectedSugarConfig(level)}
+                            className={`py-1.5 rounded-lg text-[10px] font-black transition-all ${isSelected ? 'bg-amber-500 text-black shadow-md shadow-amber-500/10' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                          >
+                            {level}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {(() => {
+                  const applicableAddons = getProductAllowedAddons(selectedProductForConfig);
+                  if (applicableAddons.length === 0) return null;
+                  return (
                     <div className="space-y-2">
-                      <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Sugar Level</label>
-                      <div className="grid grid-cols-5 bg-black/5 dark:bg-white/5 p-0.5 rounded-xl border border-black/10 dark:border-white/5 gap-1">
-                        {(['0%', '25%', '50%', '75%', '100%'] as SugarLevel[]).map((level) => {
-                          const isSelected = selectedSugarConfig === level;
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Add-ons</label>
+                        <span className="text-[9px] font-bold text-amber-500/80">
+                          {applicableAddons.length} available
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {applicableAddons.map((addon) => {
+                          const isSelected = selectedAddonsConfig.some(a => a.id === addon.id);
                           return (
                             <button
-                              key={level}
-                              onClick={() => setSelectedSugarConfig(level)}
-                              className={`py-1.5 rounded-lg text-[10px] font-black transition-all ${isSelected ? 'bg-amber-500 text-black shadow-md shadow-amber-500/10' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                              key={addon.id}
+                              type="button"
+                              onClick={() => toggleAddon(addon)}
+                              className={`flex items-center justify-between px-3 py-2 border rounded-xl transition-all duration-200 active:scale-98 ${isSelected ? 'border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white' : 'border-black/10 dark:border-white/5 bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                             >
-                              {level}
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all shrink-0 ${isSelected ? 'border-amber-500 bg-amber-500 text-black' : 'border-black/10 dark:border-white/10 bg-transparent'}`}>
+                                  {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                </div>
+                                <span className="font-bold text-[11px] uppercase tracking-wider text-left truncate">{addon.name}</span>
+                              </div>
+                              <span className="font-bold text-amber-500 text-[11px] shrink-0">+₱{addon.price.toLocaleString()}</span>
                             </button>
                           );
                         })}
                       </div>
                     </div>
-
-                    {addons.length > 0 && (
-                      <div className="space-y-2">
-                        <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Add-ons</label>
-                        <div className="grid grid-cols-2 gap-2">
-                          {addons.map((addon) => {
-                            const isSelected = selectedAddonsConfig.some(a => a.id === addon.id);
-                            return (
-                              <button
-                                key={addon.id}
-                                onClick={() => toggleAddon(addon)}
-                                className={`flex items-center justify-between px-3 py-2 border rounded-xl transition-all duration-200 active:scale-98 ${isSelected ? 'border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white' : 'border-black/10 dark:border-white/5 bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all shrink-0 ${isSelected ? 'border-amber-500 bg-amber-500 text-black' : 'border-black/10 dark:border-white/10 bg-transparent'}`}>
-                                    {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                                  </div>
-                                  <span className="font-bold text-[11px] uppercase tracking-wider text-left truncate">{addon.name}</span>
-                                </div>
-                                <span className="font-bold text-amber-500 text-[11px] shrink-0">+₱{addon.price.toLocaleString()}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  );
+                })()}
               </div>
               <div className="p-5 sm:p-6 border-t border-black/10 dark:border-white/5 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md shrink-0">
                 <button

@@ -292,24 +292,33 @@ export function EditOrderModal({ isOpen, onClose, order, onSave, onCancelOrder, 
                                   ))}
                                 </div>
                               </div>
-                              <div>
-                                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Add-ons</label>
-                                <div className="flex flex-wrap gap-2">
-                                  {availableAddons.map(addon => (
-                                    <button
-                                      key={addon.id}
-                                      onClick={() => toggleAddon(idx, addon)}
-                                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
-                                        item.selectedAddons?.find(a => a.id === addon.id) 
-                                          ? 'bg-blue-500 text-slate-900 dark:text-white' 
-                                          : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
-                                      }`}
-                                    >
-                                      {addon.name} (+₱{addon.price})
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
+                              {(() => {
+                                const applicableAddons = item.allowedAddonIds && Array.isArray(item.allowedAddonIds)
+                                  ? availableAddons.filter(a => item.allowedAddonIds!.includes(a.id))
+                                  : availableAddons;
+                                if (applicableAddons.length === 0) return null;
+                                return (
+                                  <div>
+                                    <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Add-ons</label>
+                                    <div className="flex flex-wrap gap-2">
+                                      {applicableAddons.map(addon => (
+                                        <button
+                                          key={addon.id}
+                                          type="button"
+                                          onClick={() => toggleAddon(idx, addon)}
+                                          className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 ${
+                                            item.selectedAddons?.find(a => a.id === addon.id) 
+                                              ? 'bg-blue-500 text-slate-900 dark:text-white' 
+                                              : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10'
+                                          }`}
+                                        >
+                                          {addon.name} (+₱{addon.price})
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </>
                           )}
                           

@@ -113,6 +113,7 @@ export interface Product {
   sizes?: ProductSize[];
   isCustomizable?: boolean;
   mixtureGuide?: string;
+  allowedAddonIds?: string[];
 }
 
 // Map Product to MenuItem and InventoryItem for backward compatibility with components,

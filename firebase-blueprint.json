@@ -13,7 +13,8 @@
         "stock": { "type": "number" },
         "lowStockThreshold": { "type": "number" },
         "unit": { "type": "string" },
-        "isActive": { "type": "boolean" }
+        "isActive": { "type": "boolean" },
+        "allowedAddonIds": { "type": "array" }
       },
       "required": ["name", "category", "price", "stock", "isActive"]
     },
