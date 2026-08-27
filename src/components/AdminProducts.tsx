@@ -7,7 +7,7 @@ import {
   Upload, Info, Check, ChevronUp, ChevronDown, Search, Filter
 } from 'lucide-react';
 import { useAuth } from '../lib/AuthContext';
-import { uploadProductImage, isSupabaseConfigured } from '../lib/supabase';
+import { uploadProductImage, isFirebaseStorageConfigured } from '../lib/firebaseStorage';
 
 interface AdminProductsProps {
   products: Product[];
@@ -276,7 +276,7 @@ export function AdminProducts({
     setIsAdding(false);
     setUploadError(null);
     setUploading(false);
-    if (product.image && !product.image.includes('supabase')) {
+    if (product.image && !product.image.includes('firebasestorage') && !product.image.includes('supabase')) {
       setImageInputMode('url');
     } else {
       setImageInputMode('upload');
@@ -544,7 +544,7 @@ export function AdminProducts({
                             {uploading ? (
                               <div className="flex flex-col items-center gap-3">
                                 <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                                <p className="text-xs font-black text-amber-500 uppercase tracking-widest animate-pulse">Uploading to Supabase Storage...</p>
+                                <p className="text-xs font-black text-amber-500 uppercase tracking-widest animate-pulse">Uploading to Firebase Storage...</p>
                               </div>
                             ) : formData.image ? (
                               <div className="flex flex-col md:flex-row items-center gap-6 w-full p-2">
@@ -575,7 +575,7 @@ export function AdminProducts({
                                 </div>
                                 <div>
                                   <p className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Drag & drop your product photo here</p>
-                                  <p className="text-[10px] text-slate-500 dark:text-white/40 font-bold mt-1 uppercase tracking-widest">or click to browse files (PNG, JPG, WEBP)</p>
+                                  <p className="text-[10px] text-slate-500 dark:text-white/40 font-bold mt-1 uppercase tracking-widest">Direct upload to Firebase Storage (PNG, JPG, WEBP)</p>
                                 </div>
                               </div>
                             )}
@@ -587,38 +587,15 @@ export function AdminProducts({
                                 <AlertTriangle className="w-4 h-4" /> Upload Failed
                               </div>
                               <p className="opacity-90 text-[11px] leading-relaxed">{uploadError}</p>
-                              
-                              {!isSupabaseConfigured() && (
-                                <div className="mt-4 p-4 rounded-xl bg-slate-200 dark:bg-black/40 border border-red-500/10 text-[10px] leading-relaxed text-slate-600 dark:text-white/70 space-y-2">
-                                  <p className="font-black text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                                    <Info className="w-3.5 h-3.5 text-amber-500" /> SUPABASE ENVIRONMENT CONFIGURATION REQUIRED
-                                  </p>
-                                  <p>
-                                    To enable direct image uploads, you must configure your Supabase variables. Open the <strong>Secrets panel</strong> (or the <strong>Settings menu</strong>) in AI Studio and add:
-                                  </p>
-                                  <ul className="list-disc list-inside space-y-1 font-mono text-[9px] text-amber-300">
-                                    <li>VITE_SUPABASE_URL</li>
-                                    <li>VITE_SUPABASE_ANON_KEY</li>
-                                  </ul>
-                                  <p className="mt-2">
-                                    Also, remember to create a <strong>Public bucket</strong> named <code className="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-slate-900 dark:text-white font-mono">product-images</code> in your Supabase dashboard Storage settings!
-                                  </p>
-                                </div>
-                              )}
                             </div>
                           )}
 
-                          {!isSupabaseConfigured() && !uploadError && (
-                            <div className="p-4 rounded-2xl bg-slate-50/50 dark:bg-[#131722]/50 border border-black/10 dark:border-white/5 text-[11px] leading-relaxed text-slate-600 dark:text-white/60 space-y-2">
-                              <p className="font-black text-amber-500 uppercase tracking-wider flex items-center gap-1.5">
-                                <Info className="w-4 h-4" /> Supabase Storage Setup Checklist:
-                              </p>
-                              <ol className="list-decimal list-inside space-y-1.5 pl-1">
-                                <li>Log in to your <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-amber-500 underline hover:text-amber-400">Supabase Dashboard</a>.</li>
-                                <li>Go to <strong>Storage</strong> and create a new bucket named <code className="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-slate-900 dark:text-white font-mono text-[10px]">product-images</code>.</li>
-                                <li>Toggle <strong>"Public bucket"</strong> to <span className="text-green-500 font-bold">Enabled</span> so files can be accessed publicly.</li>
-                                <li>Define <code className="bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-slate-900 dark:text-white font-mono text-[10px]">VITE_SUPABASE_URL</code> and <code className="bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-slate-900 dark:text-white font-mono text-[10px]">VITE_SUPABASE_ANON_KEY</code> in your environment secrets.</li>
-                              </ol>
+                          {isFirebaseStorageConfigured() && !uploadError && !formData.image && (
+                            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[11px] leading-relaxed text-amber-600 dark:text-amber-400 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <Database className="w-4 h-4 shrink-0" />
+                                <span className="font-bold">Firebase Storage Integration Active:</span> Media uploads are automatically saved to your cloud storage bucket under <code className="font-mono bg-amber-500/20 px-1 py-0.5 rounded text-[10px]">products/</code>.
+                              </div>
                             </div>
                           )}
                         </div>
