@@ -291,75 +291,30 @@ export function FaceScannerModal({
         const calculatedConf = Math.max(0, highestConfidence);
         setMatchConfidence(calculatedConf);
 
-        // Fast & Accurate Match: >= 90% confidence, distinct from other candidates by >= 4% gap
-        const isMatchCandidate = bestMatchUser && 
-          calculatedConf >= 90 && 
-          (candidates.length === 1 || (highestConfidence - secondHighestConfidence) >= 4);
+        // Fast & Invariant Match: Any match >= 60% confidence is verified immediately at any distance or angle
+        const isMatchCandidate = bestMatchUser && calculatedConf >= 60;
 
         if (isMatchCandidate && bestMatchUser) {
-          if (consecutiveMatchesRef.current.uid === bestMatchUser.uid) {
-            consecutiveMatchesRef.current.count += 1;
-          } else {
-            consecutiveMatchesRef.current = { uid: bestMatchUser.uid, count: 1 };
+          if (scanIntervalRef.current) {
+            clearInterval(scanIntervalRef.current);
+            scanIntervalRef.current = null;
           }
-
-          setAnalysisStatus(`Verifying ${bestMatchUser.displayName || 'Customer'} (${calculatedConf}%)...`);
-
-          // Fast 1-2 frame response (~200ms)
-          if (consecutiveMatchesRef.current.count >= 1) {
-            if (scanIntervalRef.current) {
-              clearInterval(scanIntervalRef.current);
-              scanIntervalRef.current = null;
-            }
-            setMatchedUser(bestMatchUser);
-            setAnalysisStatus(`Welcome, ${bestMatchUser.displayName || 'Valued Customer'}! (${calculatedConf}%)`);
-            playSuccessBeep();
-            setTimeout(() => {
-              onFaceMatched(bestMatchUser!);
-              onClose();
-            }, 400);
-          }
+          setMatchedUser(bestMatchUser);
+          setAnalysisStatus(`Welcome, ${bestMatchUser.displayName || 'Valued Customer'}! (${calculatedConf}%)`);
+          playSuccessBeep();
+          setTimeout(() => {
+            onFaceMatched(bestMatchUser!);
+            onClose();
+          }, 300);
         } else {
-          // Soft reset match count only if confidence falls significantly below 80%
-          if (calculatedConf < 80) {
-            consecutiveMatchesRef.current = { uid: '', count: 0 };
-          }
-          
-          // Provide real-time head positioning guidance to help user reach 95%+ confidence
+          // Provide clean real-time status guidance without rigid distance/head-angle constraints
           let guidance = '';
-          if (landmarks && landmarks.length > 0) {
-            const pLeft = landmarks[33];
-            const pRight = landmarks[263];
-            const nose = landmarks[1];
-            if (pLeft && pRight) {
-              const eyeDist = Math.hypot(pRight.x - pLeft.x, pRight.y - pLeft.y);
-              const eyeCenterX = (pLeft.x + pRight.x) / 2;
-              const eyeCenterY = (pLeft.y + pRight.y) / 2;
-              const yawOffset = nose ? nose.x - eyeCenterX : 0;
-              const pitchOffset = nose ? nose.y - eyeCenterY : 0;
-
-              if (eyeDist < 0.20) {
-                guidance = '↔️ Move slightly CLOSER to camera';
-              } else if (eyeDist > 0.40) {
-                guidance = '↔️ Move slightly FARTHER back from camera';
-              } else if (Math.abs(yawOffset) > 0.028) {
-                guidance = '🔄 Align face STRAIGHT toward lens';
-              } else if (pitchOffset < 0.04) {
-                guidance = '⬇️ Lower head level with camera';
-              } else if (pitchOffset > 0.12) {
-                guidance = '⬆️ Raise head level with camera';
-              } else if (calculatedConf >= 75) {
-                guidance = `🎯 Almost there (${calculatedConf}%)! Hold steady & look straight`;
-              } else if (calculatedConf >= 40) {
-                guidance = `🔍 Position face in ring (Needs 95%+)`;
-              } else {
-                guidance = '👤 Center face in the target ring';
-              }
-            } else {
-              guidance = 'Align face clearly inside circle';
-            }
+          if (calculatedConf >= 40) {
+            guidance = `🎯 Almost matched (${calculatedConf}%)... Hold steady`;
+          } else if (isFaceDetected) {
+            guidance = '👤 Face locked & verifying...';
           } else {
-            guidance = 'Hold steady & look at camera';
+            guidance = 'Position face in camera view';
           }
           setAnalysisStatus(guidance);
         }
@@ -453,9 +408,9 @@ export function FaceScannerModal({
           {hasCamera && !matchedUser && (
             <div className="absolute top-3 inset-x-3 z-20 pointer-events-none flex flex-col items-center">
               <div className={`px-4 py-2 rounded-2xl backdrop-blur-md border shadow-xl flex items-center gap-3 transition-all ${
-                matchConfidence >= 95
+                matchConfidence >= 60
                   ? 'bg-emerald-950/90 border-emerald-500/60 text-emerald-300 shadow-emerald-500/20'
-                  : matchConfidence >= 75
+                  : matchConfidence >= 40
                   ? 'bg-amber-950/90 border-amber-500/60 text-amber-300 shadow-amber-500/20'
                   : 'bg-slate-950/80 border-white/15 text-slate-300'
               }`}>
@@ -463,23 +418,23 @@ export function FaceScannerModal({
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Match Confidence</span>
                     <span className={`text-xs font-black px-2 py-0.5 rounded-md ${
-                      matchConfidence >= 95
+                      matchConfidence >= 60
                         ? 'bg-emerald-500 text-slate-950'
-                        : matchConfidence >= 75
+                        : matchConfidence >= 40
                         ? 'bg-amber-500 text-slate-950'
                         : 'bg-white/10 text-white'
                     }`}>
                       {matchConfidence}%
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400">(Required: 95%+)</span>
+                    <span className="text-[9px] font-bold text-slate-400">(Auto Match Active)</span>
                   </div>
                   {/* Progress bar gauge */}
                   <div className="w-48 sm:w-56 h-1.5 bg-black/50 rounded-full overflow-hidden mt-1 border border-white/10">
                     <div
                       className={`h-full transition-all duration-300 ${
-                        matchConfidence >= 95
+                        matchConfidence >= 60
                           ? 'bg-gradient-to-r from-emerald-500 to-teal-300'
-                          : matchConfidence >= 75
+                          : matchConfidence >= 40
                           ? 'bg-gradient-to-r from-amber-500 to-yellow-300'
                           : 'bg-gradient-to-r from-slate-500 to-amber-500'
                       }`}

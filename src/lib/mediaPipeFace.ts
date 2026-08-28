@@ -347,18 +347,18 @@ export function assessFaceQuality(
         const eyeDist = Math.hypot(pRight.x - pLeft.x, pRight.y - pLeft.y);
         const eyeAngle = Math.atan2(pRight.y - pLeft.y, pRight.x - pLeft.x) * (180 / Math.PI);
 
-        if (eyeDist < 0.15) {
+        if (eyeDist < 0.01) {
           isGoodQuality = false;
           qualityScore -= 30;
-          feedback = '⚠️ Step closer to camera';
-        } else if (eyeDist > 0.45) {
+          feedback = '⚠️ Position face in camera view';
+        } else if (eyeDist > 0.95) {
           isGoodQuality = false;
           qualityScore -= 30;
           feedback = '⚠️ Step back slightly';
-        } else if (Math.abs(eyeAngle) > 22) {
+        } else if (Math.abs(eyeAngle) > 45) {
           isGoodQuality = false;
           qualityScore -= 20;
-          feedback = '⚠️ Keep head level and upright';
+          feedback = '⚠️ Keep head level';
         }
       }
     }
