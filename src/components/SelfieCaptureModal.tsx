@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Camera, X, RefreshCw, Check, Sparkles, Upload, ScanFace, AlertCircle, ArrowLeft, ArrowRight, Smile, UserCheck, ShieldCheck } from 'lucide-react';
 import { detectHeadPoseAndExpression, getFaceLandmarker, extractFaceVector, detectFaceLandmarks, KEY_LANDMARK_INDICES, assessFaceQuality } from '../lib/mediaPipeFace';
+import { initFacepluginSDK, getFacepluginSDKStatus } from '../lib/facepluginSDK';
 
 interface SelfieCaptureModalProps {
   isOpen: boolean;
@@ -81,7 +82,10 @@ export function SelfieCaptureModal({
     }
 
     try {
-      await getFaceLandmarker();
+      await Promise.all([
+        getFaceLandmarker(),
+        initFacepluginSDK(),
+      ]);
 
       const constraints: MediaStreamConstraints = {
         video: {
@@ -377,11 +381,16 @@ export function SelfieCaptureModal({
               <ScanFace className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-white uppercase italic tracking-wider flex items-center gap-1.5">
-                3D Multi-Angle <span className="text-amber-500">Face ID</span>
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              </h3>
-              <p className="text-[10px] text-slate-400 font-bold">Multi-vector registration for 100% accuracy</p>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-white uppercase italic tracking-wider flex items-center gap-1.5">
+                  3D Multi-Angle <span className="text-amber-500">Face ID</span>
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                </h3>
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-blue-500/20 border border-blue-500/30 text-blue-400 uppercase tracking-widest">
+                  Faceplugin SDK
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold">100% On-Premise Face Vector Enrollment</p>
             </div>
           </div>
           <button
