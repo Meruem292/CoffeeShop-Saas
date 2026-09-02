@@ -1,5 +1,71 @@
-export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'admin-vouchers' | 'admin-customers' | 'settings' | 'cashier' | 'reports' | 'profile' | 'order-history' | 'rewards-store' | 'admin-chat' | 'customer-chat';
+export type ViewMode = 'pos' | 'kiosk' | 'mobile' | 'queue' | 'inventory' | 'admin-products' | 'admin-vouchers' | 'admin-customers' | 'settings' | 'cashier' | 'reports' | 'profile' | 'order-history' | 'rewards-store' | 'admin-chat' | 'customer-chat' | 'admin-yourmix';
 export type Category = 'Hot Coffee' | 'Cold Coffee' | 'Tea' | 'Food';
+
+export type YourMixIngredientCategory = 'base_liquid' | 'dairy_milk' | 'sweetener_syrup' | 'powder_flavor' | 'topping_solid' | 'ice_temp';
+
+export interface YourMixIngredient {
+  id: string;
+  name: string;
+  category: YourMixIngredientCategory;
+  unit: 'oz' | 'g' | 'pump' | 'scoop';
+  volumeOz: number; // Volume occupied in cup per unit (e.g. 1 oz per oz of liquid, 0.5 oz for syrup/powder/ice)
+  costPerUnit: number; // Cost of goods
+  pricePerUnit: number; // Selling price to customer
+  minPortion: number;
+  maxPortion: number;
+  stepPortion: number;
+  color: string; // Hex color code for liquid/solid layer (e.g., #3E2723 for espresso, #FFFFFF for milk)
+  layerType: 'liquid' | 'ice' | 'bottom_solid' | 'top_solid' | 'foam' | 'powder';
+  inventoryStock: number;
+  inventoryUnit: string;
+  inventoryDeductionPerUnit: number;
+  isActive: boolean;
+  image?: string;
+  description?: string;
+}
+
+export interface YourMixBasePreset {
+  id: string;
+  name: string;
+  categoryTag: string; // e.g. "Latte Base", "Iced Coffee Base", "Matcha Base", "Fruit Tea Base", "Milk Tea Base", "Chocolate Base"
+  description: string;
+  defaultCupSize: string; // e.g. "16 oz"
+  items: { ingredientId: string; quantity: number }[];
+  isActive: boolean;
+  image?: string;
+}
+
+export interface YourMixCupSize {
+  id: string;
+  name: string; // e.g. "16 oz", "22 oz"
+  capacityOz: number; // 16, 22
+  basePrice: number; // e.g. ₱40 base cup/ice/service fee
+  isDefault?: boolean;
+}
+
+export interface YourMixRecipeItem {
+  id: string;
+  name: string;
+  category: YourMixIngredientCategory;
+  quantity: number;
+  unit: string;
+  volumeOz: number;
+  pricePerUnit: number;
+  totalPrice: number;
+  color: string;
+  layerType: 'liquid' | 'ice' | 'bottom_solid' | 'top_solid' | 'foam' | 'powder';
+}
+
+export interface YourMixDrinkDetails {
+  cupSize: string; // "16 oz" | "22 oz"
+  capacityOz: number;
+  totalVolumeOz: number;
+  basePresetName?: string;
+  ingredients: YourMixRecipeItem[];
+  calculatedBasePrice: number;
+  calculatedIngredientsPrice: number;
+  calculatedTotalPrice: number;
+}
 
 export interface ChatThread {
   id: string;
@@ -128,6 +194,8 @@ export interface CartItem extends Product {
   iceLevel?: string;
   selectedAddons?: Addon[];
   cost?: number;
+  isCustomMix?: boolean;
+  customMixDetails?: YourMixDrinkDetails;
 }
 
 export interface ShopSettings {
@@ -156,6 +224,8 @@ export interface ShopSettings {
   gcashNumber?: string;
   footerContent?: string;
   isClosed?: boolean;
+  yourMixEnabled?: boolean;
+  yourMixStatus?: 'active' | 'offline' | 'paused';
 }
 
 export interface SplashScreen {

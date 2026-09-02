@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SplashScreen, ShopSettings } from '../types';
-import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt, QrCode, Link, Trash2, Lock, Store, Power, Download, Maximize2, X } from 'lucide-react';
+import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt, QrCode, Link, Trash2, Lock, Store, Power, Download, Maximize2, X, FlaskConical, Sparkles } from 'lucide-react';
 import { useTheme } from '../lib/ThemeProvider';
 import { useToast } from '../lib/ToastContext';
 
@@ -9,9 +9,10 @@ interface AdminSettingsProps {
   shopSettings: ShopSettings | null;
   onUpdateSplash: (updates: Partial<SplashScreen>) => Promise<void>;
   onUpdateShop: (updates: Partial<ShopSettings>) => Promise<void>;
+  onNavigateToYourMix?: () => void;
 }
 
-export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUpdateShop }: AdminSettingsProps) {
+export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUpdateShop, onNavigateToYourMix }: AdminSettingsProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<'shop' | 'splash'>('shop');
   const { theme, setTheme } = useTheme();
@@ -47,7 +48,9 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
     pointsEarnedPer100Pesos: 10,
     gcashQrUrl: '',
     gcashNumber: '',
-    isClosed: false
+    isClosed: false,
+    yourMixEnabled: true,
+    yourMixStatus: 'active'
   });
 
   const [saving, setSaving] = useState(false);
@@ -104,7 +107,9 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
         gcashQrUrl: shopSettings.gcashQrUrl || '',
         gcashNumber: shopSettings.gcashNumber || '',
         footerContent: shopSettings.footerContent || '',
-        isClosed: shopSettings.isClosed || false
+        isClosed: shopSettings.isClosed || false,
+        yourMixEnabled: shopSettings.yourMixEnabled !== undefined ? shopSettings.yourMixEnabled : true,
+        yourMixStatus: shopSettings.yourMixStatus || 'active'
       });
     }
   }, [shopSettings]);
@@ -666,6 +671,86 @@ export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUp
                     <input type="range" min="0" max="1" step="0.1" value={shopData.notificationVolume || 1} onChange={(e) => setShopData({...shopData, notificationVolume: parseFloat(e.target.value)})} className="w-full accent-amber-500" />
                   </div>
                 </div>
+              </div>
+
+              {/* Your MIX Custom Drink Studio Settings */}
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-amber-500/10 via-purple-500/5 to-cyan-500/10 border border-amber-500/30 shadow-lg space-y-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-500 flex items-center justify-center shrink-0">
+                      <FlaskConical className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                          Your MIX — Custom Drink Studio
+                        </h4>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                          Special Category
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Enable interactive digital beverage laboratory for customers to formulate custom drinks.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShopData({ ...shopData, yourMixEnabled: !shopData.yourMixEnabled })}
+                      className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+                        shopData.yourMixEnabled
+                          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                          : 'bg-black/10 dark:bg-white/10 text-slate-500 dark:text-slate-400 hover:bg-black/20'
+                      }`}
+                    >
+                      <Power className="w-4 h-4" />
+                      {shopData.yourMixEnabled ? 'Enabled (ON)' : 'Disabled (OFF)'}
+                    </button>
+                  </div>
+                </div>
+
+                {shopData.yourMixEnabled && (
+                  <div className="pt-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                        Operating Status:
+                      </span>
+                      <div className="flex gap-1.5">
+                        {(['active', 'paused', 'offline'] as const).map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => setShopData({ ...shopData, yourMixStatus: st })}
+                            className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                              shopData.yourMixStatus === st
+                                ? st === 'active'
+                                  ? 'bg-emerald-500 text-white'
+                                  : st === 'paused'
+                                  ? 'bg-amber-500 text-slate-950'
+                                  : 'bg-rose-500 text-white'
+                                : 'bg-black/5 dark:bg-white/5 text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                          >
+                            {st === 'active' ? '● Live' : st === 'paused' ? '⏸ Peak Rush Paused' : '✕ Offline'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {onNavigateToYourMix && (
+                      <button
+                        type="button"
+                        onClick={onNavigateToYourMix}
+                        className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-black text-[11px] uppercase tracking-wider hover:bg-amber-400 transition-all flex items-center gap-1.5 shadow-md active:scale-95"
+                      >
+                        <FlaskConical className="w-3.5 h-3.5" />
+                        <span>Manage Ingredients & Bases</span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <button 

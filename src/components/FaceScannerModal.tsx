@@ -39,7 +39,7 @@ export function FaceScannerModal({
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isFaceDetected, setIsFaceDetected] = useState<boolean>(false);
-  const [analysisStatus, setAnalysisStatus] = useState<string>('Center your face in the circle');
+  const [analysisStatus, setAnalysisStatus] = useState<string>('Face scan active • Look towards the camera');
   const [matchedUser, setMatchedUser] = useState<UserProfile | null>(null);
   const [isMediaPipeReady, setIsMediaPipeReady] = useState<boolean>(false);
   const [matchConfidence, setMatchConfidence] = useState<number>(0);
@@ -291,8 +291,10 @@ export function FaceScannerModal({
         const calculatedConf = Math.max(0, highestConfidence);
         setMatchConfidence(calculatedConf);
 
-        // Fast & Invariant Match: Any match >= 60% confidence is verified immediately at any distance or angle
-        const isMatchCandidate = bestMatchUser && calculatedConf >= 60;
+        // Distance & Angle Invariant Match: Instantly verifies without requiring user to be close
+        const isMatchCandidate =
+          bestMatchUser &&
+          (calculatedConf >= 45 || (calculatedConf >= 35 && (highestConfidence - secondHighestConfidence >= 8)));
 
         if (isMatchCandidate && bestMatchUser) {
           if (scanIntervalRef.current) {
@@ -305,16 +307,16 @@ export function FaceScannerModal({
           setTimeout(() => {
             onFaceMatched(bestMatchUser!);
             onClose();
-          }, 300);
+          }, 250);
         } else {
           // Provide clean real-time status guidance without rigid distance/head-angle constraints
           let guidance = '';
-          if (calculatedConf >= 40) {
-            guidance = `🎯 Almost matched (${calculatedConf}%)... Hold steady`;
+          if (calculatedConf >= 30) {
+            guidance = `🎯 Identifying (${calculatedConf}%)...`;
           } else if (isFaceDetected) {
-            guidance = '👤 Face locked & verifying...';
+            guidance = '👤 Face recognized • Scanning...';
           } else {
-            guidance = 'Position face in camera view';
+            guidance = 'Look towards the camera';
           }
           setAnalysisStatus(guidance);
         }
@@ -324,7 +326,7 @@ export function FaceScannerModal({
       } finally {
         isProcessingRef.current = false;
       }
-    }, 450);
+    }, 200);
   };
 
 

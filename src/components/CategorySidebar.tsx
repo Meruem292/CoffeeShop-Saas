@@ -1,7 +1,8 @@
 import React from 'react';
 import { 
   Layout, Coffee, IceCream, CupSoda, Croissant, Utensils, Leaf,
-  GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Package
+  GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Package,
+  FlaskConical, Sparkles
 } from 'lucide-react';
 import { DynamicCategory, ShopSettings } from '../types';
 
@@ -35,12 +36,15 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   Tag,
   Flame,
   Heart,
-  Package
+  Package,
+  FlaskConical,
+  Sparkles
 };
 
 const getCategoryIcon = (category: string, categoriesData?: DynamicCategory[]) => {
   const catLower = category.toLowerCase();
   if (catLower === 'all') return <Layout className="w-5 h-5 md:w-6 md:h-6" />;
+  if (catLower.includes('your mix') || catLower.includes('mix')) return <FlaskConical className="w-5 h-5 md:w-6 md:h-6 text-amber-400" />;
   
   if (categoriesData) {
     const found = categoriesData.find(c => c.name.toLowerCase() === catLower);

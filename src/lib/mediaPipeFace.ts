@@ -39,6 +39,9 @@ export async function getFaceLandmarker(): Promise<FaceLandmarker | null> {
         outputFaceBlendshapes: true,
         runningMode: 'IMAGE',
         numFaces: 1,
+        minFaceDetectionConfidence: 0.15,
+        minFacePresenceConfidence: 0.15,
+        minTrackingConfidence: 0.15,
       });
       return faceLandmarker;
     } catch (err) {
@@ -56,6 +59,9 @@ export async function getFaceLandmarker(): Promise<FaceLandmarker | null> {
           outputFaceBlendshapes: true,
           runningMode: 'IMAGE',
           numFaces: 1,
+          minFaceDetectionConfidence: 0.15,
+          minFacePresenceConfidence: 0.15,
+          minTrackingConfidence: 0.15,
         });
         return faceLandmarker;
       } catch (fallbackErr) {
@@ -409,20 +415,20 @@ export function calculateFaceMatchConfidence(vA: number[], vB: number[]): { conf
 
   const similarity = calculateCosineSimilarity(vA, vB);
 
-  // Responsive & High-Accuracy Kiosk Calibration:
-  // - Cosine similarity >= 0.88: High match probability. Maps to [90% - 100%] confidence.
-  // - Cosine similarity in [0.80, 0.88]: Potential match / posture shift. Maps to [65% - 89%] confidence.
-  // - Cosine similarity in [0.70, 0.80]: Resemblance baseline. Maps to [20% - 64%] confidence.
-  // - Cosine similarity < 0.70: Different face. Maps to [0% - 19%] confidence.
+  // Responsive & High-Accuracy Kiosk & Long-Distance Calibration:
+  // - Cosine similarity >= 0.82: High match probability. Maps to [85% - 100%] confidence.
+  // - Cosine similarity in [0.72, 0.82]: Strong match / far distance / posture shift. Maps to [55% - 84%] confidence.
+  // - Cosine similarity in [0.60, 0.72]: Resemblance baseline. Maps to [20% - 54%] confidence.
+  // - Cosine similarity < 0.60: Different face. Maps to [0% - 19%] confidence.
   let confidence = 0;
-  if (similarity >= 0.88) {
-    confidence = Math.min(100, 90 + ((similarity - 0.88) / 0.12) * 10);
-  } else if (similarity >= 0.80) {
-    confidence = 65 + ((similarity - 0.80) / 0.08) * 24;
-  } else if (similarity >= 0.70) {
-    confidence = 20 + ((similarity - 0.70) / 0.10) * 44;
+  if (similarity >= 0.82) {
+    confidence = Math.min(100, 85 + ((similarity - 0.82) / 0.18) * 15);
+  } else if (similarity >= 0.72) {
+    confidence = 55 + ((similarity - 0.72) / 0.10) * 29;
+  } else if (similarity >= 0.60) {
+    confidence = 20 + ((similarity - 0.60) / 0.12) * 34;
   } else {
-    confidence = Math.max(0, (similarity / 0.70) * 19);
+    confidence = Math.max(0, (similarity / 0.60) * 19);
   }
 
   return {

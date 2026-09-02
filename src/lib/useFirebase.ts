@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc, writeBatch, getDoc, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher, ClaimedVoucher, UserProfile } from '../types';
+import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher, ClaimedVoucher, UserProfile, YourMixIngredient, YourMixBasePreset } from '../types';
+import { DEFAULT_YOUR_MIX_INGREDIENTS, DEFAULT_YOUR_MIX_BASES } from '../data/yourMixDefaults';
 import { handleFirestoreError } from './AuthContext';
 import { useToast } from './ToastContext';
 
@@ -28,6 +29,8 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [splashScreen, setSplashScreen] = useState<SplashScreen | null>(null);
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
+  const [yourMixIngredients, setYourMixIngredients] = useState<YourMixIngredient[]>([]);
+  const [yourMixBases, setYourMixBases] = useState<YourMixBasePreset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -205,6 +208,44 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       }, (err) => handleSnapshotError(err, OperationType.GET, `profiles/${userUid}`));
     }
 
+    // Your MIX Ingredients Listener
+    const qYourMixIngredients = query(collection(db, 'your_mix_ingredients'));
+    const unsubYourMixIngredients = onSnapshot(qYourMixIngredients, (snapshot) => {
+      if (snapshot.empty && isAdmin) {
+        // Auto-seed default laboratory ingredients if empty
+        DEFAULT_YOUR_MIX_INGREDIENTS.forEach(async (ing) => {
+          try {
+            await setDoc(doc(db, 'your_mix_ingredients', ing.id), ing);
+          } catch (e) {
+            console.error('Failed to seed default Your MIX ingredient', e);
+          }
+        });
+        setYourMixIngredients(DEFAULT_YOUR_MIX_INGREDIENTS);
+      } else {
+        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as YourMixIngredient));
+        setYourMixIngredients(list.length > 0 ? list : DEFAULT_YOUR_MIX_INGREDIENTS);
+      }
+    }, (err) => handleSnapshotError(err, OperationType.LIST, 'your_mix_ingredients'));
+
+    // Your MIX Bases Listener
+    const qYourMixBases = query(collection(db, 'your_mix_bases'));
+    const unsubYourMixBases = onSnapshot(qYourMixBases, (snapshot) => {
+      if (snapshot.empty && isAdmin) {
+        // Auto-seed default laboratory bases if empty
+        DEFAULT_YOUR_MIX_BASES.forEach(async (base) => {
+          try {
+            await setDoc(doc(db, 'your_mix_bases', base.id), base);
+          } catch (e) {
+            console.error('Failed to seed default Your MIX base', e);
+          }
+        });
+        setYourMixBases(DEFAULT_YOUR_MIX_BASES);
+      } else {
+        const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as YourMixBasePreset));
+        setYourMixBases(list.length > 0 ? list : DEFAULT_YOUR_MIX_BASES);
+      }
+    }, (err) => handleSnapshotError(err, OperationType.LIST, 'your_mix_bases'));
+
     return () => {
       unsubSettings();
       unsubSplash();
@@ -217,6 +258,8 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       unsubClaimed();
       unsubProfiles();
       unsubUserProfile();
+      unsubYourMixIngredients();
+      unsubYourMixBases();
     };
   }, [userUid, isAdmin]);
 
@@ -513,11 +556,115 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
         batch.update(cvRef, { isUsed: true, usedAt: Date.now() });
       }
 
+      // Deduct inventory for regular products or Your MIX ingredients
+      for (const item of (order.items || [])) {
+        if (item.isCustomMix && item.customMixDetails?.ingredients) {
+          for (const ing of item.customMixDetails.ingredients) {
+            try {
+              const ingRef = doc(db, 'your_mix_ingredients', ing.id);
+              const ingSnap = await getDoc(ingRef);
+              if (ingSnap.exists()) {
+                const currentStock = ingSnap.data().inventoryStock || 0;
+                const deductQty = (ing.quantity || 1) * (item.quantity || 1);
+                batch.update(ingRef, {
+                  inventoryStock: Math.max(0, currentStock - deductQty)
+                });
+              }
+            } catch (err) {
+              console.warn('Could not deduct custom mix ingredient stock', ing.id, err);
+            }
+          }
+        }
+      }
+
       await batch.commit();
     } catch (err) {
       console.error('Add Order Error:', err);
       handleFirestoreError(err, OperationType.CREATE, 'orders');
       throw err; // Re-throw so caller knows it failed
+    }
+  };
+
+  const addYourMixIngredient = async (ingredient: Omit<YourMixIngredient, 'id'>) => {
+    try {
+      const clean = deepCleanUndefined(ingredient);
+      const docRef = await addDoc(collection(db, 'your_mix_ingredients'), clean);
+      toast.success(`Ingredient "${ingredient.name}" created!`);
+      return docRef.id;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'your_mix_ingredients');
+      toast.error('Failed to create ingredient');
+    }
+  };
+
+  const updateYourMixIngredient = async (id: string, updates: Partial<YourMixIngredient>) => {
+    try {
+      const clean = deepCleanUndefined(updates);
+      await setDoc(doc(db, 'your_mix_ingredients', id), clean, { merge: true });
+      toast.success('Ingredient updated!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `your_mix_ingredients/${id}`);
+      toast.error('Failed to update ingredient');
+    }
+  };
+
+  const deleteYourMixIngredient = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'your_mix_ingredients', id));
+      toast.success('Ingredient deleted');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `your_mix_ingredients/${id}`);
+      toast.error('Failed to delete ingredient');
+    }
+  };
+
+  const addYourMixBase = async (base: Omit<YourMixBasePreset, 'id'>) => {
+    try {
+      const clean = deepCleanUndefined(base);
+      const docRef = await addDoc(collection(db, 'your_mix_bases'), clean);
+      toast.success(`Base preset "${base.name}" created!`);
+      return docRef.id;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'your_mix_bases');
+      toast.error('Failed to create base preset');
+    }
+  };
+
+  const updateYourMixBase = async (id: string, updates: Partial<YourMixBasePreset>) => {
+    try {
+      const clean = deepCleanUndefined(updates);
+      await setDoc(doc(db, 'your_mix_bases', id), clean, { merge: true });
+      toast.success('Base preset updated!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `your_mix_bases/${id}`);
+      toast.error('Failed to update base preset');
+    }
+  };
+
+  const deleteYourMixBase = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'your_mix_bases', id));
+      toast.success('Base preset deleted');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `your_mix_bases/${id}`);
+      toast.error('Failed to delete base preset');
+    }
+  };
+
+  const resetYourMixDefaults = async () => {
+    try {
+      const batch = writeBatch(db);
+      DEFAULT_YOUR_MIX_INGREDIENTS.forEach(ing => {
+        batch.set(doc(db, 'your_mix_ingredients', ing.id), ing);
+      });
+      DEFAULT_YOUR_MIX_BASES.forEach(base => {
+        batch.set(doc(db, 'your_mix_bases', base.id), base);
+      });
+      await batch.commit();
+      toast.success('Your MIX ingredients & presets restored to defaults!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'your_mix_defaults');
+      toast.error('Failed to reset defaults');
     }
   };
 
@@ -630,6 +777,8 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     userProfile,
     splashScreen,
     shopSettings,
+    yourMixIngredients,
+    yourMixBases,
     loading,
     error,
     updateShopSettings,
@@ -653,6 +802,13 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     updateStock,
     updateUserProfile,
     deleteOrder,
-    clearOrders
+    clearOrders,
+    addYourMixIngredient,
+    updateYourMixIngredient,
+    deleteYourMixIngredient,
+    addYourMixBase,
+    updateYourMixBase,
+    deleteYourMixBase,
+    resetYourMixDefaults
   };
 }

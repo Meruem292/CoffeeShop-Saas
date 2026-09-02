@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, ScanFace, Lock, ShieldCheck, KeyRound, ShieldAlert, ShieldOff, Delete, Maximize2 } from 'lucide-react';
+import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher, YourMixIngredient, YourMixBasePreset } from '../types';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, ScanFace, Lock, ShieldCheck, KeyRound, ShieldAlert, ShieldOff, Delete, Maximize2, FlaskConical } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
+import { YourMixStudio } from './YourMixStudio';
 import { useAuth } from '../lib/AuthContext';
 import { UnifiedAuthModal } from './UnifiedAuthModal';
 import { useToast } from '../lib/ToastContext';
@@ -27,9 +28,11 @@ interface OrderingScreenProps {
   userProfile?: UserProfile | null;
   orders?: Order[];
   onNavigateToHistory?: () => void;
+  yourMixIngredients?: YourMixIngredient[];
+  yourMixBases?: YourMixBasePreset[];
 }
 
-export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSettings, categoriesData, mostPickedProductIds, vouchers = [], userClaimedVouchers = [], userProfile, orders = [], onNavigateToHistory }: OrderingScreenProps) {
+export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSettings, categoriesData, mostPickedProductIds, vouchers = [], userClaimedVouchers = [], userProfile, orders = [], onNavigateToHistory, yourMixIngredients = [], yourMixBases = [] }: OrderingScreenProps) {
   const { toast } = useToast();
   const categories = useMemo(() => {
     let list: string[] = [];
@@ -71,6 +74,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     // Deduplicate case-insensitively to prevent duplicate React keys
     const uniqueList: string[] = [];
     const seen = new Set<string>();
+    
+    // Add Your MIX as a featured special category if enabled in settings
+    if (shopSettings?.yourMixEnabled !== false) {
+      uniqueList.push('Your MIX');
+      seen.add('your mix');
+    }
+
     for (const item of list) {
       if (!item || !item.trim()) continue;
       const cleanItem = item.trim();
@@ -82,7 +92,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     }
 
     return uniqueList;
-  }, [categoriesData, menu]);
+  }, [categoriesData, menu, shopSettings?.yourMixEnabled]);
 
   const [activeCategory, setActiveCategory] = useState<string>(categories[0] || '');
   const [activeSubCategory, setActiveSubCategory] = useState<string>('All');
@@ -1427,7 +1437,46 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
               </div>
             )}
 
-            {filteredMenu.length === 0 ? (
+            {activeCategory === 'Your MIX' && !localSearchQuery ? (
+              shopSettings?.yourMixStatus === 'paused' ? (
+                <div className="py-20 text-center bg-amber-500/10 border border-amber-500/30 rounded-3xl p-8 max-w-lg mx-auto space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
+                    <FlaskConical className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-black text-white uppercase tracking-wider">
+                    Your MIX Laboratory Paused
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    Our baristas are currently handling peak store volume. The custom mix laboratory will reopen shortly! In the meantime, explore our regular handcrafted menu.
+                  </p>
+                </div>
+              ) : shopSettings?.yourMixStatus === 'offline' ? (
+                <div className="py-20 text-center bg-rose-500/10 border border-rose-500/30 rounded-3xl p-8 max-w-lg mx-auto space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+                    <FlaskConical className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-black text-white uppercase tracking-wider">
+                    Your MIX Laboratory Offline
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    The custom mixing station is currently offline for restock and calibration. Please order from our standard catalog.
+                  </p>
+                </div>
+              ) : (
+                <div className="w-full">
+                  <YourMixStudio
+                    ingredients={yourMixIngredients}
+                    bases={yourMixBases}
+                    mode={mode}
+                    onAddToCart={(customItem) => {
+                      setCart(prev => [...prev, customItem]);
+                      if (mode === 'mobile') setIsMobileCartOpen(true);
+                      else if (mode === 'kiosk') setIsKioskCartOpen(true);
+                    }}
+                  />
+                </div>
+              )
+            ) : filteredMenu.length === 0 ? (
               <div className="py-24 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
                 <div className="w-32 h-32 bg-slate-100 dark:bg-slate-900 rounded-[3rem] flex items-center justify-center mx-auto mb-8 border border-slate-200 dark:border-white/5 shadow-inner">
                   <Search className="w-12 h-12 text-slate-700 dark:text-slate-300" />

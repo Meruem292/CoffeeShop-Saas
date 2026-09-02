@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'rea
 import { ViewMode, Order, Product, OrderStatus } from './types';
 import { SplashScreen } from './components/SplashScreen';
 import { UnifiedAuthModal } from './components/UnifiedAuthModal';
-import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag, User, Coins, Download, ShoppingBag, MessageSquare } from 'lucide-react';
+import { Store, MonitorSmartphone, Tablet, Smartphone, ChefHat, Package, CheckCircle2, Settings, LogOut, ShieldAlert, Lock, Home, Banknote, BarChart3, Sun, Moon, Search, X, Coffee, Croissant, CakeSlice, Cookie, Milk, CupSoda, Utensils, Menu, ChevronRight , Tag, User, Coins, Download, ShoppingBag, MessageSquare, FlaskConical } from 'lucide-react';
 import { PWAInstallModal } from './components/PWAInstallModal';
 import { useFirebase } from './lib/useFirebase';
 import { useChat } from './lib/useChat';
@@ -21,6 +21,7 @@ import { InventoryManager } from './components/InventoryManager';
 import { AdminProducts } from './components/AdminProducts';
 import { AdminVouchers } from './components/AdminVouchers';
 import { AdminSettings } from './components/AdminSettings';
+import { AdminYourMix } from './components/AdminYourMix';
 import { AdminCustomers } from './components/AdminCustomers';
 import { CashierView } from './components/CashierView';
 import { TransactionReports } from './components/TransactionReports';
@@ -125,11 +126,20 @@ export default function App() {
     userClaimedVouchers,
     profiles,
     userProfile,
+    yourMixIngredients,
+    yourMixBases,
     addVoucher,
     updateVoucher,
     deleteVoucher,
     claimVoucher,
-    updateUserProfile
+    updateUserProfile,
+    addYourMixIngredient,
+    updateYourMixIngredient,
+    deleteYourMixIngredient,
+    addYourMixBase,
+    updateYourMixBase,
+    deleteYourMixBase,
+    resetYourMixDefaults
   } = useFirebase(user?.uid, isAdmin);
 
   const {
@@ -212,6 +222,7 @@ export default function App() {
     { id: 'inventory', label: 'Inventory', icon: <Package className="w-4 h-4" />, adminOnly: true },
     { id: 'admin-products', label: 'Products', icon: <Package className="w-4 h-4" />, adminOnly: true },
     { id: 'admin-vouchers', label: 'Vouchers', icon: <Tag className="w-4 h-4" />, adminOnly: true },
+    { id: 'admin-yourmix', label: 'Your MIX', icon: <FlaskConical className="w-4 h-4" />, adminOnly: true },
     { id: 'admin-customers', label: 'Customers', icon: <User className="w-4 h-4" />, adminOnly: true },
     { id: 'reports', label: 'Reports', icon: <BarChart3 className="w-4 h-4" />, adminOnly: true },
     { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" />, adminOnly: true },
@@ -1145,6 +1156,8 @@ export default function App() {
                       userClaimedVouchers={userClaimedVouchers}
                       userProfile={userProfile}
                       orders={orders}
+                      yourMixIngredients={yourMixIngredients}
+                      yourMixBases={yourMixBases}
                     />
                   )}
                   {currentView === 'kiosk' && (
@@ -1160,6 +1173,8 @@ export default function App() {
                       userClaimedVouchers={userClaimedVouchers}
                       userProfile={userProfile}
                       orders={orders}
+                      yourMixIngredients={yourMixIngredients}
+                      yourMixBases={yourMixBases}
                     />
                   )}
                   {currentView === 'mobile' && (
@@ -1176,6 +1191,8 @@ export default function App() {
                       userProfile={userProfile}
                       orders={orders}
                       onNavigateToHistory={() => setCurrentView('order-history')}
+                      yourMixIngredients={yourMixIngredients}
+                      yourMixBases={yourMixBases}
                     />
                   )}
                   {currentView === 'cashier' && (
@@ -1259,12 +1276,28 @@ export default function App() {
                           onInitiateChat={handleInitiateChatWithCustomer}
                         />
                       )}
+                      {currentView === 'admin-yourmix' && (
+                        <AdminYourMix
+                          ingredients={yourMixIngredients}
+                          bases={yourMixBases}
+                          shopSettings={shopSettings}
+                          onAddIngredient={addYourMixIngredient}
+                          onUpdateIngredient={updateYourMixIngredient}
+                          onDeleteIngredient={deleteYourMixIngredient}
+                          onAddBase={addYourMixBase}
+                          onUpdateBase={updateYourMixBase}
+                          onDeleteBase={deleteYourMixBase}
+                          onResetDefaults={resetYourMixDefaults}
+                          onBackToSettings={() => setCurrentView('settings')}
+                        />
+                      )}
                       {currentView === 'settings' && (
                         <AdminSettings 
                           splashScreen={splashScreen}
                           shopSettings={shopSettings}
                           onUpdateSplash={updateSplashScreen}
                           onUpdateShop={updateShopSettings}
+                          onNavigateToYourMix={() => setCurrentView('admin-yourmix')}
                         />
                       )}
                       {currentView === 'profile' && (
