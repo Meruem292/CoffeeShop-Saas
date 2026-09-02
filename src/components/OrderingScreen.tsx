@@ -75,8 +75,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     const uniqueList: string[] = [];
     const seen = new Set<string>();
     
+    const isYourMixEnabled = shopSettings?.yourMixEnabled !== false;
+
     // Add Your MIX as a featured special category if enabled in settings
-    if (shopSettings?.yourMixEnabled !== false) {
+    if (isYourMixEnabled) {
       uniqueList.push('Your MIX');
       seen.add('your mix');
     }
@@ -85,6 +87,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       if (!item || !item.trim()) continue;
       const cleanItem = item.trim();
       const lower = cleanItem.toLowerCase();
+      // Skip 'Your MIX' category when disabled in settings
+      if (!isYourMixEnabled && (lower === 'your mix' || lower === 'yourmix')) {
+        continue;
+      }
       if (!seen.has(lower)) {
         seen.add(lower);
         uniqueList.push(cleanItem);
@@ -1437,7 +1443,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
               </div>
             )}
 
-            {activeCategory === 'Your MIX' && !localSearchQuery ? (
+            {activeCategory === 'Your MIX' && shopSettings?.yourMixEnabled !== false && !localSearchQuery ? (
               shopSettings?.yourMixStatus === 'paused' ? (
                 <div className="py-20 text-center bg-amber-500/10 border border-amber-500/30 rounded-3xl p-8 max-w-lg mx-auto space-y-4">
                   <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
