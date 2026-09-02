@@ -1,6 +1,6 @@
 import React from 'react';
-import { Coffee, ArrowRight, ChefHat, CheckCircle2, Clock, Lock, Zap, Sparkles, Orbit } from 'lucide-react';
-import { SplashScreen as SplashScreenType, ShopSettings, Order } from '../types';
+import { Coffee, ArrowRight, ChefHat, CheckCircle2, Clock, Lock, Zap, Sparkles, Orbit, Flame } from 'lucide-react';
+import { SplashScreen as SplashScreenType, ShopSettings, Order, Product } from '../types';
 
 declare module 'react' {
   namespace JSX {
@@ -14,12 +14,13 @@ interface SplashScreenProps {
   data: SplashScreenType | null;
   shopSettings: ShopSettings | null;
   orders: Order[];
+  products?: Product[];
   onStart: () => void;
   isKioskModeActive?: boolean;
   onExitKiosk?: () => void;
 }
 
-export function SplashScreen({ data, shopSettings, orders, onStart, isKioskModeActive, onExitKiosk }: SplashScreenProps) {
+export function SplashScreen({ data, shopSettings, orders, products = [], onStart, isKioskModeActive, onExitKiosk }: SplashScreenProps) {
   const [hasModelError, setHasModelError] = React.useState(false);
 
   React.useEffect(() => {
@@ -31,6 +32,37 @@ export function SplashScreen({ data, shopSettings, orders, onStart, isKioskModeA
   React.useEffect(() => {
     setHasModelError(false);
   }, [data?.glbUrl, data?.useGlb]);
+
+  // Calculate top best sellers for continuous marquee rotation
+  const bestSellers = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    orders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      order.items?.forEach(item => {
+        if (item.id) {
+          counts[item.id] = (counts[item.id] || 0) + (item.quantity || 1);
+        }
+      });
+    });
+
+    const menu = products || [];
+    const sorted = Object.entries(counts)
+      .filter(([_, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([id, count]) => {
+        const prod = menu.find(p => p.id === id);
+        return prod ? { product: prod, count } : null;
+      })
+      .filter((item): item is { product: Product; count: number } => item !== null && item.product.isActive !== false);
+
+    if (sorted.length > 0) return sorted.slice(0, 10);
+
+    // Fallbacks if no orders yet
+    return menu
+      .filter(p => p.isActive !== false)
+      .slice(0, 8)
+      .map((p, idx) => ({ product: p, count: Math.max(15 - idx * 2, 5) }));
+  }, [orders, products]);
 
   if (!data || !data.isActive) {
     return null;
@@ -86,6 +118,71 @@ export function SplashScreen({ data, shopSettings, orders, onStart, isKioskModeA
           </button>
         )}
       </header>
+
+      {/* Top Best Sellers Continuous Rotating Marquee Banner */}
+      {bestSellers.length > 0 && (
+        <div className="w-full bg-[#0d121f]/95 border-b border-amber-500/20 py-2.5 px-4 md:px-8 shrink-0 backdrop-blur-md z-20 overflow-hidden shadow-lg">
+          <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 justify-between">
+            
+            {/* Left Header Tag */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 text-[10px] font-black uppercase tracking-wider shadow-sm">
+                <Flame className="w-3.5 h-3.5 fill-amber-500 animate-pulse" />
+                <span>Best Sellers</span>
+              </div>
+              <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-widest hidden md:inline-block">
+                Store Favorites • Tap to Order
+              </span>
+            </div>
+
+            {/* Continuous Marquee Track */}
+            <div className="flex-1 w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]">
+              <div className="flex gap-3 w-max animate-marquee hover:[animation-play-state:paused] py-0.5">
+                {(() => {
+                  let repeated = [...bestSellers];
+                  while (repeated.length < 8) {
+                    repeated = [...repeated, ...bestSellers];
+                  }
+                  const doubleList = [...repeated, ...repeated];
+                  return doubleList.map(({ product, count }, index) => (
+                    <button
+                      key={`splash-best-${product.id}-${index}`}
+                      type="button"
+                      onClick={onStart}
+                      className="shrink-0 h-[48px] bg-[#161D2E] hover:bg-[#1f293d] border border-amber-500/30 hover:border-amber-500 rounded-xl px-2.5 py-1.5 flex items-center gap-2.5 transition-all text-left group shadow-sm active:scale-95"
+                    >
+                      <div className="w-8 h-8 rounded-lg overflow-hidden bg-slate-900 shrink-0 border border-white/10 relative">
+                        <img 
+                          src={product.image || undefined} 
+                          alt={product.name} 
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      <div className="flex flex-col justify-center min-w-0 pr-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-white group-hover:text-amber-400 transition-colors truncate max-w-[130px]">
+                            {product.name}
+                          </span>
+                          <span className="text-[8px] font-black bg-amber-500/20 text-amber-400 px-1 py-0.2 rounded border border-amber-500/30">
+                            ₱{product.price}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400">
+                          <span className="text-amber-500">🔥 {count} sold</span>
+                          <span>•</span>
+                          <span className="text-slate-500 uppercase text-[8px]">Tap to order</span>
+                        </div>
+                      </div>
+                    </button>
+                  ));
+                })()}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-8 flex flex-col lg:flex-row gap-6 z-10">
@@ -299,39 +396,6 @@ export function SplashScreen({ data, shopSettings, orders, onStart, isKioskModeA
                 </div>
               </div>
 
-            </div>
-
-            {/* Feature Icons Footer Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-white/5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-amber-500 shrink-0">
-                  <Coffee className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-black text-xs uppercase tracking-wider text-white">PREMIUM QUALITY</h4>
-                  <p className="text-[10px] font-bold text-slate-400">Top-quality beans</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-amber-500 shrink-0">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-black text-xs uppercase tracking-wider text-white">CRAFTED WITH CARE</h4>
-                  <p className="text-[10px] font-bold text-slate-400">Made by passionate baristas</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-amber-500 shrink-0">
-                  <Zap className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-black text-xs uppercase tracking-wider text-white">FAST & RELIABLE</h4>
-                  <p className="text-[10px] font-bold text-slate-400">Quick service, every time</p>
-                </div>
-              </div>
             </div>
 
           </div>

@@ -1339,10 +1339,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
               </div>
             )}
 
-            {/* Overall Best Sellers Section */}
-            {((mode === 'kiosk' || mode === 'pos') || (mode === 'mobile' && overallBestSellers.length > 0)) && (
-              <div className="mb-3 sm:mb-6 p-2.5 sm:p-4 bg-amber-500/5 dark:bg-amber-500/5 rounded-2xl sm:rounded-3xl border border-amber-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-1 sm:mb-1.5">
+            {/* Overall Best Sellers Continuous Rotating Marquee Section */}
+            {((mode === 'kiosk' || mode === 'pos') || (mode === 'mobile' && overallBestSellers.length > 0)) && overallBestSellers.length > 0 && (
+              <div className="mb-3 sm:mb-6 p-2.5 sm:p-4 bg-amber-500/5 dark:bg-amber-500/5 rounded-2xl sm:rounded-3xl border border-amber-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 overflow-hidden">
+                <div className="flex items-center justify-between mb-1.5 sm:mb-2">
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 fill-amber-500 animate-pulse shrink-0" />
                     <h3 className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-1.5 sm:gap-2">
@@ -1352,48 +1352,59 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                       </span>
                     </h3>
                   </div>
-                  <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">
-                    Scroll →
-                  </span>
+                  <div className="flex items-center gap-1.5 text-[8px] sm:text-[9px] font-black text-amber-500 uppercase tracking-widest">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                    <span>Live Marquee • Hover to Pause</span>
+                  </div>
                 </div>
 
-                <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide py-0.5 sm:py-1 items-center">
-                  {overallBestSellers.slice(0, 8).map(({ product, count }) => {
-                    const cartCount = cart.filter(c => c.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
-                    return (
-                      <div
-                        key={`best-${product.id}`}
-                        onClick={() => product.isActive !== false && handleProductClick(product)}
-                        className="shrink-0 w-48 sm:w-64 h-[84px] sm:h-[145px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-amber-500/30 p-2 sm:p-2.5 flex gap-2 sm:gap-3 items-center cursor-pointer hover:border-amber-500 hover:shadow-md transition-all relative group"
-                      >
-                        <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
-                          <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                          <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-amber-500 text-slate-950 text-[7px] sm:text-[8px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-full shadow">
-                            🔥 {count} sold
-                          </div>
-                          {cartCount > 0 && (
-                            <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 bg-amber-500 text-slate-900 text-[8px] sm:text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-white">
-                              {cartCount}
+                <div className="relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)] py-0.5">
+                  <div className="flex gap-2.5 sm:gap-3.5 w-max animate-marquee hover:[animation-play-state:paused] py-0.5">
+                    {(() => {
+                      const base = overallBestSellers.slice(0, 10);
+                      let repeated = [...base];
+                      while (repeated.length < 8) {
+                        repeated = [...repeated, ...base];
+                      }
+                      const doubleList = [...repeated, ...repeated];
+                      return doubleList.map(({ product, count }, index) => {
+                        const cartCount = cart.filter(c => c.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
+                        return (
+                          <div
+                            key={`best-marquee-${product.id}-${index}`}
+                            onClick={() => product.isActive !== false && handleProductClick(product)}
+                            className="shrink-0 w-52 sm:w-64 h-[84px] sm:h-[96px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-amber-500/30 p-2 sm:p-2.5 flex gap-2.5 sm:gap-3 items-center cursor-pointer hover:border-amber-500 hover:shadow-lg hover:scale-[1.02] transition-all relative group select-none shadow-sm"
+                          >
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
+                              <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                              <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-amber-500 text-slate-950 text-[7px] sm:text-[8px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-full shadow">
+                                🔥 {count} sold
+                              </div>
+                              {cartCount > 0 && (
+                                <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 bg-amber-500 text-slate-900 text-[8px] sm:text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-white">
+                                  {cartCount}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
-                          <div>
-                            <span className="text-[7px] sm:text-[8px] font-extrabold uppercase text-amber-500 tracking-wider block leading-none mb-0.5">Best Seller</span>
-                            <h4 className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white truncate leading-snug">{product.name}</h4>
-                            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 block truncate leading-none mt-0.5">{product.category}</span>
+                            
+                            <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
+                              <div>
+                                <span className="text-[7px] sm:text-[8px] font-extrabold uppercase text-amber-500 tracking-wider block leading-none mb-0.5">Best Seller</span>
+                                <h4 className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white truncate leading-snug">{product.name}</h4>
+                                <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 block truncate leading-none mt-0.5">{product.category}</span>
+                              </div>
+                              <div className="flex items-center justify-between mt-auto pt-0.5">
+                                <span className="text-[11px] sm:text-xs font-black text-amber-500 italic">₱{product.price}</span>
+                                <button className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-amber-500/10 group-hover:bg-amber-500 text-amber-600 group-hover:text-slate-950 rounded-md sm:rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-colors">
+                                  + Add
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between mt-auto pt-0.5">
-                            <span className="text-[11px] sm:text-xs font-black text-amber-500 italic">₱{product.price}</span>
-                            <button className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-amber-500/10 hover:bg-amber-500 text-amber-600 hover:text-slate-950 rounded-md sm:rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-colors">
-                              + Add
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        );
+                      });
+                    })()}
+                  </div>
                 </div>
               </div>
             )}

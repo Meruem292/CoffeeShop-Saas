@@ -1102,6 +1102,7 @@ export default function App() {
               data={splashScreen} 
               shopSettings={shopSettings}
               orders={orders}
+              products={products}
               onStart={() => setIsStarted(true)} 
               isKioskModeActive={isKioskModeActive}
               onExitKiosk={user && !isAdmin ? undefined : () => setShowExitKioskModal(true)}
