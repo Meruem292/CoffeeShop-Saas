@@ -1356,6 +1356,7 @@ export default function App() {
                         <AdminVouchers
                           vouchers={vouchers}
                           categories={categories}
+                          products={products}
                           onAddVoucher={addVoucher}
                           onUpdateVoucher={updateVoucher}
                           onDeleteVoucher={deleteVoucher}

@@ -262,9 +262,12 @@ export interface Voucher {
   // Conditional promo fields (for 'buy_x_get_y' or custom conditions)
   conditionType?: 'none' | 'buy_x_get_y' | 'min_spend';
   buyQuantity?: number;
+  buyScope?: 'all' | 'category' | 'products';
   buyCategoryOrName?: string;
+  buyProductIds?: string[];
   getQuantity?: number;
   getCategoryOrName?: string;
+  getProductIds?: string[];
   isForSale?: boolean; // false = not for sale (for all / promo), true = can be bought with points
   isAdminOnly?: boolean; // true = only visible/usable by admin / cashier
   isPurchased?: boolean;
@@ -283,9 +286,12 @@ export interface ClaimedVoucher {
   isUsed?: boolean;
   conditionType?: 'none' | 'buy_x_get_y' | 'min_spend';
   buyQuantity?: number;
+  buyScope?: 'all' | 'category' | 'products';
   buyCategoryOrName?: string;
+  buyProductIds?: string[];
   getQuantity?: number;
   getCategoryOrName?: string;
+  getProductIds?: string[];
   isAdminOnly?: boolean;
 }
 

@@ -155,8 +155,24 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   const { isBuyXGetYEligible, buyCount, requiredQty } = useMemo(() => {
     if (!appliedVoucher || appliedVoucher.type !== 'buy_x_get_y') return { isBuyXGetYEligible: false, buyCount: 0, requiredQty: 0 };
     const buyQty = appliedVoucher.buyQuantity || 1;
+    const buyProductIds = appliedVoucher.buyProductIds || [];
+    const buyScope = appliedVoucher.buyScope || (buyProductIds.length > 0 ? 'products' : appliedVoucher.buyCategoryOrName ? 'category' : 'all');
     const buyTerm = (appliedVoucher.buyCategoryOrName || '').toLowerCase().trim();
+
     const buyCount = cart.reduce((sum, item) => {
+      // Don't count the free promo item itself towards qualification
+      if (item.notes === 'Free item from promo') return sum;
+
+      if (buyScope === 'products' && buyProductIds.length > 0) {
+        if (buyProductIds.includes(item.id)) return sum + item.quantity;
+        return sum;
+      }
+      if (buyScope === 'category' && buyTerm) {
+        const itemCat = (item.category || '').toLowerCase();
+        if (itemCat === buyTerm || itemCat.includes(buyTerm)) return sum + item.quantity;
+        return sum;
+      }
+      // 'all' or fallback
       const itemCat = (item.category || '').toLowerCase();
       const itemName = (item.name || '').toLowerCase();
       if (!buyTerm || itemCat.includes(buyTerm) || itemName.includes(buyTerm)) {
@@ -164,13 +180,27 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       }
       return sum;
     }, 0);
+
     return { isBuyXGetYEligible: buyCount >= buyQty, buyCount, requiredQty: buyQty };
   }, [appliedVoucher, cart]);
 
   const eligibleFreeProducts = useMemo(() => {
     if (!appliedVoucher || appliedVoucher.type !== 'buy_x_get_y') return [];
+    
+    // Only active and in-stock products
+    const activeInStockMenu = menu.filter(item => {
+      if (item.isActive === false) return false;
+      if (item.stock !== undefined && item.stock <= 0) return false;
+      return true;
+    });
+
+    const getProductIds = appliedVoucher.getProductIds || [];
+    if (getProductIds.length > 0) {
+      return activeInStockMenu.filter(item => getProductIds.includes(item.id));
+    }
+
     const getTerm = (appliedVoucher.getCategoryOrName || '').toLowerCase().trim();
-    return menu.filter(item => {
+    return activeInStockMenu.filter(item => {
       const itemCat = (item.category || '').toLowerCase();
       const itemName = (item.name || '').toLowerCase();
       if (!getTerm || itemCat.includes(getTerm) || itemName.includes(getTerm)) {
@@ -179,6 +209,39 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       return false;
     });
   }, [appliedVoucher, menu]);
+
+  // Auto-select free item if exactly 1 product is configured for the promo
+  React.useEffect(() => {
+    if (appliedVoucher?.type === 'buy_x_get_y' && isBuyXGetYEligible && eligibleFreeProducts.length === 1) {
+      const singleProd = eligibleFreeProducts[0];
+      const hasFreeItem = cart.some(i => i.id === singleProd.id && i.notes === 'Free item from promo');
+      if (!hasFreeItem && (!selectedFreeProduct || selectedFreeProduct.id !== singleProd.id)) {
+        setSelectedFreeProduct(singleProd);
+        const cartId = Math.random().toString(36).substr(2, 9);
+        setCart(prev => {
+          const filtered = prev.filter(i => i.notes !== 'Free item from promo');
+          return [...filtered, {
+            ...singleProd,
+            cartId,
+            quantity: 1,
+            notes: 'Free item from promo',
+            sugarLevel: '100%',
+            selectedSize: singleProd.sizes?.[0],
+            selectedAddons: []
+          }];
+        });
+        toast.success(`Free reward added: ${singleProd.name}!`);
+      }
+    }
+  }, [appliedVoucher, isBuyXGetYEligible, eligibleFreeProducts]);
+
+  // If customer removes items and no longer meets condition, remove the free item
+  React.useEffect(() => {
+    if (appliedVoucher?.type === 'buy_x_get_y' && !isBuyXGetYEligible && selectedFreeProduct) {
+      setSelectedFreeProduct(null);
+      setCart(prev => prev.filter(i => i.notes !== 'Free item from promo'));
+    }
+  }, [appliedVoucher, isBuyXGetYEligible, selectedFreeProduct]);
 
   const handleLookupPersonalVoucher = async () => {
     if (!personalVoucherInput.trim()) return;
@@ -916,63 +979,30 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       return appliedVoucher.value;
     }
     if (appliedVoucher.type === 'buy_x_get_y') {
+      if (!isBuyXGetYEligible || !selectedFreeProduct) return 0;
       const buyQty = appliedVoucher.buyQuantity || 1;
       const getQty = appliedVoucher.getQuantity || 1;
-      const selectedId = selectedFreeProduct?.id;
-      const buyTerm = (appliedVoucher.buyCategoryOrName || '').toLowerCase().trim();
+      const selectedId = selectedFreeProduct.id;
 
-      const buyCount = cart.reduce((sum, item) => {
-        const itemCat = (item.category || '').toLowerCase();
-        const itemName = (item.name || '').toLowerCase();
-        if (!buyTerm || itemCat.includes(buyTerm) || itemName.includes(buyTerm)) {
-          return sum + item.quantity;
-        }
-        return sum;
-      }, 0);
+      const sets = Math.floor(buyCount / buyQty);
+      const freeAllowed = sets * getQty;
+      let freeRemaining = freeAllowed;
+      let totalDiscount = 0;
 
-      if (buyCount >= buyQty) {
-        if (!selectedFreeProduct) return 0;
-        const sets = Math.floor(buyCount / buyQty);
-        const freeAllowed = sets * getQty;
-        let freeRemaining = freeAllowed;
-        let totalDiscount = 0;
-
-        const getItems = cart.filter(item => {
-          if (selectedId && item.id === selectedId) return true;
-          const getTerm = (appliedVoucher.getCategoryOrName || '').toLowerCase().trim();
-          const itemCat = (item.category || '').toLowerCase();
-          const itemName = (item.name || '').toLowerCase();
-          if (!getTerm || itemCat.includes(getTerm) || itemName.includes(getTerm)) {
-            return true;
-          }
-          return false;
-        });
-
-        if (selectedId) {
-          const foundTarget = getItems.find(i => i.id === selectedId);
-          if (foundTarget) {
-            const take = Math.min(foundTarget.quantity, freeRemaining);
-            totalDiscount += foundTarget.price * take;
-            freeRemaining -= take;
-          }
-        }
-
-        if (freeRemaining > 0) {
-          const sortedGetItems = [...getItems].sort((a, b) => a.price - b.price);
-          for (const item of sortedGetItems) {
-            const take = Math.min(item.quantity, freeRemaining);
-            totalDiscount += item.price * take;
-            freeRemaining -= take;
-            if (freeRemaining <= 0) break;
-          }
-        }
-
-        return totalDiscount;
+      // Base size is 100% free (selectedFreeProduct.price)
+      const freeCartItem = cart.find(i => (i.id === selectedId && i.notes === 'Free item from promo') || (i.id === selectedId));
+      if (freeCartItem) {
+        const take = Math.min(freeCartItem.quantity, freeRemaining);
+        totalDiscount += Math.min(selectedFreeProduct.price * take, freeCartItem.price * take);
+        freeRemaining -= take;
+      } else {
+        totalDiscount += selectedFreeProduct.price * freeAllowed;
       }
-      return 0;
+
+      return totalDiscount;
     }
     return 0;
-  }, [appliedVoucher, subtotal, cart]);
+  }, [appliedVoucher, subtotal, cart, isBuyXGetYEligible, buyCount, selectedFreeProduct]);
     
   const total = Math.max(0, subtotal - discountAmount);
 
@@ -1706,6 +1736,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                         onClick={() => {
                           setAppliedVoucher(null);
                           setSelectedFreeProduct(null);
+                          setCart(prev => prev.filter(i => i.notes !== 'Free item from promo'));
                           toast.info('Voucher removed');
                         }}
                         className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors font-bold text-xs"
@@ -1726,7 +1757,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                             )
                           ) : (
                             <span className="text-amber-600 dark:text-amber-400 font-bold">
-                              Add {Math.max(0, requiredQty - buyCount)} more {appliedVoucher.buyCategoryOrName || 'items'} ({buyCount}/{requiredQty})
+                              Add {Math.max(0, requiredQty - buyCount)} more {(() => {
+                                if (appliedVoucher.buyScope === 'products' && appliedVoucher.buyProductIds?.length) {
+                                  const matching = menu.filter(m => appliedVoucher.buyProductIds?.includes(m.id));
+                                  return matching.length === 1 ? matching[0].name : `${matching.length} eligible items`;
+                                }
+                                return appliedVoucher.buyCategoryOrName || 'items';
+                              })()} ({buyCount}/{requiredQty})
                             </span>
                           )}
                         </div>
@@ -1759,9 +1796,12 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                       pointsCost: 0,
                       conditionType: cv.conditionType || 'none',
                       buyQuantity: cv.buyQuantity,
+                      buyScope: cv.buyScope,
                       buyCategoryOrName: cv.buyCategoryOrName,
+                      buyProductIds: cv.buyProductIds,
                       getQuantity: cv.getQuantity,
                       getCategoryOrName: cv.getCategoryOrName,
+                      getProductIds: cv.getProductIds,
                       isAdminOnly: cv.isAdminOnly,
                       isPurchased: true,
                       claimedVoucherId: cv.id
@@ -1811,7 +1851,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                               disabled={isDisabled}
                               className={`shrink-0 p-3 rounded-2xl border flex flex-col gap-1.5 min-w-[150px] text-left transition-all ${
                                 isApplied 
-                                  ? 'bg-amber-500/20 border-amber-500 shadow-md' 
+                                    ? 'bg-amber-500/20 border-amber-500 shadow-md' 
                                   : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:border-amber-500/50'
                               } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'}`}
                             >
@@ -1826,7 +1866,15 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                               </div>
                               <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{v.code}</span>
                               <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase">
-                                {v.type === 'buy_x_get_y' ? `Buy ${v.buyQuantity} ${v.buyCategoryOrName || 'items'} get ${v.getQuantity} free` : (v.type === 'percentage' ? `${v.value}% discount` : `₱${v.value} off`)} {v.minSpend ? `(Min ₱${v.minSpend})` : ''}
+                                {v.type === 'buy_x_get_y' ? (() => {
+                                  const buyDesc = v.buyScope === 'products' && v.buyProductIds?.length 
+                                    ? (v.buyProductIds.length === 1 ? (menu.find(m => m.id === v.buyProductIds![0])?.name || '1 item') : `${v.buyProductIds.length} items`)
+                                    : (v.buyCategoryOrName || 'items');
+                                  const getDesc = v.getProductIds?.length 
+                                    ? (v.getProductIds.length === 1 ? (menu.find(m => m.id === v.getProductIds![0])?.name || '1 free item') : `${v.getProductIds.length} choices`)
+                                    : (v.getCategoryOrName || 'free item');
+                                  return `Buy ${v.buyQuantity || 1} ${buyDesc} get ${v.getQuantity || 1} ${getDesc}`;
+                                })() : (v.type === 'percentage' ? `${v.value}% discount` : `₱${v.value} off`)} {v.minSpend ? `(Min ₱${v.minSpend})` : ''}
                               </span>
                             </button>
                           );
@@ -2507,7 +2555,11 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                   </div>
                   <div>
                     <h3 className="text-base font-black uppercase tracking-wider text-slate-900 dark:text-white">Choose Your Free Item</h3>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">Category / Item: {appliedVoucher?.getCategoryOrName || 'Any'}</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">
+                      {appliedVoucher?.getProductIds?.length 
+                        ? `${appliedVoucher.getProductIds.length} Eligible Promo Item${appliedVoucher.getProductIds.length > 1 ? 's' : ''}` 
+                        : `Category / Item: ${appliedVoucher?.getCategoryOrName || 'Any'}`}
+                    </p>
                   </div>
                 </div>
                 <button 
@@ -2529,9 +2581,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                           setSelectedFreeProduct(prod);
                           setShowFreeItemModal(false);
                           const cartId = Math.random().toString(36).substr(2, 9);
-                          const existingIndex = cart.findIndex(i => i.id === prod.id);
-                          if (existingIndex === -1) {
-                            setCart(prev => [...prev, {
+                          setCart(prev => {
+                            const filtered = prev.filter(i => i.notes !== 'Free item from promo');
+                            return [...filtered, {
                               ...prod,
                               cartId,
                               quantity: 1,
@@ -2539,8 +2591,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                               sugarLevel: '100%',
                               selectedSize: prod.sizes?.[0],
                               selectedAddons: []
-                            }]);
-                          }
+                            }];
+                          });
                           toast.success(`Selected free item: ${prod.name}`);
                         }}
                         className={`p-3 rounded-2xl border text-left flex flex-col gap-2 transition-all ${
@@ -2550,7 +2602,11 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                         }`}
                       >
                         <div className="w-full h-24 rounded-xl overflow-hidden bg-black/10 relative">
-                          <img src={prod.image} alt={prod.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          {prod.image ? (
+                            <img src={prod.image} alt={prod.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-400 font-black">PROMO</div>
+                          )}
                           <div className="absolute top-2 right-2 px-2 py-0.5 bg-amber-500 text-slate-900 font-black text-[9px] rounded-md uppercase">
                             FREE
                           </div>
@@ -2564,7 +2620,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                   })
                 ) : (
                   <div className="col-span-2 py-8 text-center text-slate-400 text-xs uppercase tracking-widest font-bold">
-                    No products found in category "{appliedVoucher?.getCategoryOrName}"
+                    No eligible free products currently available in stock
                   </div>
                 )}
               </div>
