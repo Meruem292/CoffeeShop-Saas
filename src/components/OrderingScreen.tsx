@@ -451,9 +451,14 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     if (mode === 'mobile' && user && !user.email?.endsWith('@astro.local') && user.email !== 'newroskoto@gmail.com') { // exclude admin
       setCustomerName(user.displayName || user.email.split('@')[0] || '');
       setAccountId(user.uid);
-    } else if (mode === 'kiosk' && activeCustomerProfile) {
-      setCustomerName(activeCustomerProfile.displayName || activeCustomerProfile.email?.split('@')[0] || 'Customer');
-      setAccountId(activeCustomerProfile.uid);
+    } else if (mode === 'kiosk') {
+      if (activeCustomerProfile) {
+        setCustomerName(activeCustomerProfile.displayName || activeCustomerProfile.email?.split('@')[0] || 'Customer');
+        setAccountId(activeCustomerProfile.uid);
+      } else {
+        setCustomerName('Guest');
+        setAccountId('');
+      }
     }
   }, [user, mode, activeCustomerProfile]);
 
@@ -1045,7 +1050,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       return;
     }
     
-    if (!customerName.trim()) {
+    const finalCustomerName = customerName.trim() || (mode === 'kiosk' ? 'Guest' : '');
+    if (!finalCustomerName) {
       toast.warning('Please enter your name before placing the order.');
       return;
     }
@@ -1060,9 +1066,11 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     const earnRate = shopSettings?.pointsEarnedPer10Pesos ?? (shopSettings?.pointsEarnedPer100Pesos ? Math.max(1, Math.round(shopSettings.pointsEarnedPer100Pesos / 10)) : 1);
     const pointsEarned = Math.floor(total / 10) * earnRate;
 
-    const targetCustomer = activeCustomerProfile || (mode === 'mobile' ? userProfile : null);
+    const targetCustomer = mode === 'kiosk'
+      ? (scannedAccountProfile || userProfile)
+      : (activeCustomerProfile || (mode === 'mobile' ? userProfile : null));
     const targetCustomerId = targetCustomer?.uid || (mode === 'mobile' ? user?.uid : undefined);
-    const targetCustomerName = customerName.trim() || targetCustomer?.displayName || 'Customer';
+    const targetCustomerName = finalCustomerName || targetCustomer?.displayName || (mode === 'kiosk' ? 'Guest' : 'Customer');
 
     onPlaceOrder({
       items: cart,
@@ -1071,7 +1079,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       discountAmount,
       voucherCode: appliedVoucher?.code,
       pointsSpent: appliedVoucher?.pointsCost || 0,
-      pointsEarned,
+      pointsEarned: targetCustomerId ? pointsEarned : 0,
       claimedVoucherId: (appliedVoucher as any)?.isPurchased ? appliedVoucher?.id : undefined,
       source: mode,
       customerName: targetCustomerName,
@@ -1081,7 +1089,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       paymentMethod: paymentMethod,
       status: paymentMethod === 'gcash' ? 'pending-verification' : 'unpaid',
       receiptUrl: paymentMethod === 'gcash' ? receiptBase64 : undefined,
-      accountId: accountId.trim() || targetCustomer?.shortId || undefined
+      accountId: targetCustomerId ? (accountId.trim() || targetCustomer?.shortId || undefined) : undefined
     });
 
     setCart([]);
@@ -2097,16 +2105,27 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
               {/* Customer Information */}
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1 flex items-center gap-1.5">
-                     <UserIcon className="w-3 h-3 text-slate-400" /> Reference Name
-                  </label>
+                  <div className="flex items-center justify-between ml-1">
+                    <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] flex items-center gap-1.5">
+                       <UserIcon className="w-3 h-3 text-slate-400" /> Reference Name
+                    </label>
+                    {mode === 'kiosk' && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomerName('Guest')}
+                        className="text-[10px] font-black text-amber-500 uppercase tracking-wider hover:underline"
+                      >
+                        Reset to 'Guest'
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     disabled={mode === 'mobile' && !!user}
                     className={`w-full p-4 border-2 border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-black transition-all ${mode === 'mobile' && user ? 'bg-black/10 dark:bg-white/10 text-slate-500 cursor-not-allowed border-transparent' : 'bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 hover:border-black/20 dark:hover:border-white/20'}`}
-                    placeholder="E.g. Juan Dela Cruz"
+                    placeholder={mode === 'kiosk' ? "Guest (Tap to customize name)" : "E.g. Juan Dela Cruz"}
                   />
                 </div>
                 
@@ -2262,7 +2281,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
             <button
               type="button"
               onClick={handleCheckout}
-              disabled={cart.length === 0 || (!customerName.trim() && mode !== 'mobile') || !!shopSettings?.isClosed || isAccountSuspended}
+              disabled={cart.length === 0 || (!customerName.trim() && mode !== 'mobile' && mode !== 'kiosk') || !!shopSettings?.isClosed || isAccountSuspended}
               className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-rose-500/20 disabled:text-rose-400 dark:disabled:bg-rose-500/20 dark:disabled:text-rose-400 text-slate-950 py-3 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
               {shopSettings?.isClosed ? 'SHOP IS CLOSED' : isAccountSuspended ? 'ACCOUNT SUSPENDED' : 'Confirm Order'} <Check className="w-4 h-4" />

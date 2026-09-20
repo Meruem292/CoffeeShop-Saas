@@ -34,6 +34,7 @@ import { AdminChatView } from './components/AdminChatView';
 import { CustomerChatWidget } from './components/CustomerChatWidget';
 import { CustomerChatPage } from './components/CustomerChatPage';
 import { AdminPageSkeleton } from './components/AdminPageSkeleton';
+import { KioskMemberModal } from './components/KioskMemberModal';
 
 export default function App() {
   const { toast } = useToast();
@@ -45,6 +46,7 @@ export default function App() {
 
   // Kiosk Customer Session & Inactivity Reset State
   const [kioskCustomerProfile, setKioskCustomerProfile] = useState<UserProfile | null>(null);
+  const [showKioskMemberModal, setShowKioskMemberModal] = useState(false);
   const [showKioskIdleWarning, setShowKioskIdleWarning] = useState(false);
   const [kioskIdleCountdown, setKioskIdleCountdown] = useState(15);
 
@@ -206,6 +208,7 @@ export default function App() {
   // Natural Phone Back Button Navigation hooks
   useBackButton(showAdminLogin, () => setShowAdminLogin(false), 'app_admin_login');
   useBackButton(showExitKioskModal, () => setShowExitKioskModal(false), 'app_exit_kiosk');
+  useBackButton(showKioskMemberModal, () => setShowKioskMemberModal(false), 'app_kiosk_member_modal');
   useBackButton(isMobileMenuOpen, () => setIsMobileMenuOpen(false), 'app_mobile_menu');
   useBackButton(isSearchOpen, () => setIsSearchOpen(false), 'app_search');
   useBackButton(!!successOrder, () => setSuccessOrder(null), 'app_success_order');
@@ -1200,8 +1203,15 @@ export default function App() {
               vouchers={vouchers}
               userClaimedVouchers={userClaimedVouchers}
               onStart={(recognizedCustomer) => {
-                setKioskCustomerProfile(recognizedCustomer || null);
-                setIsStarted(true);
+                if (recognizedCustomer) {
+                  setKioskCustomerProfile(recognizedCustomer);
+                  setIsStarted(true);
+                } else if (currentView === 'kiosk' || isKioskModeActive) {
+                  setShowKioskMemberModal(true);
+                } else {
+                  setKioskCustomerProfile(null);
+                  setIsStarted(true);
+                }
               }} 
               isKioskModeActive={isKioskModeActive}
               onExitKiosk={user && !isAdmin ? undefined : () => setShowExitKioskModal(true)}
@@ -1258,8 +1268,8 @@ export default function App() {
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
                       vouchers={vouchers}
-                      userClaimedVouchers={userClaimedVouchers}
-                      userProfile={kioskCustomerProfile || userProfile}
+                      userClaimedVouchers={kioskCustomerProfile ? userClaimedVouchers.filter(v => v.userId === kioskCustomerProfile.uid) : []}
+                      userProfile={kioskCustomerProfile}
                       orders={orders}
                       yourMixIngredients={yourMixIngredients}
                       yourMixBases={yourMixBases}
@@ -1581,6 +1591,25 @@ export default function App() {
               </div>
             </div>
           </div>
+        )}
+
+        {showKioskMemberModal && (
+          <KioskMemberModal
+            isOpen={showKioskMemberModal}
+            onClose={() => setShowKioskMemberModal(false)}
+            shopSettings={shopSettings}
+            onMemberIdentified={(profile) => {
+              setKioskCustomerProfile(profile);
+              setIsStarted(true);
+              setShowKioskMemberModal(false);
+              toast.success(`Welcome, ${profile.displayName || 'Member'}!`);
+            }}
+            onContinueAsGuest={() => {
+              setKioskCustomerProfile(null);
+              setIsStarted(true);
+              setShowKioskMemberModal(false);
+            }}
+          />
         )}
         {!isAdmin && currentView !== 'customer-chat' && (
           <CustomerChatWidget
