@@ -1,0 +1,1201 @@
+import React, { useState, useMemo } from 'react';
+import { Order } from '../types';
+import { 
+  Calendar, FileText, Download, Table as TableIcon, File as FileWord, Search, Filter, 
+  ArrowLeft, Trash2, X, AlertTriangle, ChevronDown, ChevronRight, BarChart3, TrendingUp,
+  PieChart as PieChartIcon, LineChart as LineChartIcon, Award, Clock, ShoppingBag, Zap, Layers, DollarSign, Activity, Flame
+} from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } from 'docx';
+import { saveAs } from 'file-saver';
+import { 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area, 
+  BarChart, 
+  Bar, 
+  LineChart, 
+  Line, 
+  PieChart, 
+  Pie, 
+  Cell, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  CartesianGrid, 
+  Legend 
+} from 'recharts';
+
+// Extend jsPDF with autotable types for TypeScript
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
+
+interface TransactionReportsProps {
+  orders: Order[];
+  onDeleteOrder: (id: string) => Promise<void>;
+  onClearOrders: (ids: string[]) => Promise<void>;
+}
+
+export function TransactionReports({ orders = [], onDeleteOrder, onClearOrders }: TransactionReportsProps) {
+  const getTodayString = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const [startDate, setStartDate] = useState(getTodayString());
+  const [endDate, setEndDate] = useState(getTodayString());
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  // Modals & Action States
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+
+  const allCategories = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        if (item.category) set.add(item.category);
+      });
+    });
+    return Array.from(set);
+  }, [orders]);
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      const orderDate = new Date(order.createdAt);
+      const isWithinDateRange = (!startDate || orderDate >= new Date(startDate)) && 
+                                (!endDate || orderDate <= new Date(endDate + 'T23:59:59'));
+      
+      const matchesSearch = !searchTerm || 
+                            order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            order.id?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesCategory = selectedCategory === 'all' || 
+                              order.items.some(item => (item.category || '').toLowerCase() === selectedCategory.toLowerCase());
+      
+      return isWithinDateRange && matchesSearch && matchesCategory;
+    }).sort((a, b) => b.createdAt - a.createdAt);
+  }, [orders, startDate, endDate, searchTerm, selectedCategory]);
+
+  const totalRevenue = useMemo(() => {
+    return filteredOrders.reduce((sum, order) => {
+      if (order.status === 'cancelled') return sum;
+      return sum + order.total;
+    }, 0);
+  }, [filteredOrders]);
+
+  const { totalCost, totalProfit, profitMargin } = useMemo(() => {
+    let costSum = 0;
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      order.items.forEach(item => {
+        const qty = item.quantity || 1;
+        const itemCost = item.cost !== undefined ? item.cost : (item.selectedSize?.cost !== undefined ? item.selectedSize.cost : 0);
+        costSum += itemCost * qty;
+      });
+    });
+    const profit = totalRevenue - costSum;
+    const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+    return { totalCost: costSum, totalProfit: profit, profitMargin: margin };
+  }, [filteredOrders, totalRevenue]);
+
+  const { totalDrinksQuantity, totalPastryQuantity } = useMemo(() => {
+    let drinks = 0;
+    let pastry = 0;
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      order.items.forEach(item => {
+        const cat = (item.category || '').toLowerCase();
+        const qty = item.quantity || 1;
+        if (cat.includes('food') || cat.includes('pastry') || cat.includes('bakery')) {
+          pastry += qty;
+        } else {
+          drinks += qty;
+        }
+      });
+    });
+    return { totalDrinksQuantity: drinks, totalPastryQuantity: pastry };
+  }, [filteredOrders]);
+
+  const salesTrendData = useMemo(() => {
+    const map: Record<string, { date: string; revenue: number; orders: number }> = {};
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      const dateStr = new Date(order.createdAt).toISOString().split('T')[0];
+      if (!map[dateStr]) {
+        map[dateStr] = { date: dateStr, revenue: 0, orders: 0 };
+      }
+      map[dateStr].revenue += order.total;
+      map[dateStr].orders += 1;
+    });
+    return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+  }, [filteredOrders]);
+
+  const categoryChartData = useMemo(() => {
+    const map: Record<string, { category: string; revenue: number; quantity: number }> = {};
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      order.items.forEach(item => {
+        const cat = item.category || 'Other';
+        const qty = item.quantity || 1;
+        const price = item.price || 0;
+        if (!map[cat]) {
+          map[cat] = { category: cat, revenue: 0, quantity: 0 };
+        }
+        map[cat].revenue += price * qty;
+        map[cat].quantity += qty;
+      });
+    });
+    return Object.values(map);
+  }, [filteredOrders]);
+
+  const avgOrderValue = useMemo(() => {
+    const validOrders = filteredOrders.filter(o => o.status !== 'cancelled');
+    if (validOrders.length === 0) return 0;
+    return Math.round(totalRevenue / validOrders.length);
+  }, [filteredOrders, totalRevenue]);
+
+  const topSellingItems = useMemo(() => {
+    const map: Record<string, { name: string; quantity: number; revenue: number }> = {};
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      order.items.forEach(item => {
+        const name = item.name || 'Unknown Item';
+        const qty = item.quantity || 1;
+        const itemPrice = item.selectedSize ? item.selectedSize.price : (item.price || 0);
+        const addonPrice = item.selectedAddons ? item.selectedAddons.reduce((acc, a) => acc + (a.price || 0), 0) : 0;
+        const totalItemCost = (itemPrice + addonPrice) * qty;
+
+        if (!map[name]) {
+          map[name] = { name, quantity: 0, revenue: 0 };
+        }
+        map[name].quantity += qty;
+        map[name].revenue += totalItemCost;
+      });
+    });
+    return Object.values(map)
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 7);
+  }, [filteredOrders]);
+
+  const orderTypePieData = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      const type = (order.orderType || 'dine-in').toUpperCase();
+      map[type] = (map[type] || 0) + 1;
+    });
+    const colors: Record<string, string> = {
+      'DINE-IN': '#3b82f6',
+      'TAKE-AWAY': '#f97316',
+      'DELIVERY': '#10b981',
+      'PICKUP': '#8b5cf6'
+    };
+    return Object.entries(map).map(([name, value]) => ({
+      name,
+      value,
+      color: colors[name] || '#f59e0b'
+    }));
+  }, [filteredOrders]);
+
+  const orderSourcePieData = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      const src = (order.source || 'pos').toUpperCase();
+      map[src] = (map[src] || 0) + 1;
+    });
+    const colors: Record<string, string> = {
+      'POS': '#06b6d4',
+      'KIOSK': '#f59e0b',
+      'ONLINE': '#ec4899',
+      'MOBILE': '#10b981'
+    };
+    return Object.entries(map).map(([name, value]) => ({
+      name,
+      value,
+      color: colors[name] || '#8b5cf6'
+    }));
+  }, [filteredOrders]);
+
+  const hourlyTrafficData = useMemo(() => {
+    const hours = Array.from({ length: 24 }, (_, i) => ({
+      hour: `${i.toString().padStart(2, '0')}:00`,
+      orders: 0,
+      revenue: 0
+    }));
+    filteredOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      const d = new Date(order.createdAt);
+      const h = d.getHours();
+      if (hours[h]) {
+        hours[h].orders += 1;
+        hours[h].revenue += order.total;
+      }
+    });
+    return hours.slice(6, 23);
+  }, [filteredOrders]);
+
+  const orderStatusPieData = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredOrders.forEach(order => {
+      const st = (order.status || 'pending').toUpperCase();
+      map[st] = (map[st] || 0) + 1;
+    });
+    const colors: Record<string, string> = {
+      'COMPLETED': '#22c55e',
+      'READY': '#3b82f6',
+      'PREPARING': '#f59e0b',
+      'PENDING': '#eab308',
+      'UNPAID': '#ef4444',
+      'CANCELLED': '#64748b'
+    };
+    return Object.entries(map).map(([name, value]) => ({
+      name,
+      value,
+      color: colors[name] || '#a855f7'
+    }));
+  }, [filteredOrders]);
+
+  const handleDeleteConfirm = async () => {
+    if (!orderToDelete) return;
+    setIsActionLoading(true);
+    try {
+      await onDeleteOrder(orderToDelete);
+      setOrderToDelete(null);
+    } catch (err) {
+      console.error('Error deleting transaction:', err);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleClearConfirm = async () => {
+    setIsActionLoading(true);
+    try {
+      const idsToClear = filteredOrders.map(o => o.id).filter((id): id is string => !!id);
+      await onClearOrders(idsToClear);
+      setShowClearConfirm(false);
+    } catch (err) {
+      console.error('Error purging transactions:', err);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const exportToExcel = () => {
+    const data = filteredOrders.map(order => ({
+      'Date': new Date(order.createdAt).toLocaleString(),
+      'Order ID': order.id || 'N/A',
+      'Customer': order.customerName,
+      'Type': order.orderType || 'N/A',
+      'Source': order.source,
+      'Status': order.status,
+      'Items Qty': order.items.reduce((sum, item) => sum + (item.quantity || 1), 0),
+      'Total (₱)': order.total
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Transactions');
+    XLSX.writeFile(wb, `Transaction_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text('Transaction Report', 14, 15);
+    doc.text(`Period: ${startDate || 'All Time'} - ${endDate || 'Present'}`, 14, 25);
+    doc.text(`Total Drinks Qty: ${totalDrinksQuantity} | Total Revenue: ₱${totalRevenue.toLocaleString()}`, 14, 35);
+
+    const tableData = filteredOrders.map(order => [
+      new Date(order.createdAt).toLocaleString(),
+      order.id?.substring(0, 8) || 'N/A',
+      order.customerName,
+      order.items.reduce((sum, item) => sum + (item.quantity || 1), 0),
+      order.status,
+      `P${order.total.toLocaleString()}`
+    ]);
+
+    doc.autoTable({
+      startY: 45,
+      head: [['Date', 'ID', 'Customer', 'Qty', 'Status', 'Total']],
+      body: tableData,
+    });
+
+    doc.save(`Transaction_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const exportToWord = async () => {
+    const tableRows = filteredOrders.map(order => (
+      new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph(new Date(order.createdAt).toLocaleString())] }),
+          new TableCell({ children: [new Paragraph(order.id?.substring(0, 8) || 'N/A')] }),
+          new TableCell({ children: [new Paragraph(order.customerName)] }),
+          new TableCell({ children: [new Paragraph(String(order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)))] }),
+          new TableCell({ children: [new Paragraph(order.status)] }),
+          new TableCell({ children: [new Paragraph(`P${order.total.toLocaleString()}`)] }),
+        ],
+      })
+    ));
+
+    const doc = new Document({
+      sections: [{
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Transaction Report', bold: true, size: 32 }),
+            ],
+          }),
+          new Paragraph({ text: `Period: ${startDate || 'All Time'} - ${endDate || 'Present'}` }),
+          new Paragraph({ text: `Total Drinks Qty: ${totalDrinksQuantity} | Total Revenue: P${totalRevenue.toLocaleString()}` }),
+          new Paragraph({ text: '' }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Date', bold: true })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'ID', bold: true })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Customer', bold: true })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Qty', bold: true })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Status', bold: true })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: 'Total', bold: true })] })] }),
+                ],
+              }),
+              ...tableRows,
+            ],
+          }),
+        ],
+      }],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `Transaction_Report_${new Date().toISOString().split('T')[0]}.docx`);
+  };
+
+  return (
+    <div className="h-full bg-transparent p-3 sm:p-6 md:p-8 overflow-y-auto scrollbar-hide">
+      <div className="max-w-6xl mx-auto">
+        <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 md:mb-12">
+          <div>
+            <div className="flex items-center gap-4 mb-3 md:mb-4">
+              <div className="px-3 py-1 bg-black/5 dark:bg-white/5 text-amber-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-black/10 dark:border-white/10">
+                Performance
+              </div>
+              <div className="h-[1px] flex-1 lg:w-48 bg-black/5 dark:bg-white/5" />
+            </div>
+            <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-slate-900 dark:text-white font-display uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-3 sm:gap-x-4">
+              Transaction <span className="text-white/20 not-italic font-medium text-2xl sm:text-4xl md:text-5xl lg:text-6xl">Reports</span>
+            </h1>
+            <div className="flex items-center gap-3 mt-4 sm:mt-6">
+              <div className="h-1.5 w-12 sm:w-16 bg-amber-600 rounded-full shadow-[0_0_15px_rgba(217,119,6,0.5)] shrink-0" />
+              <span className="text-[10px] sm:text-xs font-bold text-white/30 uppercase tracking-widest leading-relaxed">
+                Review performance and export mission logs
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-2.5">
+            {filteredOrders.length > 0 && (
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="flex items-center gap-1.5 bg-red-600/10 border border-red-500/20 text-red-400 px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl hover:bg-red-600 hover:text-slate-900 dark:hover:text-white hover:border-red-600 transition-all shadow-[0_0_20px_rgba(220,38,38,0.1)] text-[9px] sm:text-[10px] font-black uppercase tracking-widest active:scale-95"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Clear ({filteredOrders.length})
+              </button>
+            )}
+            <button
+              onClick={exportToExcel}
+              className="flex items-center gap-1.5 bg-emerald-600 text-slate-900 dark:text-white px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl hover:bg-emerald-500 transition-all shadow-[0_0_20px_rgba(16,185,129,0.2)] text-[9px] sm:text-[10px] font-black uppercase tracking-widest active:scale-95"
+            >
+              <Download className="w-3.5 h-3.5" /> Excel
+            </button>
+            <button
+              onClick={exportToPDF}
+              className="flex items-center gap-1.5 bg-rose-600 text-slate-900 dark:text-white px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl hover:bg-rose-500 transition-all shadow-[0_0_20px_rgba(225,29,72,0.2)] text-[9px] sm:text-[10px] font-black uppercase tracking-widest active:scale-95"
+            >
+              <FileText className="w-3.5 h-3.5" /> PDF
+            </button>
+            <button
+              onClick={exportToWord}
+              className="flex items-center gap-1.5 bg-blue-600 text-slate-900 dark:text-white px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl hover:bg-blue-500 transition-all shadow-[0_0_20px_rgba(37,99,235,0.2)] text-[9px] sm:text-[10px] font-black uppercase tracking-widest active:scale-95"
+            >
+              <FileWord className="w-3.5 h-3.5" /> Word
+            </button>
+          </div>
+        </header>
+
+        {/* Summary Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5 mb-8 md:mb-12">
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest opacity-50">Total Launch Count</span>
+              <ShoppingBag className="w-4 h-4 text-amber-500/60" />
+            </div>
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">{filteredOrders.length}</span>
+          </div>
+
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest opacity-50">Avg Order Value</span>
+              <DollarSign className="w-4 h-4 text-indigo-400/60" />
+            </div>
+            <span className="text-2xl sm:text-3xl font-black text-indigo-500 dark:text-indigo-400">₱{avgOrderValue.toLocaleString()}</span>
+          </div>
+
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest opacity-50">Total Drinks Qty</span>
+              <Zap className="w-4 h-4 text-cyan-400/60" />
+            </div>
+            <span className="text-2xl sm:text-3xl font-black text-cyan-500 dark:text-cyan-400">{totalDrinksQuantity}</span>
+          </div>
+
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest opacity-50">Total Pastry Qty</span>
+              <Award className="w-4 h-4 text-amber-400/60" />
+            </div>
+            <span className="text-2xl sm:text-3xl font-black text-amber-500 dark:text-amber-400">{totalPastryQuantity}</span>
+          </div>
+
+          <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase tracking-widest opacity-50">Total Revenue</span>
+              <TrendingUp className="w-4 h-4 text-emerald-400/60" />
+            </div>
+            <span className="text-2xl sm:text-3xl font-black text-emerald-500">₱{totalRevenue.toLocaleString()}</span>
+          </div>
+        </div>
+
+        {/* Profitability & COGS Analysis Card */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-cyan-500/10 backdrop-blur-xl p-6 sm:p-8 rounded-3xl border border-amber-500/20 mb-8 sm:mb-12 shadow-2xl">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 text-amber-500 text-xs font-black uppercase tracking-widest mb-1">
+                <BarChart3 className="w-4 h-4" /> Profitability & COGS Analysis
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                Real Net Profit Comparison
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Compare total sales against product costing (COGS) to calculate your true business earnings.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full md:w-auto">
+              <div className="bg-black/10 dark:bg-white/10 p-4 rounded-2xl border border-white/5 text-center">
+                <div className="text-[10px] font-black uppercase text-slate-400">Total Sales</div>
+                <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-white mt-0.5">₱{totalRevenue.toLocaleString()}</div>
+              </div>
+              <div className="bg-black/10 dark:bg-white/10 p-4 rounded-2xl border border-white/5 text-center">
+                <div className="text-[10px] font-black uppercase text-rose-400">Total Cost (COGS)</div>
+                <div className="text-lg sm:text-xl font-black text-rose-500 mt-0.5">₱{totalCost.toLocaleString()}</div>
+              </div>
+              <div className="bg-black/10 dark:bg-white/10 p-4 rounded-2xl border border-white/5 text-center">
+                <div className="text-[10px] font-black uppercase text-emerald-400">Net Profit</div>
+                <div className="text-lg sm:text-xl font-black text-emerald-500 mt-0.5">₱{totalProfit.toLocaleString()}</div>
+              </div>
+              <div className="bg-black/10 dark:bg-white/10 p-4 rounded-2xl border border-white/5 text-center">
+                <div className="text-[10px] font-black uppercase text-amber-400">Profit Margin</div>
+                <div className="text-lg sm:text-xl font-black text-amber-500 mt-0.5">{profitMargin.toFixed(1)}%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Date and Category Filters */}
+        <div className="bg-black/5 dark:bg-white/5 backdrop-blur-md p-5 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="flex-1">
+                <label className="block text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase mb-1.5 tracking-widest opacity-50">Start Vector</label>
+                <input 
+                  type="date" 
+                  value={startDate} 
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full p-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-lg focus:border-amber-500/50 outline-none text-slate-900 dark:text-white font-bold transition-all text-[11px] sm:text-xs"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase mb-1.5 tracking-widest opacity-50">End Vector</label>
+                <input 
+                  type="date" 
+                  value={endDate} 
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full p-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-lg focus:border-amber-500/50 outline-none text-slate-900 dark:text-white font-bold transition-all text-[11px] sm:text-xs"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[9px] sm:text-[10px] font-black text-amber-500/50 uppercase mb-1.5 tracking-widest opacity-50">Category Filter</label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full p-2.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-lg focus:border-amber-500/50 outline-none text-slate-900 dark:text-white font-bold transition-all text-[11px] sm:text-xs uppercase"
+                >
+                  <option value="all" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">All Categories</option>
+                  {allCategories.map(cat => (
+                    <option key={cat} value={cat} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">{cat}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  setStartDate(getTodayString());
+                  setEndDate(getTodayString());
+                }}
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                  startDate === getTodayString() && endDate === getTodayString()
+                    ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                    : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/5'
+                }`}
+              >
+                Today
+              </button>
+              <button
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                  setSelectedCategory('all');
+                }}
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                  !startDate && !endDate && selectedCategory === 'all'
+                    ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                    : 'bg-black/5 dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/5'
+                }`}
+              >
+                Reset All
+              </button>
+            </div>
+          </div>
+
+        {/* Analytics Visual Charts Section */}
+        <div className="space-y-6 mb-8 md:mb-12">
+          
+          {/* Row 1: Line Graph (Sales & Volume Trend) + Bar Chart (Category Breakdown) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Dual Line & Area Chart for Revenue and Orders */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <LineChartIcon className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Revenue & Order Volume Trend</h3>
+                </div>
+                <div className="flex items-center gap-3 text-[9px] font-bold uppercase">
+                  <span className="flex items-center gap-1 text-amber-500"><span className="w-2 h-2 rounded-full bg-amber-500" /> Revenue (₱)</span>
+                  <span className="flex items-center gap-1 text-indigo-400"><span className="w-2 h-2 rounded-full bg-indigo-400" /> Orders</span>
+                </div>
+              </div>
+              <div className="h-64 w-full">
+                {salesTrendData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={salesTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="date" stroke="#888888" fontSize={10} tickLine={false} />
+                      <YAxis yAxisId="left" stroke="#f59e0b" fontSize={10} tickLine={false} />
+                      <YAxis yAxisId="right" orientation="right" stroke="#818cf8" fontSize={10} tickLine={false} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any, name: any) => [
+                          name === 'revenue' ? `₱${Number(val).toLocaleString()}` : val, 
+                          name === 'revenue' ? 'Revenue' : 'Orders'
+                        ]}
+                      />
+                      <Area yAxisId="left" type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevenue)" />
+                      <Line yAxisId="right" type="monotone" dataKey="orders" stroke="#818cf8" strokeWidth={2} dot={{ r: 4, fill: '#818cf8' }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No transaction data available for selected filter
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bar Chart: Category Revenue Breakdown */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-cyan-500" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Category Performance</h3>
+                </div>
+                <span className="text-[10px] font-bold text-cyan-500/60 uppercase">₱ Sales by Category</span>
+              </div>
+              <div className="h-64 w-full">
+                {categoryChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={categoryChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="category" stroke="#888888" fontSize={10} tickLine={false} />
+                      <YAxis stroke="#888888" fontSize={10} tickLine={false} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any) => [`₱${Number(val).toLocaleString()}`, 'Revenue']}
+                      />
+                      <Bar dataKey="revenue" fill="#06b6d4" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No data available for selected filter
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Row 2: Top Selling Items (Bar Chart) + Peak Store Hours (Bar Chart) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Top Best Selling Products */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-orange-500" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Top 7 Best Selling Items</h3>
+                </div>
+                <span className="text-[10px] font-bold text-orange-500/60 uppercase">Units Sold</span>
+              </div>
+              <div className="h-64 w-full">
+                {topSellingItems.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topSellingItems} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis type="number" stroke="#888888" fontSize={10} tickLine={false} />
+                      <YAxis dataKey="name" type="category" stroke="#888888" fontSize={9} tickLine={false} width={100} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any, name: any) => [
+                          name === 'quantity' ? `${val} units` : `₱${Number(val).toLocaleString()}`,
+                          name === 'quantity' ? 'Quantity' : 'Revenue'
+                        ]}
+                      />
+                      <Bar dataKey="quantity" fill="#f97316" radius={[0, 8, 8, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No items sold in selected period
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Peak Store Traffic Hours */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Peak Hours (Store Traffic)</h3>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-400/60 uppercase">Orders per Hour</span>
+              </div>
+              <div className="h-64 w-full">
+                {hourlyTrafficData.some(h => h.orders > 0) ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={hourlyTrafficData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="hour" stroke="#888888" fontSize={9} tickLine={false} />
+                      <YAxis stroke="#888888" fontSize={10} tickLine={false} />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any, name: any) => [
+                          name === 'orders' ? `${val} orders` : `₱${Number(val).toLocaleString()}`,
+                          name === 'orders' ? 'Orders' : 'Revenue'
+                        ]}
+                      />
+                      <Bar dataKey="orders" fill="#10b981" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No hourly traffic data for selected filter
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Row 3: Pie & Donut Charts for Order Types, Channels, and Status */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* Order Type Donut Chart */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col items-center">
+              <div className="w-full flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <PieChartIcon className="w-4 h-4 text-blue-400" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Order Type</h3>
+                </div>
+              </div>
+              <div className="h-56 w-full">
+                {orderTypePieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={orderTypePieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={75}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {orderTypePieData.map((entry, index) => (
+                          <Cell key={`cell-type-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any) => [`${val} orders`, 'Count']}
+                      />
+                      <Legend 
+                        formatter={(value) => <span className="text-[10px] font-bold text-white/70 uppercase">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No data
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Order Source / Channel Donut Chart */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col items-center">
+              <div className="w-full flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <PieChartIcon className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Ordering Channel</h3>
+                </div>
+              </div>
+              <div className="h-56 w-full">
+                {orderSourcePieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={orderSourcePieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={75}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {orderSourcePieData.map((entry, index) => (
+                          <Cell key={`cell-src-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any) => [`${val} orders`, 'Count']}
+                      />
+                      <Legend 
+                        formatter={(value) => <span className="text-[10px] font-bold text-white/70 uppercase">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No data
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Order Status Distribution Pie Chart */}
+            <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-6 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 flex flex-col items-center">
+              <div className="w-full flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <PieChartIcon className="w-4 h-4 text-purple-400" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Order Status</h3>
+                </div>
+              </div>
+              <div className="h-56 w-full">
+                {orderStatusPieData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={orderStatusPieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={45}
+                        outerRadius={75}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {orderStatusPieData.map((entry, index) => (
+                          <Cell key={`cell-status-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#090D16', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '12px', color: '#fff' }}
+                        formatter={(val: any) => [`${val} orders`, 'Count']}
+                      />
+                      <Legend 
+                        formatter={(value) => <span className="text-[10px] font-bold text-white/70 uppercase">{value}</span>}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs font-bold text-white/30 uppercase tracking-widest">
+                    No data
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <div className="bg-black/5 dark:bg-white/5 backdrop-blur-xl rounded-2xl sm:rounded-[2.5rem] shadow-2xl border border-black/10 dark:border-white/10 overflow-hidden mb-8 md:mb-12">
+          <div className="p-4 sm:p-6 border-b border-black/10 dark:border-white/5 bg-black/5 dark:bg-white/5 flex items-center gap-3 sm:gap-4">
+            <Search className="w-5 h-5 text-white/20 shrink-0" />
+            <input 
+              type="text" 
+              placeholder="Search missions, pilots or stations..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-transparent border-none outline-none text-xs sm:text-sm w-full font-black text-slate-900 dark:text-white placeholder:text-white/10 uppercase tracking-tight"
+            />
+          </div>
+          {/* Mobile Collapsible List View (sm:hidden) */}
+          <div className="sm:hidden divide-y divide-black/10 dark:divide-white/5">
+            {filteredOrders.map((order) => {
+              const isExpanded = expandedOrderId === order.id;
+              return (
+                <div key={order.id} className="p-3.5 space-y-2.5">
+                  {/* Header summary row - clickable */}
+                  <div 
+                    onClick={() => setExpandedOrderId(isExpanded ? null : (order.id || null))}
+                    className="flex items-center justify-between cursor-pointer gap-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {isExpanded ? <ChevronDown className="w-4 h-4 text-amber-500 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-black text-slate-900 dark:text-white uppercase truncate">
+                          {order.customerName || 'Walk-in Customer'}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+                          <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider ${
+                        order.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 
+                        order.status === 'unpaid' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
+                        order.status === 'cancelled' ? 'bg-slate-500/10 text-slate-400 border border-slate-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                      }`}>
+                        {order.status}
+                      </span>
+                      <div className="text-xs font-black text-slate-900 dark:text-white">
+                        ₱{order.total.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick summary badges */}
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase text-slate-400 pt-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-md ${order.orderType === 'dine-in' ? 'bg-blue-500/10 text-blue-400' : 'bg-orange-500/10 text-orange-400'}`}>
+                        {order.orderType}
+                      </span>
+                      <span className="bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-md">
+                        {order.source}
+                      </span>
+                      <span className="bg-black/5 dark:bg-white/5 px-2 py-0.5 rounded-md">
+                        {order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)} Qty
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOrderToDelete(order.id || null);
+                      }}
+                      className="p-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-lg transition-all"
+                      title="Delete Transaction"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Collapsible Details */}
+                  {isExpanded && (
+                    <div className="pt-2 border-t border-black/10 dark:border-white/5 space-y-2 animate-in fade-in duration-200">
+                      <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                        Itemized Breakdown (ID: {order.id || 'N/A'})
+                      </div>
+                      <div className="space-y-2">
+                        {order.items.map((item, idx) => (
+                          <div key={idx} className="p-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 text-xs space-y-1">
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="font-bold text-slate-900 dark:text-white">
+                                <span className="text-amber-500 font-black mr-1">{item.quantity || 1}x</span>
+                                {item.name}
+                              </span>
+                              <span className="font-black text-slate-900 dark:text-white shrink-0">
+                                ₱{((item.selectedSize ? item.selectedSize.price : item.price) + (item.selectedAddons ? item.selectedAddons.reduce((s, a) => s + a.price, 0) : 0)) * (item.quantity || 1)}
+                              </span>
+                            </div>
+                            {(item.selectedSize || item.sugarLevel || (item.selectedAddons && item.selectedAddons.length > 0)) && (
+                              <div className="flex flex-wrap gap-1 text-[9px] font-bold">
+                                {item.selectedSize && <span className="bg-blue-500/10 text-blue-400 px-1.5 py-0.5 rounded">Size: {item.selectedSize.name}</span>}
+                                {item.sugarLevel && <span className="bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded">Sugar: {item.sugarLevel}</span>}
+                                {item.selectedAddons && item.selectedAddons.length > 0 && (
+                                  <span className="bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded">
+                                    + {item.selectedAddons.map(a => a.name).join(', ')}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {filteredOrders.length === 0 && (
+              <div className="p-8 text-center text-slate-400 font-bold text-xs uppercase">
+                No transactions found
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table View (hidden sm:block) */}
+          <div className="hidden sm:block overflow-x-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-black/10 dark:bg-white/10 text-slate-500 dark:text-white/40 uppercase text-[10px] font-black tracking-[0.2em]">
+                  <th className="p-3 sm:p-5">Date & Time</th>
+                  <th className="p-3 sm:p-5">Customer</th>
+                  <th className="p-3 sm:p-5 text-center">Type</th>
+                  <th className="p-3 sm:p-5 text-center">Source</th>
+                  <th className="p-3 sm:p-5 text-center">Qty</th>
+                  <th className="p-3 sm:p-5 text-center whitespace-nowrap">Status</th>
+                  <th className="p-3 sm:p-5 text-right">Total</th>
+                  <th className="p-3 sm:p-5 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/10 dark:divide-white/5">
+                {filteredOrders.map((order) => {
+                  const isExpanded = expandedOrderId === order.id;
+                  return (
+                    <React.Fragment key={order.id}>
+                      <tr 
+                        onClick={() => setExpandedOrderId(isExpanded ? null : (order.id || null))}
+                        className="hover:bg-black/5 dark:hover:bg-white/5 transition-colors group cursor-pointer"
+                      >
+                        <td className="p-3 sm:p-5 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? <ChevronDown className="w-4 h-4 text-amber-500 shrink-0" /> : <ChevronRight className="w-4 h-4 text-white/30 shrink-0" />}
+                            <div>
+                              <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors">{new Date(order.createdAt).toLocaleDateString()}</div>
+                              <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-0.5 opacity-70">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3 sm:p-5">
+                          <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-amber-500 transition-colors break-words max-w-[120px] sm:max-w-none">{order.customerName}</div>
+                        </td>
+                        <td className="p-3 sm:p-5 text-center">
+                          <span className={`text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${order.orderType === 'dine-in' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'}`}>
+                            {order.orderType}
+                          </span>
+                        </td>
+                        <td className="p-3 sm:p-5 text-center">
+                          <span className="text-[10px] font-black text-white/40 uppercase tracking-widest whitespace-nowrap opacity-70">{order.source}</span>
+                        </td>
+                        <td className="p-3 sm:p-5 text-center">
+                          <span className="text-xs font-black text-slate-900 dark:text-white bg-black/10 dark:bg-white/10 px-2.5 py-1 rounded-full border border-black/10 dark:border-white/10">
+                            {order.items.reduce((sum, item) => sum + (item.quantity || 1), 0)}
+                          </span>
+                        </td>
+                        <td className="p-3 sm:p-5 text-center">
+                          <span className={`text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest whitespace-nowrap ${
+                            order.status === 'completed' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 
+                            order.status === 'unpaid' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
+                            order.status === 'cancelled' ? 'bg-slate-500/10 text-slate-400 border border-slate-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+                          }`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="p-3 sm:p-5 text-right">
+                          <div className="text-sm font-black text-slate-900 dark:text-white whitespace-nowrap">₱{order.total.toLocaleString()}</div>
+                        </td>
+                        <td className="p-3 sm:p-5 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => setOrderToDelete(order.id || null)}
+                            className="p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl transition-all hover:scale-105 active:scale-95"
+                            title="Delete Transaction"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr className="bg-black/5 dark:bg-white/[0.02]">
+                          <td colSpan={8} className="p-4 sm:p-6">
+                            <div className="bg-black/5 dark:bg-white/5 rounded-2xl p-4 sm:p-6 border border-black/10 dark:border-white/10">
+                              <div className="flex items-center justify-between mb-4 pb-2 border-b border-black/10 dark:border-white/10">
+                                <div>
+                                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">Transaction Items Breakdown</h4>
+                                  <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-0.5">ID: {order.id || 'N/A'}</p>
+                                </div>
+                                <div className="text-right">
+                                  <span className="text-xs font-black text-amber-500">Total: ₱{order.total.toLocaleString()}</span>
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                {order.items.map((item, idx) => (
+                                  <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+                                    <div className="flex items-start gap-3">
+                                      <span className="w-6 h-6 rounded-full bg-amber-500/10 text-amber-500 font-black text-xs flex items-center justify-center shrink-0 border border-amber-500/20">
+                                        {item.quantity || 1}x
+                                      </span>
+                                      <div>
+                                        <div className="text-xs font-black text-slate-900 dark:text-white uppercase">{item.name}</div>
+                                        <div className="flex items-center gap-2 flex-wrap mt-1">
+                                          {item.selectedSize && <span className="text-[9px] font-bold bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">Size: {item.selectedSize.name} (₱{item.selectedSize.price})</span>}
+                                          {item.sugarLevel && <span className="text-[9px] font-bold bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded border border-purple-500/20">Sugar: {item.sugarLevel}</span>}
+                                          {item.selectedAddons && item.selectedAddons.length > 0 && (
+                                            <span className="text-[9px] font-bold bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded border border-amber-500/20">
+                                              Add-ons: {item.selectedAddons.map(a => `${a.name} (+₱${a.price})`).join(', ')}
+                                            </span>
+                                          )}
+                                          {item.notes && <span className="text-[9px] font-bold italic text-white/50">Note: "{item.notes}"</span>}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right sm:self-center">
+                                      <span className="text-xs font-black text-slate-900 dark:text-white">
+                                        ₱{((item.selectedSize ? item.selectedSize.price : item.price) + (item.selectedAddons ? item.selectedAddons.reduce((s, a) => s + a.price, 0) : 0)) * (item.quantity || 1)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+                {filteredOrders.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="p-24 text-center">
+                      <div className="flex flex-col items-center gap-4 opacity-20">
+                        <Calendar className="w-16 h-16 text-slate-900 dark:text-white" />
+                        <p className="font-black uppercase tracking-[0.3em] text-xs text-slate-900 dark:text-white">No transactions found</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Custom Delete Confirmation Modal */}
+      {orderToDelete && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#0a0a0c] rounded-[2rem] p-8 max-w-sm w-full border border-black/10 dark:border-white/10 relative overflow-hidden animate-in zoom-in-95 duration-200 shadow-2xl">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500 to-amber-500" />
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-400 mb-6">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight mb-2">Delete Transaction</h3>
+              <p className="text-slate-600 dark:text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">
+                Are you sure you want to permanently delete transaction <span className="text-slate-900 dark:text-white">#{orderToDelete.substring(0, 8)}</span>? This action cannot be undone.
+              </p>
+              <div className="flex w-full gap-3">
+                <button
+                  onClick={() => setOrderToDelete(null)}
+                  disabled={isActionLoading}
+                  className="flex-1 py-3.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black/10 dark:hover:bg-white/10 transition-all text-slate-700 dark:text-slate-300 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={isActionLoading}
+                  className="flex-1 py-3.5 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(220,38,38,0.2)] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isActionLoading ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Clear Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#0a0a0c] rounded-[2rem] p-8 max-w-sm w-full border border-black/10 dark:border-white/10 relative overflow-hidden animate-in zoom-in-95 duration-200 shadow-2xl">
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500 to-amber-500" />
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-400 mb-6">
+                <AlertTriangle className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tight mb-2">Purge Records</h3>
+              <p className="text-slate-600 dark:text-slate-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">
+                This will permanently delete the <span className="text-slate-900 dark:text-white">{filteredOrders.length}</span> transaction(s) match the current filter. This operation is irreversible.
+              </p>
+              <div className="flex w-full gap-3">
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  disabled={isActionLoading}
+                  className="flex-1 py-3.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black/10 dark:hover:bg-white/10 transition-all text-slate-700 dark:text-slate-300 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleClearConfirm}
+                  disabled={isActionLoading}
+                  className="flex-1 py-3.5 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(220,38,38,0.2)] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isActionLoading ? 'Purging...' : 'Purge All'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

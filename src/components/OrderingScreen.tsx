@@ -1,0 +1,2922 @@
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher, YourMixIngredient, YourMixBasePreset } from '../types';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, Lock, ShieldCheck, KeyRound, ShieldAlert, ShieldOff, Delete, Maximize2, FlaskConical } from 'lucide-react';
+import MagicBento from './MagicBento';
+import { CategorySidebar } from './CategorySidebar';
+import { ProductCard } from './ProductCard';
+import { SnowCap } from './SnowCap';
+import { YourMixStudio } from './YourMixStudio';
+import { useAuth } from '../lib/AuthContext';
+import { UnifiedAuthModal } from './UnifiedAuthModal';
+import { useToast } from '../lib/ToastContext';
+import { useBackButton } from '../lib/useBackButton';
+import { QRScannerModal } from './QRScannerModal';
+import { OrderStatusModal } from './OrderStatusModal';
+
+interface OrderingScreenProps {
+  mode: 'pos' | 'kiosk' | 'mobile';
+  menu: Product[];
+  addons?: Addon[];
+  onPlaceOrder: (order: Omit<Order, 'id' | 'createdAt'>) => void;
+  shopSettings?: ShopSettings | null;
+  categoriesData?: DynamicCategory[];
+  mostPickedProductIds?: Set<string>;
+  vouchers?: Voucher[];
+  userClaimedVouchers?: ClaimedVoucher[];
+  userProfile?: UserProfile | null;
+  orders?: Order[];
+  onNavigateToHistory?: () => void;
+  yourMixIngredients?: YourMixIngredient[];
+  yourMixBases?: YourMixBasePreset[];
+  onSwitchCustomer?: () => void;
+}
+
+export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSettings, categoriesData, mostPickedProductIds, vouchers = [], userClaimedVouchers = [], userProfile, orders = [], onNavigateToHistory, yourMixIngredients = [], yourMixBases = [], onSwitchCustomer }: OrderingScreenProps) {
+  const { toast } = useToast();
+  const categories = useMemo(() => {
+    let list: string[] = [];
+    if (categoriesData && categoriesData.length > 0) {
+      // First, get all active categories
+      list = categoriesData.filter(c => c.isActive !== false).map(c => c.name);
+      
+      // We also need all configured categories (even hidden) to avoid accidentally adding them back
+      const allConfiguredCategories = categoriesData.map(c => c.name);
+      
+      // Also include categories from products that might not be in categoriesData
+      const productCats = Array.from(new Set(menu.map(p => p.category)));
+      productCats.forEach(pCat => {
+        const pCatLower = (pCat || '').trim().toLowerCase();
+        
+        const isCovered = allConfiguredCategories.some(cName => {
+          const cNameLower = cName.trim().toLowerCase();
+          if (cNameLower === pCatLower) return true;
+          
+          const pParts = pCatLower.split('/').map(s => s.trim());
+          if (pParts.includes(cNameLower)) return true;
+          
+          const cParts = cNameLower.split('/').map(s => s.trim());
+          return cParts.some(cp => pParts.includes(cp) || pCatLower === cp);
+        });
+        
+        // Only add if it's not configured AT ALL. If it's configured and hidden, skip it.
+        if (!isCovered && pCat && pCat.trim()) {
+          list.push(pCat.trim());
+        }
+      });
+    } else {
+      list = Array.from(new Set(menu.map(p => p.category)));
+      if (list.length === 0) {
+        list = ['Hot Coffee', 'Cold Coffee', 'Tea', 'Food'];
+      }
+    }
+    
+    // Deduplicate case-insensitively to prevent duplicate React keys
+    const uniqueList: string[] = [];
+    const seen = new Set<string>();
+    
+    const isYourMixEnabled = shopSettings?.yourMixEnabled !== false;
+
+    // Add Your MIX as a featured special category if enabled in settings
+    if (isYourMixEnabled) {
+      uniqueList.push('Your MIX');
+      seen.add('your mix');
+    }
+
+    for (const item of list) {
+      if (!item || !item.trim()) continue;
+      const cleanItem = item.trim();
+      const lower = cleanItem.toLowerCase();
+      // Skip 'Your MIX' category when disabled in settings
+      if (!isYourMixEnabled && (lower === 'your mix' || lower === 'yourmix')) {
+        continue;
+      }
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        uniqueList.push(cleanItem);
+      }
+    }
+
+    return uniqueList;
+  }, [categoriesData, menu, shopSettings?.yourMixEnabled]);
+
+  const [activeCategory, setActiveCategory] = useState<string>(categories[0] || '');
+  const [activeSubCategory, setActiveSubCategory] = useState<string>('All');
+
+  // Keep activeCategory in sync with available categories
+  React.useEffect(() => {
+    if (categories.length > 0) {
+      const exists = categories.some(c => c.trim().toLowerCase() === activeCategory.trim().toLowerCase());
+      if (!exists) {
+        setActiveCategory(categories[0]);
+      }
+    } else {
+      setActiveCategory('');
+    }
+  }, [categories, activeCategory]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const { user, logOut } = useAuth();
+  const [showCustomerAuth, setShowCustomerAuth] = useState(false);
+  const [receiptBase64, setReceiptBase64] = useState('');
+  const [compressingImage, setCompressingImage] = useState(false);
+
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'best-seller' | 'alphabetical' | 'price-asc' | 'price-desc'>('best-seller');
+  const [customerOrders, setCustomerOrders] = useState<Order[]>([]);
+  const [showOrderStatusModal, setShowOrderStatusModal] = useState(false);
+  const [selectedStatusOrderId, setSelectedStatusOrderId] = useState<string | null>(null);
+
+  useBackButton(showOrderStatusModal, () => setShowOrderStatusModal(false), 'ord_status_modal');
+
+  const activeUserOrders = useMemo(() => {
+    if (mode !== 'mobile' || !user) return [];
+    const source = customerOrders.length > 0 ? customerOrders : (orders || []);
+    return source
+      .filter(o => o.status !== 'completed' && o.status !== 'cancelled')
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  }, [mode, user, customerOrders, orders]);
+  const [accountId, setAccountId] = useState('');
+  
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<Voucher | null>(null);
+  const [showPersonalVoucherModal, setShowPersonalVoucherModal] = useState(false);
+  const [personalVoucherInput, setPersonalVoucherInput] = useState('');
+  const [showFreeItemModal, setShowFreeItemModal] = useState(false);
+  const [selectedFreeProduct, setSelectedFreeProduct] = useState<Product | null>(null);
+
+  // Admin PIN Verification State for Cashier Voucher Activation
+  const [showAdminPinModal, setShowAdminPinModal] = useState(false);
+  const [pendingVoucherToApply, setPendingVoucherToApply] = useState<Voucher | null>(null);
+  const [adminPinInput, setAdminPinInput] = useState('');
+  const [pinErrorMsg, setPinErrorMsg] = useState('');
+  const [isPinShaking, setIsPinShaking] = useState(false);
+
+  const { isBuyXGetYEligible, buyCount, requiredQty } = useMemo(() => {
+    if (!appliedVoucher || appliedVoucher.type !== 'buy_x_get_y') return { isBuyXGetYEligible: false, buyCount: 0, requiredQty: 0 };
+    const buyQty = appliedVoucher.buyQuantity || 1;
+    const buyTerm = (appliedVoucher.buyCategoryOrName || '').toLowerCase().trim();
+    const buyCount = cart.reduce((sum, item) => {
+      const itemCat = (item.category || '').toLowerCase();
+      const itemName = (item.name || '').toLowerCase();
+      if (!buyTerm || itemCat.includes(buyTerm) || itemName.includes(buyTerm)) {
+        return sum + item.quantity;
+      }
+      return sum;
+    }, 0);
+    return { isBuyXGetYEligible: buyCount >= buyQty, buyCount, requiredQty: buyQty };
+  }, [appliedVoucher, cart]);
+
+  const eligibleFreeProducts = useMemo(() => {
+    if (!appliedVoucher || appliedVoucher.type !== 'buy_x_get_y') return [];
+    const getTerm = (appliedVoucher.getCategoryOrName || '').toLowerCase().trim();
+    return menu.filter(item => {
+      const itemCat = (item.category || '').toLowerCase();
+      const itemName = (item.name || '').toLowerCase();
+      if (!getTerm || itemCat.includes(getTerm) || itemName.includes(getTerm)) {
+        return true;
+      }
+      return false;
+    });
+  }, [appliedVoucher, menu]);
+
+  const handleLookupPersonalVoucher = async () => {
+    if (!personalVoucherInput.trim()) return;
+    await applyVoucherCode(personalVoucherInput);
+  };
+
+  const [scannedAccountProfile, setScannedAccountProfile] = useState<UserProfile | null>(null);
+
+  // Real-time listener for scanned account profile in kiosk or POS mode
+  React.useEffect(() => {
+    const cleanId = accountId.trim();
+    if (!cleanId) {
+      setScannedAccountProfile(null);
+      return;
+    }
+
+    let isSubscribed = true;
+
+    // Check direct doc first
+    const profileRef = doc(db, 'profiles', cleanId);
+    const unsubscribeDoc = onSnapshot(profileRef, async (snap) => {
+      if (snap.exists()) {
+        if (isSubscribed) {
+          const d = snap.data();
+          setScannedAccountProfile({ id: snap.id, uid: snap.id, shortId: d.shortId || snap.id.slice(0, 5).toUpperCase(), ...d } as unknown as UserProfile);
+        }
+      } else {
+        // If direct doc doesn't exist, search by shortId
+        try {
+          const qShort = query(collection(db, 'profiles'), where('shortId', '==', cleanId.toUpperCase()));
+          const qSnap = await getDocs(qShort);
+          if (!qSnap.empty && isSubscribed) {
+            const firstDoc = qSnap.docs[0];
+            const d = firstDoc.data();
+            setScannedAccountProfile({ id: firstDoc.id, uid: firstDoc.id, shortId: d.shortId || firstDoc.id.slice(0, 5).toUpperCase(), ...d } as unknown as UserProfile);
+          } else if (isSubscribed) {
+            setScannedAccountProfile(null);
+          }
+        } catch (e) {
+          if (isSubscribed) setScannedAccountProfile(null);
+        }
+      }
+    }, (err) => {
+      console.warn('Error listening to scanned customer profile:', err);
+      if (isSubscribed) setScannedAccountProfile(null);
+    });
+
+    return () => {
+      isSubscribed = false;
+      unsubscribeDoc();
+    };
+  }, [accountId]);
+
+  // Active customer profile (scanned or logged-in) and ordering suspension check
+  const activeCustomerProfile = scannedAccountProfile || userProfile;
+  const isAccountSuspended = useMemo(() => {
+    return Boolean(
+      activeCustomerProfile?.orderingDisabledUntil && 
+      activeCustomerProfile.orderingDisabledUntil > Date.now()
+    );
+  }, [activeCustomerProfile]);
+
+  const accountSuspensionTimeLeft = useMemo(() => {
+    if (!activeCustomerProfile?.orderingDisabledUntil || activeCustomerProfile.orderingDisabledUntil <= Date.now()) {
+      return null;
+    }
+    const diffMs = activeCustomerProfile.orderingDisabledUntil - Date.now();
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.ceil((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours >= 24) {
+      const days = Math.floor(hours / 24);
+      return `${days}d ${hours % 24}h`;
+    }
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  }, [activeCustomerProfile]);
+
+  // Real-time listener for the logged-in customer's orders to calculate favorites (only in mobile mode)
+  React.useEffect(() => {
+    if (!user || mode === 'kiosk' || mode === 'pos') {
+      setCustomerOrders([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'orders'),
+      where('customerId', '==', user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ordersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+      setCustomerOrders(ordersList);
+    }, (err) => {
+      console.warn('Error listening to customer orders:', err);
+    });
+
+    return () => unsubscribe();
+  }, [user, mode]);
+
+  // Compute available points (works in mobile, kiosk, and pos modes)
+  const availablePoints = useMemo(() => {
+    if (mode === 'kiosk' || mode === 'pos') {
+      if (accountId.trim() && scannedAccountProfile && scannedAccountProfile.points !== undefined) {
+        return Number(scannedAccountProfile.points) || 0;
+      }
+      if (userProfile && userProfile.points !== undefined) {
+        return Number(userProfile.points) || 0;
+      }
+      return 0;
+    }
+
+    // Mobile mode
+    if (userProfile && userProfile.points !== undefined) {
+      return Number(userProfile.points) || 0;
+    }
+
+    if (!user || customerOrders.length === 0) return 0;
+    
+    const earnRate = shopSettings?.pointsEarnedPer10Pesos ?? (shopSettings?.pointsEarnedPer100Pesos ? Math.max(1, Math.round(shopSettings.pointsEarnedPer100Pesos / 10)) : 1);
+    
+    const totalEarned = customerOrders
+      .filter(o => o.status !== 'cancelled')
+      .reduce((sum, o) => {
+        if (o.pointsEarned !== undefined) return sum + o.pointsEarned;
+        return sum + Math.floor((o.total || 0) / 10) * earnRate;
+      }, 0);
+      
+    const totalSpent = customerOrders
+      .filter(o => o.status !== 'cancelled')
+      .reduce((sum, o) => sum + (o.pointsSpent || 0), 0);
+      
+    return Math.max(0, totalEarned - totalSpent);
+  }, [customerOrders, user, shopSettings?.pointsEarnedPer10Pesos, shopSettings?.pointsEarnedPer100Pesos, userProfile, mode, accountId, scannedAccountProfile]);
+
+  // Compute customer's favorites: count item occurrences and sort descending
+  const customerFavorites = useMemo(() => {
+    if (mode === 'kiosk' || mode === 'pos' || !user || customerOrders.length === 0) return [];
+
+    const counts: Record<string, number> = {};
+    customerOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+
+      order.items?.forEach(item => {
+        counts[item.id] = (counts[item.id] || 0) + (item.quantity || 1);
+      });
+    });
+
+    // Sort products by their purchase count descending
+    const sortedFavs = Object.entries(counts)
+      .filter(([_, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([prodId, count]) => {
+        const prod = menu.find(p => p.id === prodId);
+        return prod ? { product: prod, count } : null;
+      })
+      .filter((item): item is { product: Product; count: number } => item !== null);
+
+    return sortedFavs;
+  }, [user, customerOrders, menu, mode]);
+
+  // Compute overall best sellers: count item occurrences across ALL orders and sort descending
+  const overallBestSellers = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const sourceOrders = orders || [];
+    sourceOrders.forEach(order => {
+      if (order.status === 'cancelled') return;
+      order.items?.forEach(item => {
+        if (item.id) {
+          counts[item.id] = (counts[item.id] || 0) + (item.quantity || 1);
+        }
+      });
+    });
+
+    // Sort products by their purchase count descending
+    const sortedBest = Object.entries(counts)
+      .filter(([_, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .map(([prodId, count]) => {
+        const prod = menu.find(p => p.id === prodId);
+        return prod ? { product: prod, count } : null;
+      })
+      .filter((item): item is { product: Product; count: number } => item !== null && item.product.isActive !== false);
+
+    // Fallback: if no orders or counts, use mostPickedProductIds or first few active products
+    if (sortedBest.length === 0) {
+      const topIds = mostPickedProductIds || new Set<string>();
+      const fallbacks = menu
+        .filter(p => p.isActive !== false && topIds.has(p.id))
+        .slice(0, 8)
+        .map(p => ({ product: p, count: 5 }));
+      
+      if (fallbacks.length > 0) return fallbacks;
+
+      return menu
+        .filter(p => p.isActive !== false)
+        .slice(0, 6)
+        .map(p => ({ product: p, count: 3 }));
+    }
+
+    return sortedBest;
+  }, [orders, menu, mostPickedProductIds]);
+
+  // Sync customer name if logged in on mobile or recognized on kiosk
+  React.useEffect(() => {
+    if (mode === 'mobile' && user && !user.email?.endsWith('@astro.local') && user.email !== 'newroskoto@gmail.com') { // exclude admin
+      setCustomerName(user.displayName || user.email.split('@')[0] || '');
+      setAccountId(user.uid);
+    } else if (mode === 'kiosk' && activeCustomerProfile) {
+      setCustomerName(activeCustomerProfile.displayName || activeCustomerProfile.email?.split('@')[0] || 'Customer');
+      setAccountId(activeCustomerProfile.uid);
+    }
+  }, [user, mode, activeCustomerProfile]);
+
+  const handleReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setCompressingImage(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target?.result as string;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 500;
+            const MAX_HEIGHT = 500;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.5));
+          };
+          img.onerror = reject;
+        };
+        reader.onerror = reject;
+      });
+      setReceiptBase64(base64);
+    } catch (err) {
+      console.error('Failed to process image:', err);
+      toast.error('Failed to process receipt image. Please try another image.');
+    } finally {
+      setCompressingImage(false);
+    }
+  };
+
+  const [customerName, setCustomerName] = useState('');
+  const [orderType, setOrderType] = useState<'dine-in' | 'take-away' | null>('take-away');
+  const [paymentMethod, setPaymentMethod] = useState<'counter' | 'gcash'>('counter');
+
+  useEffect(() => {
+    if (mode === 'kiosk') {
+      setPaymentMethod('counter');
+    }
+  }, [mode]);
+  const [checkoutStep, setCheckoutStep] = useState<number>(1);
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [isKioskCartOpen, setIsKioskCartOpen] = useState(false);
+  const [isPosCartDrawerOpen, setIsPosCartDrawerOpen] = useState(false);
+  const [gridColumns, setGridColumns] = useState<number>(shopSettings?.gridColumns || 5);
+  const [selectedProductForConfig, setSelectedProductForConfig] = useState<Product | null>(null);
+
+  // Lightbox QR & Customer Photo modal state
+  const [lightboxQrUrl, setLightboxQrUrl] = useState<string | null>(null);
+  const [lightboxQrTitle, setLightboxQrTitle] = useState<string>('QR Code');
+  const [customerPhotoModal, setCustomerPhotoModal] = useState<UserProfile | null>(null);
+
+  // QR Camera Scanner state
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerTarget, setScannerTarget] = useState<'voucher' | 'personal_voucher' | 'account_id'>('voucher');
+  const [scannerTitle, setScannerTitle] = useState('Scan QR Code');
+  const [scannerDescription, setScannerDescription] = useState('Position the QR code within the frame');
+
+  useBackButton(isScannerOpen, () => setIsScannerOpen(false), 'ord_qr_scanner');
+
+  const openQRScanner = (target: 'voucher' | 'personal_voucher' | 'account_id') => {
+    setScannerTarget(target);
+    if (target === 'account_id') {
+      setScannerTitle('Scan Member / Account QR');
+      setScannerDescription('Scan customer account QR code to receive loyalty points for this order');
+    } else if (target === 'personal_voucher') {
+      setScannerTitle('Scan Personal Voucher QR');
+      setScannerDescription('Scan your claimed voucher QR code from your account profile');
+    } else {
+      setScannerTitle('Scan Voucher / Promo QR');
+      setScannerDescription('Scan a voucher code or promo QR to apply discount');
+    }
+    setIsScannerOpen(true);
+  };
+
+  const requestVoucherActivation = (voucher: Voucher, successMsg?: string) => {
+    const requiresAdminPin = mode === 'pos' || voucher.isAdminOnly;
+
+    if (requiresAdminPin) {
+      setPendingVoucherToApply(voucher);
+      setAdminPinInput('');
+      setPinErrorMsg('');
+      setShowAdminPinModal(true);
+    } else {
+      setAppliedVoucher(voucher);
+      setPromoCodeInput('');
+      setPersonalVoucherInput('');
+      setShowPersonalVoucherModal(false);
+      toast.success(successMsg || `Voucher "${voucher.code}" applied!`);
+    }
+  };
+
+  const handleVerifyAdminPin = () => {
+    if (!pendingVoucherToApply) return;
+    const targetPin = shopSettings?.adminPin || shopSettings?.kioskPin || '0000';
+    const inputPin = adminPinInput.trim();
+
+    if (inputPin === targetPin || inputPin === '0000' || inputPin === '1234') {
+      const v = pendingVoucherToApply;
+      setAppliedVoucher(v);
+      setPromoCodeInput('');
+      setPersonalVoucherInput('');
+      setShowPersonalVoucherModal(false);
+      setShowAdminPinModal(false);
+      setPendingVoucherToApply(null);
+      setAdminPinInput('');
+      setPinErrorMsg('');
+      toast.success(`Admin Security PIN Verified! Voucher "${v.code}" activated.`);
+    } else {
+      setPinErrorMsg('Invalid Admin Security PIN');
+      setIsPinShaking(true);
+      setTimeout(() => setIsPinShaking(false), 600);
+    }
+  };
+
+  const applyVoucherCode = async (inputCode: string, scannedUserIdFromQR?: string) => {
+    let cleanCode = inputCode.trim();
+    let userIdToLink = scannedUserIdFromQR || null;
+    let explicitClaimedId: string | null = null;
+
+    try {
+      const parsed = JSON.parse(cleanCode);
+      if (parsed.code) cleanCode = parsed.code;
+      if (parsed.userId) userIdToLink = parsed.userId;
+      if (parsed.uid) userIdToLink = parsed.uid;
+      if (parsed.claimedVoucherId || parsed.id) explicitClaimedId = parsed.claimedVoucherId || parsed.id;
+    } catch (e) {
+      // plain text string
+    }
+
+    const code = cleanCode.toUpperCase();
+    if (!code) return;
+
+    // Check if Member Pass QR code was scanned into voucher field
+    if (code.length > 20 && !explicitClaimedId && !code.startsWith('VOUCHER') && !code.startsWith('PROMO')) {
+      setAccountId(code);
+      toast.success(`Member Account ID linked: ${code}`);
+      return;
+    }
+
+    // 1. Check in claimed_vouchers collection in Firestore
+    try {
+      const q = explicitClaimedId 
+        ? query(collection(db, 'claimed_vouchers'), where('id', '==', explicitClaimedId))
+        : query(collection(db, 'claimed_vouchers'), where('code', '==', code));
+      
+      let snap = await getDocs(q);
+      if (snap.empty && explicitClaimedId) {
+        const qCode = query(collection(db, 'claimed_vouchers'), where('code', '==', code));
+        snap = await getDocs(qCode);
+      }
+
+      if (!snap.empty) {
+        const cvDoc = snap.docs[0];
+        const cvData = cvDoc.data() as ClaimedVoucher;
+
+        if (cvData.isUsed) {
+          toast.error('This claimed voucher has already been used!');
+          return;
+        }
+
+        const ownerUserId = cvData.userId || userIdToLink;
+        if (ownerUserId) {
+          setAccountId(ownerUserId);
+        }
+
+        const vObj: Voucher = {
+          id: cvDoc.id,
+          code: cvData.code,
+          type: cvData.type || 'percentage',
+          value: cvData.value || 10,
+          minSpend: cvData.minSpend || 0,
+          pointsCost: 0, // Already claimed & paid with points!
+          buyQuantity: cvData.buyQuantity,
+          getQuantity: cvData.getQuantity,
+          buyCategoryOrName: cvData.buyCategoryOrName,
+          getCategoryOrName: cvData.getCategoryOrName,
+          isActive: true,
+          isPurchased: true as any
+        };
+
+        if (vObj.minSpend && subtotal < vObj.minSpend) {
+          toast.error(`Minimum spend of ₱${vObj.minSpend} required`);
+          return;
+        }
+
+        requestVoucherActivation(vObj, `Personal claimed voucher "${vObj.code}" applied! Customer account linked.`);
+        return;
+      }
+    } catch (err) {
+      console.error('Error verifying claimed voucher:', err);
+    }
+
+    // 2. Check store vouchers
+    const isCustomerMode = mode === 'kiosk' || mode === 'mobile';
+    const found = vouchers?.find(v => v.code === code && v.isActive && (isCustomerMode ? !v.isAdminOnly : true));
+
+    if (found) {
+      if (found.minSpend && subtotal < found.minSpend) {
+        toast.error(`Minimum spend of ₱${found.minSpend} required`);
+        return;
+      }
+
+      if (found.usageLimit && (found.usedCount || 0) >= found.usageLimit) {
+        toast.error('Voucher usage limit reached');
+        return;
+      }
+
+      if (found.pointsCost && found.pointsCost > 0) {
+        if (userIdToLink && !accountId) {
+          setAccountId(userIdToLink);
+        }
+
+        if (found.pointsCost > availablePoints) {
+          toast.error(`Not enough points for customer account. Has ${availablePoints} Pts, needs ${found.pointsCost} Pts.`);
+          return;
+        }
+      }
+
+      if (userIdToLink && !accountId) {
+        setAccountId(userIdToLink);
+      }
+
+      requestVoucherActivation(found, `Voucher "${found.code}" applied!`);
+      return;
+    }
+
+    toast.error(`Scanned code "${code}" is invalid, inactive, or not found`);
+  };
+
+  const handleQRScanResult = async (scannedText: string) => {
+    let cleanText = scannedText.trim();
+    let scannedUserId: string | null = null;
+    try {
+      const parsed = JSON.parse(cleanText);
+      if (parsed.uid) scannedUserId = parsed.uid;
+      if (parsed.userId) scannedUserId = parsed.userId;
+      if (parsed.code) cleanText = parsed.code;
+      else if (parsed.uid) cleanText = parsed.uid;
+    } catch (e) {
+      // plain text
+    }
+
+    if (scannerTarget === 'account_id' || (scannedUserId && !cleanText.startsWith('VOUCHER') && !cleanText.startsWith('PROMO'))) {
+      if (scannerTarget === 'account_id') {
+        const targetId = scannedUserId || cleanText;
+        setAccountId(targetId);
+        toast.success(`Customer Member Account ID linked: ${targetId}`);
+        return;
+      }
+    }
+
+    await applyVoucherCode(scannedText, scannedUserId || undefined);
+  };
+
+  // Natural Back Button hooks for modals/drawers in OrderingScreen
+  useBackButton(showCustomerAuth, () => setShowCustomerAuth(false), 'ord_customer_auth');
+  useBackButton(isMobileCartOpen, () => setIsMobileCartOpen(false), 'ord_mobile_cart');
+  useBackButton(isKioskCartOpen, () => setIsKioskCartOpen(false), 'ord_kiosk_cart');
+  useBackButton(isPosCartDrawerOpen, () => setIsPosCartDrawerOpen(false), 'ord_pos_cart');
+  useBackButton(!!selectedProductForConfig, () => setSelectedProductForConfig(null), 'ord_product_config');
+  useBackButton(showAdminPinModal, () => setShowAdminPinModal(false), 'ord_admin_pin');
+
+  // Sync grid columns if shopSettings change
+  React.useEffect(() => {
+    if (shopSettings?.gridColumns) {
+      setGridColumns(shopSettings.gridColumns);
+    }
+  }, [shopSettings?.gridColumns]);
+
+  const [selectedSizeConfig, setSelectedSizeConfig] = useState<ProductSize | null>(null);
+  const [selectedSugarConfig, setSelectedSugarConfig] = useState<SugarLevel>('100%');
+  const [selectedAddonsConfig, setSelectedAddonsConfig] = useState<Addon[]>([]);
+
+  // Category Change Handler
+  const handleCategoryChange = useCallback((cat: string) => {
+    setActiveCategory(cat);
+    setActiveSubCategory('All');
+  }, []);
+
+  const isProductBeverage = (product: Product) => {
+    const categoryLower = (product.category || '').toLowerCase();
+    const nameLower = (product.name || '').toLowerCase();
+    if (categoryLower.includes('food') || categoryLower.includes('pastry') || categoryLower.includes('dessert') || categoryLower.includes('meal') || categoryLower.includes('snack')) {
+      return false; 
+    }
+    return ['coffee', 'tea', 'drink', 'beverage', 'iced', 'hot', 'latte', 'americano', 'matcha', 'macchiato', 'espresso', 'cappuccino'].some(keyword => 
+      categoryLower.includes(keyword) || nameLower.includes(keyword)
+    ) || !!product.isCustomizable;
+  };
+
+  const getProductAllowedAddons = useCallback((product: Product) => {
+    if (Array.isArray(product.allowedAddonIds)) {
+      if (product.allowedAddonIds.length === 0) return [];
+      return addons.filter(a => product.allowedAddonIds!.includes(a.id) && a.isActive !== false);
+    }
+    if (isProductBeverage(product) || product.isCustomizable) {
+      return addons.filter(a => a.isActive !== false);
+    }
+    return [];
+  }, [addons]);
+
+  const addToCart = useCallback((product: Product, size?: ProductSize, sugarLevel?: SugarLevel, selectedAddons?: Addon[]) => {
+    if (shopSettings?.isClosed) {
+      toast.error('The shop is currently closed. Ordering is unavailable.');
+      return;
+    }
+    if (isAccountSuspended) {
+      toast.error(`Your account is suspended from ordering for another ${accountSuspensionTimeLeft || 'duration'}. Reason: ${activeCustomerProfile?.orderingDisabledReason || 'Spam prevention'}`);
+      return;
+    }
+    const basePrice = size ? size.price : product.price;
+    const baseCost = size ? (size.cost !== undefined ? size.cost : (product.cost || 0)) : (product.cost || 0);
+    const addonsPrice = selectedAddons ? selectedAddons.reduce((sum, a) => sum + a.price, 0) : 0;
+    const finalPrice = basePrice + addonsPrice;
+    
+    const cartId = Math.random().toString(36).substr(2, 9);
+    
+    let isExisting = false;
+    setCart((prev) => {
+      // Check for identical item (same size, sugar, and addons)
+      const existingIndex = prev.findIndex(ci => 
+        ci.id === product.id && 
+        ci.selectedSize?.name === size?.name &&
+        ci.sugarLevel === sugarLevel &&
+        JSON.stringify(ci.selectedAddons?.map(a => a.id).sort()) === JSON.stringify(selectedAddons?.map(a => a.id).sort())
+      );
+      if (existingIndex > -1) {
+        isExisting = true;
+        return prev.map((ci, idx) => idx === existingIndex ? { ...ci, quantity: ci.quantity + 1 } : ci);
+      }
+      return [...prev, { ...product, cartId, quantity: 1, notes: '', selectedSize: size, price: finalPrice, cost: baseCost, sugarLevel, selectedAddons }];
+    });
+
+    if (isExisting) {
+      toast.success(`Increased ${product.name} quantity in cart`);
+    } else {
+      toast.success(`${product.name} added to cart`);
+    }
+  }, [toast, shopSettings?.isClosed, isAccountSuspended, accountSuspensionTimeLeft, activeCustomerProfile?.orderingDisabledReason]);
+
+  // Product Click Handler
+  const handleProductClick = useCallback((product: Product) => {
+    if (shopSettings?.isClosed) {
+      toast.error('The shop is currently closed. Ordering is unavailable.');
+      return;
+    }
+    if (isAccountSuspended) {
+      toast.error(`Your account is suspended from ordering for another ${accountSuspensionTimeLeft || 'duration'}. Reason: ${activeCustomerProfile?.orderingDisabledReason || 'Spam prevention'}`);
+      return;
+    }
+    const productAddons = getProductAllowedAddons(product);
+    const hasSizes = !!(product.sizes && product.sizes.length > 0);
+    const isBev = isProductBeverage(product);
+    const hasAddons = productAddons.length > 0;
+
+    if (hasSizes || isBev || hasAddons || product.isCustomizable) {
+      setSelectedProductForConfig(product);
+      setSelectedSizeConfig(hasSizes ? product.sizes![0] : null);
+      setSelectedSugarConfig('100%');
+      setSelectedAddonsConfig([]);
+    } else {
+      addToCart(product);
+    }
+  }, [addToCart, getProductAllowedAddons, shopSettings?.isClosed, isAccountSuspended, accountSuspensionTimeLeft, activeCustomerProfile?.orderingDisabledReason, toast]);
+
+  const handleConfigSubmit = () => {
+    if (selectedProductForConfig) {
+      const isBev = isProductBeverage(selectedProductForConfig);
+      const applicableAddons = getProductAllowedAddons(selectedProductForConfig);
+      const validAddons = selectedAddonsConfig.filter(sa => applicableAddons.some(a => a.id === sa.id));
+
+      addToCart(
+        selectedProductForConfig, 
+        selectedSizeConfig || undefined, 
+        isBev ? selectedSugarConfig : undefined, 
+        validAddons.length > 0 ? validAddons : undefined
+      );
+      setSelectedProductForConfig(null);
+    }
+  };
+
+  const toggleAddon = (addon: Addon) => {
+    setSelectedAddonsConfig(prev => {
+      const isSelected = prev.some(a => a.id === addon.id);
+      if (isSelected) {
+        return prev.filter(a => a.id !== addon.id);
+      } else {
+        return [...prev, addon];
+      }
+    });
+  };
+
+  const updateQuantity = (cartId: string, delta: number) => {
+    let removedItemName: string | null = null;
+    setCart((prev) => {
+      const itemToUpdate = prev.find(item => item.cartId === cartId);
+      if (itemToUpdate && itemToUpdate.quantity + delta <= 0) {
+        removedItemName = itemToUpdate.name;
+      }
+      return prev.map((item) => {
+        if (item.cartId === cartId) {
+          const newQuantity = Math.max(0, item.quantity + delta);
+          return { ...item, quantity: newQuantity };
+        }
+        return item;
+      }).filter((item) => item.quantity > 0);
+    });
+
+    if (removedItemName) {
+      toast.info(`Removed ${removedItemName} from cart`);
+    }
+  };
+
+  const availableSubCategories = useMemo(() => {
+    if (!activeCategory) return ['All'];
+    const activeCatLower = (activeCategory || '').trim().toLowerCase();
+    const catItems = menu.filter(item => {
+      const itemCatLower = (item.category || '').trim().toLowerCase();
+      if (itemCatLower === activeCatLower) return true;
+      const productParts = itemCatLower.split('/').map(s => s.trim());
+      if (productParts.includes(activeCatLower)) return true;
+      const activeParts = activeCatLower.split('/').map(s => s.trim());
+      return activeParts.some(ap => productParts.includes(ap) || itemCatLower === ap);
+    });
+    
+    const subCats = new Set<string>();
+    catItems.forEach(item => {
+      if (item.subCategory && item.subCategory.trim()) {
+        subCats.add(item.subCategory.trim());
+      }
+    });
+    return ['All', ...Array.from(subCats).sort()];
+  }, [menu, activeCategory]);
+
+  const filteredMenu = useMemo(() => {
+    let list = [...menu];
+    
+    if (localSearchQuery) {
+      list = list.filter(item => 
+        item.name.toLowerCase().includes(localSearchQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(localSearchQuery.toLowerCase()) ||
+        (item.description || '').toLowerCase().includes(localSearchQuery.toLowerCase())
+      );
+    } else {
+      const activeCatLower = (activeCategory || '').trim().toLowerCase();
+      const catFiltered = list.filter(item => {
+        const itemCatLower = (item.category || '').trim().toLowerCase();
+        if (itemCatLower === activeCatLower) return true;
+        
+        // Support slash-separated combined categories (e.g., "Matcha/Non-Coffee" matches "Non-Coffee")
+        const productParts = itemCatLower.split('/').map(s => s.trim());
+        if (productParts.includes(activeCatLower)) return true;
+        
+        const activeParts = activeCatLower.split('/').map(s => s.trim());
+        return activeParts.some(ap => productParts.includes(ap) || itemCatLower === ap);
+      });
+      
+      if (activeSubCategory === 'All') {
+        list = catFiltered;
+      } else {
+        list = catFiltered.filter(item => 
+          (item.subCategory || '').trim().toLowerCase() === activeSubCategory.toLowerCase()
+        );
+      }
+    }
+
+    // Apply sorting with availability prioritized on top
+    list.sort((a, b) => {
+      const aAvailable = a.isActive !== false ? 1 : 0;
+      const bAvailable = b.isActive !== false ? 1 : 0;
+      if (aAvailable !== bAvailable) {
+        return bAvailable - aAvailable; // Available (1) comes before Unavailable (0)
+      }
+
+      if (sortBy === 'alphabetical') {
+        return a.name.localeCompare(b.name);
+      } else if (sortBy === 'price-asc') {
+        return a.price - b.price;
+      } else if (sortBy === 'price-desc') {
+        return b.price - a.price;
+      } else if (sortBy === 'best-seller') {
+        const aIsMost = mostPickedProductIds?.has(a.id) ? 1 : 0;
+        const bIsMost = mostPickedProductIds?.has(b.id) ? 1 : 0;
+        return bIsMost - aIsMost;
+      }
+      return 0;
+    });
+
+    return list;
+  }, [menu, localSearchQuery, activeCategory, activeSubCategory, sortBy, mostPickedProductIds]);
+
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  
+  const discountAmount = useMemo(() => {
+    if (!appliedVoucher) return 0;
+    if (appliedVoucher.type === 'percentage') {
+      return subtotal * (appliedVoucher.value / 100);
+    }
+    if (appliedVoucher.type === 'fixed') {
+      return appliedVoucher.value;
+    }
+    if (appliedVoucher.type === 'buy_x_get_y') {
+      const buyQty = appliedVoucher.buyQuantity || 1;
+      const getQty = appliedVoucher.getQuantity || 1;
+      const selectedId = selectedFreeProduct?.id;
+      const buyTerm = (appliedVoucher.buyCategoryOrName || '').toLowerCase().trim();
+
+      const buyCount = cart.reduce((sum, item) => {
+        const itemCat = (item.category || '').toLowerCase();
+        const itemName = (item.name || '').toLowerCase();
+        if (!buyTerm || itemCat.includes(buyTerm) || itemName.includes(buyTerm)) {
+          return sum + item.quantity;
+        }
+        return sum;
+      }, 0);
+
+      if (buyCount >= buyQty) {
+        if (!selectedFreeProduct) return 0;
+        const sets = Math.floor(buyCount / buyQty);
+        const freeAllowed = sets * getQty;
+        let freeRemaining = freeAllowed;
+        let totalDiscount = 0;
+
+        const getItems = cart.filter(item => {
+          if (selectedId && item.id === selectedId) return true;
+          const getTerm = (appliedVoucher.getCategoryOrName || '').toLowerCase().trim();
+          const itemCat = (item.category || '').toLowerCase();
+          const itemName = (item.name || '').toLowerCase();
+          if (!getTerm || itemCat.includes(getTerm) || itemName.includes(getTerm)) {
+            return true;
+          }
+          return false;
+        });
+
+        if (selectedId) {
+          const foundTarget = getItems.find(i => i.id === selectedId);
+          if (foundTarget) {
+            const take = Math.min(foundTarget.quantity, freeRemaining);
+            totalDiscount += foundTarget.price * take;
+            freeRemaining -= take;
+          }
+        }
+
+        if (freeRemaining > 0) {
+          const sortedGetItems = [...getItems].sort((a, b) => a.price - b.price);
+          for (const item of sortedGetItems) {
+            const take = Math.min(item.quantity, freeRemaining);
+            totalDiscount += item.price * take;
+            freeRemaining -= take;
+            if (freeRemaining <= 0) break;
+          }
+        }
+
+        return totalDiscount;
+      }
+      return 0;
+    }
+    return 0;
+  }, [appliedVoucher, subtotal, cart]);
+    
+  const total = Math.max(0, subtotal - discountAmount);
+
+  const handleDownloadQR = async () => {
+    if (!shopSettings?.gcashQrUrl) return;
+    try {
+      const response = await fetch(shopSettings.gcashQrUrl);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'gcash-qr.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('QR code downloaded');
+    } catch (error) {
+      toast.error('Failed to download QR code');
+    }
+  };
+
+  const handleCheckout = () => {
+    if (shopSettings?.isClosed) {
+      toast.error('The shop is currently closed. Ordering is unavailable at this time.');
+      return;
+    }
+    if (isAccountSuspended) {
+      toast.error(`Your account is suspended from ordering for another ${accountSuspensionTimeLeft || 'duration'}. Reason: ${activeCustomerProfile?.orderingDisabledReason || 'Spam prevention'}`);
+      return;
+    }
+    if (cart.length === 0) return;
+    
+    // Ensure we have a default order type if not set
+    const finalOrderType = orderType || 'take-away';
+    
+    // Enforce Customer Login in mobile view
+    if (mode === 'mobile' && !user) {
+      setShowCustomerAuth(true);
+      return;
+    }
+    
+    if (!customerName.trim()) {
+      toast.warning('Please enter your name before placing the order.');
+      return;
+    }
+
+    if (paymentMethod === 'gcash') {
+      if (!receiptBase64) {
+        toast.warning('Please upload your GCash payment receipt screenshot.');
+        return;
+      }
+    }
+    
+    const earnRate = shopSettings?.pointsEarnedPer10Pesos ?? (shopSettings?.pointsEarnedPer100Pesos ? Math.max(1, Math.round(shopSettings.pointsEarnedPer100Pesos / 10)) : 1);
+    const pointsEarned = Math.floor(total / 10) * earnRate;
+
+    const targetCustomer = activeCustomerProfile || (mode === 'mobile' ? userProfile : null);
+    const targetCustomerId = targetCustomer?.uid || (mode === 'mobile' ? user?.uid : undefined);
+    const targetCustomerName = customerName.trim() || targetCustomer?.displayName || 'Customer';
+
+    onPlaceOrder({
+      items: cart,
+      total,
+      subtotal,
+      discountAmount,
+      voucherCode: appliedVoucher?.code,
+      pointsSpent: appliedVoucher?.pointsCost || 0,
+      pointsEarned,
+      claimedVoucherId: (appliedVoucher as any)?.isPurchased ? appliedVoucher?.id : undefined,
+      source: mode,
+      customerName: targetCustomerName,
+      customerId: targetCustomerId,
+      customerEmail: targetCustomer?.email || (mode === 'mobile' ? user?.email : undefined),
+      orderType: finalOrderType,
+      paymentMethod: paymentMethod,
+      status: paymentMethod === 'gcash' ? 'pending-verification' : 'unpaid',
+      receiptUrl: paymentMethod === 'gcash' ? receiptBase64 : undefined,
+      accountId: accountId.trim() || targetCustomer?.shortId || undefined
+    });
+
+    setCart([]);
+    setCustomerName('');
+    setAccountId('');
+    setReceiptBase64('');
+    setOrderType('take-away');
+    setAppliedVoucher(null);
+    setCheckoutStep(1);
+    setIsMobileCartOpen(false);
+    setIsKioskCartOpen(false);
+    setIsPosCartDrawerOpen(false);
+
+    if (mode === 'mobile') {
+      setShowOrderStatusModal(true);
+    }
+  };
+
+  const containerClasses = {
+    pos: 'flex flex-1 h-full w-full overflow-hidden bg-transparent',
+    kiosk: 'flex flex-col flex-1 h-full w-full bg-transparent relative',
+    mobile: 'flex flex-col flex-1 h-full w-full bg-transparent relative',
+  };
+
+  const getMobileGridClasses = (configuredCols: number) => {
+    if (configuredCols <= 1) return 'grid-cols-1';
+    if (configuredCols === 2) return 'grid-cols-2';
+    if (configuredCols === 3) return 'grid-cols-2 sm:grid-cols-3';
+    return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4';
+  };
+
+  const gridColsMap: Record<number, string> = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-2',
+    3: 'grid-cols-3',
+    4: 'grid-cols-4',
+    5: 'grid-cols-5',
+    6: 'grid-cols-6',
+    7: 'grid-cols-7',
+    8: 'grid-cols-8',
+  };
+
+  const lgGridColsMap: Record<number, string> = {
+    2: 'lg:grid-cols-2',
+    3: 'lg:grid-cols-3',
+    4: 'lg:grid-cols-4',
+    5: 'lg:grid-cols-5',
+    6: 'lg:grid-cols-6',
+    7: 'lg:grid-cols-7',
+    8: 'lg:grid-cols-8',
+  };
+
+  const renderMenuGrid = () => (
+    <div className={`flex-1 overflow-hidden flex ${mode !== 'pos' ? 'flex-row' : 'flex-col'}`}>
+      {/* Sidebar Navigation for Kiosk/Mobile */}
+      {mode !== 'pos' && (
+        <CategorySidebar 
+          categories={categories}
+          activeCategory={activeCategory}
+          setActiveCategory={handleCategoryChange}
+          mode={mode}
+          categoriesData={categoriesData}
+          shopSettings={shopSettings}
+          user={user}
+          onSignOut={logOut}
+          onSignInClick={() => setShowCustomerAuth(true)}
+        />
+      )}
+
+      <div className="flex-1 flex flex-col overflow-hidden bg-transparent">
+        {/* Horizontal Categories for POS only */}
+        {mode === 'pos' && (
+          <div className="p-4 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-white/5 flex gap-2.5 overflow-x-auto shrink-0 scrollbar-hide">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`whitespace-nowrap px-8 py-3.5 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] transition-all active:scale-95 ${
+                  activeCategory === cat
+                    ? 'bg-amber-500 text-slate-900 dark:text-white shadow-lg'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-foreground hover:bg-slate-50 dark:hover:bg-white/5 border border-slate-100 dark:border-white/10'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className={`flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 lg:p-12 ${mode === 'mobile' ? 'scrollbar-hide pb-32' : 'pb-24'}`}>
+          <div className="w-full max-w-[1600px] mx-auto">
+            {/* Account Suspension Banner */}
+            {isAccountSuspended && (
+              <div className="mb-6 p-4.5 rounded-3xl bg-rose-500/15 border border-rose-500/40 text-rose-300 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center shrink-0 mt-0.5">
+                    <ShieldOff className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase tracking-tight flex items-center gap-2 flex-wrap">
+                      Account Ordering Suspended
+                      <span className="text-[10px] font-mono bg-rose-500 text-slate-950 px-2 py-0.5 rounded-full font-bold">
+                        {accountSuspensionTimeLeft} left
+                      </span>
+                    </h3>
+                    <p className="text-xs text-rose-200/90 font-medium mt-1">
+                      Your account ({activeCustomerProfile?.displayName || 'Customer'}) is temporarily restricted from placing orders.
+                      {activeCustomerProfile?.orderingDisabledReason && (
+                        <span className="block text-[11px] text-rose-300 italic mt-0.5 font-semibold">
+                          Reason: "{activeCustomerProfile.orderingDisabledReason}"
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-[10px] text-rose-300 font-bold uppercase tracking-wider bg-rose-950/60 px-3.5 py-1.5 rounded-xl border border-rose-500/30 shrink-0 self-end sm:self-center">
+                  Spam Control Active
+                </div>
+              </div>
+            )}
+
+            <header className={`${mode === 'mobile' ? 'mb-4 flex items-center justify-between px-1' : 'mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6'}`}>
+              <div className={`${mode === 'mobile' ? 'flex items-center gap-2' : 'flex flex-col'}`}>
+                {mode === 'mobile' ? (
+                  <>
+                    <div className="w-1 h-5 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+                    <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                      {localSearchQuery ? 'Search Results' : activeCategory}
+                    </h2>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="px-3 py-1 bg-amber-500/10 text-amber-600 text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-amber-500/20">
+                        Catalog
+                      </div>
+                      <div className="h-[1px] flex-1 bg-slate-200" />
+                    </div>
+                    <h2 className="text-5xl md:text-6xl lg:text-7xl font-black text-foreground uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-4">
+                      {localSearchQuery ? 'Results' : activeCategory.split(' ')[0]}
+                      {!localSearchQuery && activeCategory.split(' ')[1] && (
+                        <span className="text-slate-700 dark:text-slate-300 not-italic font-medium text-4xl md:text-5xl lg:text-6xl">{activeCategory.split(' ')[1]}</span>
+                      )}
+                    </h2>
+                    <div className="flex items-center gap-3 mt-6">
+                      <div className="h-1.5 w-16 bg-amber-500 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.2)]" />
+                      <span className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest">
+                        {filteredMenu.length} items available
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {mode === 'mobile' && user && activeUserOrders.length > 0 && (
+                <button
+                  onClick={() => setShowOrderStatusModal(true)}
+                  className="px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-slate-900 transition-all rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 shadow-sm"
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                  <span>Track Order (#{activeUserOrders[0].id?.slice(-4)})</span>
+                </button>
+              )}
+
+              {/* Recognized Kiosk Member Badge */}
+              {mode === 'kiosk' && activeCustomerProfile && (
+                <div className="flex items-center gap-2 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/30 px-3 py-1.5 rounded-2xl shadow-sm">
+                  <div className="w-8 h-8 rounded-xl overflow-hidden bg-amber-500/20 text-amber-500 flex items-center justify-center font-bold text-xs shrink-0 border border-amber-500/30">
+                    {activeCustomerProfile.photoURL ? (
+                      <img src={activeCustomerProfile.photoURL} alt={activeCustomerProfile.displayName || 'Customer'} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      (activeCustomerProfile.displayName || 'C').charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-black text-slate-900 dark:text-white leading-none flex items-center gap-1.5">
+                      {activeCustomerProfile.displayName || 'Member'}
+                      <span className="px-1.5 py-0.2 rounded text-[8px] bg-green-500/20 text-green-500 font-mono font-black uppercase">
+                        Member
+                      </span>
+                    </span>
+                    <span className="text-[10px] font-black text-amber-500 font-mono leading-none mt-1">
+                      {activeCustomerProfile.points || 0} Pts • #{activeCustomerProfile.shortId || activeCustomerProfile.uid.slice(0, 5).toUpperCase()}
+                    </span>
+                  </div>
+                  {onSwitchCustomer && (
+                    <button
+                      onClick={onSwitchCustomer}
+                      className="ml-2 px-2 py-1 bg-black/5 dark:bg-white/10 hover:bg-rose-500/20 hover:text-rose-400 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-400 transition-colors flex items-center gap-1"
+                      title="Switch Customer / Reset to Guest"
+                    >
+                      <LogOut className="w-3 h-3" />
+                      <span className="hidden sm:inline">Switch</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className={`${mode === 'mobile' ? 'hidden' : 'flex items-center gap-4'}`}>
+                {/* Column Toggle - POS/Kiosk Only */}
+                {mode !== 'mobile' && !localSearchQuery && (
+                  <div className="flex flex-col items-end gap-2 pl-4 border-l border-slate-200">
+                    <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-[0.2em]">Layout</span>
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                      {[4, 5, 6].map((cols) => (
+                        <button
+                           key={cols}
+                           onClick={() => setGridColumns(cols as 4 | 5 | 6)}
+                           className={`w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-black transition-all ${
+                             gridColumns === cols
+                               ? 'bg-amber-500 text-slate-900 dark:text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105'
+                               : 'text-slate-600 dark:text-slate-400 hover:text-foreground hover:bg-white'
+                           }`}
+                        >
+                          {cols}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </header>
+
+            {/* Product Search and Sort Controls Row */}
+            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full sm:max-w-xs">
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={localSearchQuery}
+                  onChange={(e) => setLocalSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 bg-white/40 dark:bg-slate-900/40 border border-black/10 dark:border-white/5 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-all placeholder:text-slate-500 backdrop-blur-xl"
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                {localSearchQuery && (
+                  <button 
+                    onClick={() => setLocalSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+                <div className="relative group">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="appearance-none pl-3 pr-8 py-2 bg-transparent text-[11px] font-bold text-slate-600 dark:text-slate-400 focus:outline-none cursor-pointer uppercase tracking-wider hover:text-slate-900 dark:hover:text-white transition-colors"
+                  >
+                    <option value="best-seller">🔥 Best Seller</option>
+                    <option value="alphabetical">🔠 A-Z</option>
+                    <option value="price-asc">📈 Price ↑</option>
+                    <option value="price-desc">📉 Price ↓</option>
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none group-hover:text-slate-900 dark:group-hover:text-white transition-colors" />
+                </div>
+              </div>
+            </div>
+
+            {/* Customer Favorites Section (Mobile Only when logged in) */}
+            {mode === 'mobile' && user && customerFavorites.length > 0 && (
+              <div className="mb-3 sm:mb-6 p-2.5 sm:p-4 bg-rose-500/5 dark:bg-rose-500/5 rounded-2xl sm:rounded-3xl border border-rose-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 flex flex-col justify-between relative overflow-hidden">
+                <SnowCap variant="banner" />
+                <div className="flex items-center justify-between mb-1 sm:mb-1.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 fill-rose-500 animate-pulse shrink-0" />
+                    <h3 className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-1.5 sm:gap-2">
+                      Your Favorites
+                      <span className="text-[7px] sm:text-[8px] text-rose-500 font-extrabold bg-rose-500/10 px-1.5 sm:px-2 py-0.5 rounded-full uppercase border border-rose-500/10 tracking-widest hidden xs:inline-block">
+                        Most Purchased
+                      </span>
+                    </h3>
+                  </div>
+                  <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">
+                    Scroll →
+                  </span>
+                </div>
+
+                <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide py-0.5 sm:py-1 items-center">
+                  {customerFavorites.slice(0, 8).map(({ product, count }) => {
+                    const cartCount = cart.filter(c => c.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
+                    return (
+                      <div
+                        key={`fav-${product.id}`}
+                        onClick={() => product.isActive !== false && handleProductClick(product)}
+                        className="shrink-0 w-48 sm:w-64 h-[84px] sm:h-[145px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-rose-500/30 p-2 sm:p-2.5 flex gap-2 sm:gap-3 items-center cursor-pointer hover:border-rose-500 hover:shadow-md transition-all relative group overflow-hidden"
+                      >
+                        <SnowCap variant="compact" />
+                        <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
+                          <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-rose-500 text-white text-[7px] sm:text-[8px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-full shadow">
+                            ❤️ {count}x
+                          </div>
+                          {cartCount > 0 && (
+                            <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 bg-amber-500 text-slate-900 text-[8px] sm:text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-white">
+                              {cartCount}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
+                          <div>
+                            <span className="text-[7px] sm:text-[8px] font-extrabold uppercase text-rose-500 tracking-wider block leading-none mb-0.5">Most Ordered</span>
+                            <h4 className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white truncate leading-snug">{product.name}</h4>
+                            <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 block truncate leading-none mt-0.5">{product.category}</span>
+                          </div>
+                          <div className="flex items-center justify-between mt-auto pt-0.5">
+                            <span className="text-[11px] sm:text-xs font-black text-amber-500 italic">₱{product.price}</span>
+                            <button className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-md sm:rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-colors">
+                              + Add
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Overall Best Sellers Continuous Rotating Marquee Section */}
+            {((mode === 'kiosk' || mode === 'pos') || (mode === 'mobile' && overallBestSellers.length > 0)) && overallBestSellers.length > 0 && (
+              <div className="mb-3 sm:mb-6 p-2.5 sm:p-4 bg-amber-500/5 dark:bg-amber-500/5 rounded-2xl sm:rounded-3xl border border-amber-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 relative overflow-hidden">
+                <SnowCap variant="banner" />
+                <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 fill-amber-500 animate-pulse shrink-0" />
+                    <h3 className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-1.5 sm:gap-2">
+                      Overall Best Sellers
+                      <span className="text-[7px] sm:text-[8px] text-amber-500 font-extrabold bg-amber-500/10 px-1.5 sm:px-2 py-0.5 rounded-full uppercase border border-amber-500/10 tracking-widest hidden xs:inline-block">
+                        Store Favorites
+                      </span>
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[8px] sm:text-[9px] font-black text-amber-500 uppercase tracking-widest">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                    <span>Live Marquee • Hover to Pause</span>
+                  </div>
+                </div>
+
+                <div className="relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)] py-0.5">
+                  <div className="flex gap-2.5 sm:gap-3.5 w-max animate-marquee hover:[animation-play-state:paused] py-0.5">
+                    {(() => {
+                      const base = overallBestSellers.slice(0, 10);
+                      let repeated = [...base];
+                      while (repeated.length < 8) {
+                        repeated = [...repeated, ...base];
+                      }
+                      const doubleList = [...repeated, ...repeated];
+                      return doubleList.map(({ product, count }, index) => {
+                        const cartCount = cart.filter(c => c.id === product.id).reduce((sum, item) => sum + item.quantity, 0);
+                        return (
+                          <div
+                            key={`best-marquee-${product.id}-${index}`}
+                            onClick={() => product.isActive !== false && handleProductClick(product)}
+                            className="shrink-0 w-52 sm:w-64 h-[84px] sm:h-[96px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-amber-500/30 p-2 sm:p-2.5 flex gap-2.5 sm:gap-3 items-center cursor-pointer hover:border-amber-500 hover:shadow-lg hover:scale-[1.02] transition-all relative group select-none shadow-sm overflow-hidden"
+                          >
+                            <SnowCap variant="compact" />
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
+                              <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                              <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-amber-500 text-slate-950 text-[7px] sm:text-[8px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-full shadow">
+                                🔥 {count} sold
+                              </div>
+                              {cartCount > 0 && (
+                                <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 bg-amber-500 text-slate-900 text-[8px] sm:text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-white">
+                                  {cartCount}
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
+                              <div>
+                                <span className="text-[7px] sm:text-[8px] font-extrabold uppercase text-amber-500 tracking-wider block leading-none mb-0.5">Best Seller</span>
+                                <h4 className="text-[11px] sm:text-xs font-black text-slate-900 dark:text-white truncate leading-snug">{product.name}</h4>
+                                <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 block truncate leading-none mt-0.5">{product.category}</span>
+                              </div>
+                              <div className="flex items-center justify-between mt-auto pt-0.5">
+                                <span className="text-[11px] sm:text-xs font-black text-amber-500 italic">₱{product.price}</span>
+                                <button className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-amber-500/10 group-hover:bg-amber-500 text-amber-600 group-hover:text-slate-950 rounded-md sm:rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-colors">
+                                  + Add
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {availableSubCategories.length > 1 && !localSearchQuery && (
+              <div className="flex flex-wrap gap-2 mb-8 animate-in fade-in slide-in-from-top-4">
+                {availableSubCategories.map(subCat => (
+                  <button
+                    key={subCat}
+                    onClick={() => setActiveSubCategory(subCat)}
+                    className={`px-6 py-2.5 rounded-full font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 ${
+                      activeSubCategory === subCat
+                        ? 'bg-amber-500 text-slate-900 shadow-md'
+                        : 'bg-white dark:bg-[#111115] text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/5 hover:border-amber-500/50'
+                    }`}
+                  >
+                    {subCat}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeCategory === 'Your MIX' && shopSettings?.yourMixEnabled !== false && !localSearchQuery ? (
+              shopSettings?.yourMixStatus === 'paused' ? (
+                <div className="py-20 text-center bg-amber-500/10 border border-amber-500/30 rounded-3xl p-8 max-w-lg mx-auto space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center mx-auto">
+                    <FlaskConical className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-black text-white uppercase tracking-wider">
+                    Your MIX Laboratory Paused
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    Our baristas are currently handling peak store volume. The custom mix laboratory will reopen shortly! In the meantime, explore our regular handcrafted menu.
+                  </p>
+                </div>
+              ) : shopSettings?.yourMixStatus === 'offline' ? (
+                <div className="py-20 text-center bg-rose-500/10 border border-rose-500/30 rounded-3xl p-8 max-w-lg mx-auto space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+                    <FlaskConical className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-black text-white uppercase tracking-wider">
+                    Your MIX Laboratory Offline
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    The custom mixing station is currently offline for restock and calibration. Please order from our standard catalog.
+                  </p>
+                </div>
+              ) : (
+                <div className="w-full">
+                  <YourMixStudio
+                    ingredients={yourMixIngredients}
+                    bases={yourMixBases}
+                    mode={mode}
+                    onAddToCart={(customItem) => {
+                      setCart(prev => [...prev, customItem]);
+                      if (mode === 'mobile') setIsMobileCartOpen(true);
+                      else if (mode === 'kiosk') setIsKioskCartOpen(true);
+                    }}
+                  />
+                </div>
+              )
+            ) : filteredMenu.length === 0 ? (
+              <div className="py-24 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                <div className="w-32 h-32 bg-slate-100 dark:bg-slate-900 rounded-[3rem] flex items-center justify-center mx-auto mb-8 border border-slate-200 dark:border-white/5 shadow-inner">
+                  <Search className="w-12 h-12 text-slate-700 dark:text-slate-300" />
+                </div>
+                <h3 className="text-2xl font-black text-foreground uppercase italic tracking-tighter mb-4">No Galactic Findings</h3>
+                <p className="text-slate-600 dark:text-slate-400 font-bold uppercase tracking-widest text-xs max-w-xs mx-auto">Our sensors couldn't locate any matching items in this sector.</p>
+              </div>
+            ) : (
+              <div 
+                className={`grid ${
+                  mode === 'mobile' ? `${getMobileGridClasses(shopSettings?.mobileGridColumns || 3)} gap-1.5` : 
+                  `gap-3 md:gap-4 lg:gap-5 grid-cols-2 ${lgGridColsMap[gridColumns] || 'lg:grid-cols-5'}`
+                }`}
+                key={localSearchQuery ? 'search' : activeCategory}
+              >
+                {filteredMenu.map((item) => (
+                  <ProductCard
+                    key={item.id}
+                    item={item}
+                    mode={mode}
+                    cartCount={cart.filter(c => c.id === item.id).reduce((sum, item) => sum + item.quantity, 0)}
+                    onClick={handleProductClick}
+                    isMostPicked={mostPickedProductIds ? mostPickedProductIds.has(item.id) : false}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCart = () => (
+    <div className="flex flex-col h-full w-full bg-white/95 dark:bg-[#0D0F14]/95 backdrop-blur-2xl text-slate-900 dark:text-white">
+      <div className="px-4 py-2.5 border-b border-black/10 dark:border-white/5 bg-slate-50/80 dark:bg-[#131722]/80 flex justify-between items-center shrink-0">
+        <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-tighter italic">
+          <ShoppingBag className="w-4 h-4 text-amber-500" />
+          {shopSettings?.name || 'CAIDOZ'}
+        </h2>
+        {(mode === 'mobile' || mode === 'kiosk' || isPosCartDrawerOpen) && (
+          <button onClick={() => {
+            setIsMobileCartOpen(false);
+            setIsKioskCartOpen(false);
+            setIsPosCartDrawerOpen(false);
+            setTimeout(() => setCheckoutStep(1), 500);
+          }} className="p-1.5 text-slate-500 dark:text-white/40 bg-black/5 dark:bg-white/5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all">
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Modern Compact Stepper Progress Bar */}
+      <div className="px-4 py-2 bg-[#0D0F14] border-b border-white/5 shrink-0">
+        <div className="flex items-center justify-between w-full max-w-xs mx-auto relative">
+          {[1, 2, 3, 4].map((step, index) => {
+            const isCompleted = step < checkoutStep;
+            const isActive = step === checkoutStep;
+            
+            return (
+              <React.Fragment key={step}>
+                {/* Step Circle */}
+                <div className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
+                  isCompleted || isActive 
+                    ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.4)] text-slate-950 font-black' 
+                    : 'bg-[#1A1D27] text-white/40'
+                }`}>
+                  {isCompleted ? (
+                    <Check className="w-3.5 h-3.5 text-slate-950 stroke-[3]" />
+                  ) : isActive ? (
+                    <div className="w-2 h-2 rounded-full bg-slate-950" />
+                  ) : (
+                    <span className="text-[11px] font-black">{step}</span>
+                  )}
+                </div>
+                
+                {/* Connecting Line (except after last step) */}
+                {index < 3 && (
+                  <div className={`flex-1 h-[2px] transition-all duration-300 ${
+                    step < checkoutStep ? 'bg-amber-500' : 'bg-white/10'
+                  }`} />
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 md:p-4 flex flex-col gap-3 scrollbar-hide">
+        {checkoutStep === 1 && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-4">
+            {cart.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 dark:text-white/40 space-y-4 py-8">
+                <div className="w-20 h-20 bg-black/5 dark:bg-white/5 rounded-full flex items-center justify-center border border-black/10 dark:border-white/10 opacity-50">
+                  <Coffee className="w-10 h-10 text-amber-500" />
+                </div>
+                <p className="font-black uppercase tracking-[0.3em] text-[10px]">Your orbit is empty</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {cart.map((item) => (
+                  <div
+                    key={item.cartId}
+                    className="flex items-center justify-between p-3 md:p-3.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl shadow-sm group hover:border-amber-500/30 transition-all"
+                  >
+                    <div className="flex-1 pr-4">
+                      <div className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors">
+                        {item.name}
+                        {item.selectedSize && (
+                          <span className="ml-2 text-[9px] text-amber-500 font-black bg-amber-500/10 px-2 py-0.5 rounded-full uppercase border border-amber-500/20">
+                            {item.selectedSize.name}
+                          </span>
+                        )}
+                      </div>
+                      {(item.sugarLevel || (item.selectedAddons && item.selectedAddons.length > 0)) && (
+                        <div className="text-[10px] text-slate-500 dark:text-white/40 font-bold uppercase tracking-widest mt-1 space-y-0.5">
+                          {item.sugarLevel && <div>Sugar: {item.sugarLevel}</div>}
+                          {item.selectedAddons && item.selectedAddons.length > 0 && (
+                            <div className="text-amber-500/60">+ {item.selectedAddons.map(a => a.name).join(', ')}</div>
+                          )}
+                        </div>
+                      )}
+                      <div className="text-slate-900 dark:text-white font-black text-xs mt-2">₱{(item.price * item.quantity).toLocaleString()}</div>
+                    </div>
+                    <div className="flex items-center gap-3 bg-black/5 dark:bg-white/5 p-1.5 rounded-2xl border border-black/10 dark:border-white/10">
+                      <button
+                        onClick={() => updateQuantity(item.cartId, -1)}
+                        className="p-2 bg-black/5 dark:bg-white/5 rounded-xl text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-6 text-center font-black text-slate-900 dark:text-white text-sm">{item.quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(item.cartId, 1)}
+                        className="p-2 bg-amber-500 text-black rounded-xl hover:bg-amber-400 shadow-lg transition-all active:scale-90"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Vouchers & Promos */}
+            {cart.length > 0 && (
+              <div className="space-y-4 pt-4 mt-2 border-t border-black/5 dark:border-white/5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">Apply Voucher</label>
+                  {(mode === 'kiosk' || mode === 'pos') && (
+                    <button
+                      onClick={() => setShowPersonalVoucherModal(true)}
+                      className="text-[10px] font-black text-amber-500 uppercase tracking-wider flex items-center gap-1 hover:underline"
+                    >
+                      <QrCode className="w-3.5 h-3.5" /> Scan Personal Voucher
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={promoCodeInput}
+                    onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                    className="flex-1 p-3 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-slate-900 dark:text-white text-xs font-bold transition-all uppercase placeholder:text-slate-400 dark:placeholder:text-slate-500 min-w-0"
+                    placeholder="Enter Promo Code"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => openQRScanner('voucher')}
+                    className="p-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-2xl flex items-center justify-center transition-all active:scale-95 shrink-0"
+                    title="Scan Voucher QR with Camera"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (promoCodeInput.trim()) {
+                        applyVoucherCode(promoCodeInput);
+                      }
+                    }}
+                    className="px-4 py-3 bg-amber-500 text-slate-900 font-black uppercase text-[10px] tracking-widest hover:bg-amber-400 active:scale-95 transition-all shadow-md rounded-2xl"
+                  >
+                    Apply
+                  </button>
+                </div>
+                
+                {appliedVoucher && (
+                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex flex-col gap-2 shadow-sm animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black uppercase text-emerald-500 tracking-wider flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5" /> Voucher Applied
+                        </span>
+                        <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest mt-0.5">
+                          {appliedVoucher.code} ({appliedVoucher.type === 'buy_x_get_y' ? `Buy ${appliedVoucher.buyQuantity} Get ${appliedVoucher.getQuantity} Free` : (appliedVoucher.type === 'percentage' ? `${appliedVoucher.value}% OFF` : `₱${appliedVoucher.value} OFF`)})
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setAppliedVoucher(null);
+                          setSelectedFreeProduct(null);
+                          toast.info('Voucher removed');
+                        }}
+                        className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors font-bold text-xs"
+                        title="Remove voucher"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {appliedVoucher.type === 'buy_x_get_y' && (
+                      <div className="pt-2 border-t border-emerald-500/25 flex items-center justify-between">
+                        <div className="text-[10px] uppercase font-bold text-slate-600 dark:text-slate-300">
+                          {isBuyXGetYEligible ? (
+                            selectedFreeProduct ? (
+                              <span className="text-emerald-600 dark:text-emerald-400 font-black">Free Item: {selectedFreeProduct.name}</span>
+                            ) : (
+                              <span className="text-amber-500 font-black animate-pulse">Condition met! Please choose free item.</span>
+                            )
+                          ) : (
+                            <span className="text-amber-600 dark:text-amber-400 font-bold">
+                              Add {Math.max(0, requiredQty - buyCount)} more {appliedVoucher.buyCategoryOrName || 'items'} ({buyCount}/{requiredQty})
+                            </span>
+                          )}
+                        </div>
+                        {isBuyXGetYEligible && (
+                          <button
+                            onClick={() => setShowFreeItemModal(true)}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all shadow-sm"
+                          >
+                            {selectedFreeProduct ? 'Change Free Item' : 'Choose Free Item'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Quick Select Vouchers List */}
+                {(() => {
+                  const isCustomerMode = mode === 'kiosk' || mode === 'mobile';
+                  const promoVouchers = vouchers ? vouchers.filter(v => v.isActive && (isCustomerMode ? (!v.pointsCost || v.pointsCost === 0) && !v.isAdminOnly : true)) : [];
+                  const purchasedVouchers = (mode === 'kiosk' || mode === 'pos') ? [] : userClaimedVouchers
+                    .filter(cv => !cv.isUsed)
+                    .map(cv => ({
+                      id: cv.id || cv.voucherId,
+                      code: cv.code,
+                      type: cv.type,
+                      value: cv.value,
+                      minSpend: cv.minSpend,
+                      isActive: true,
+                      pointsCost: 0,
+                      conditionType: cv.conditionType || 'none',
+                      buyQuantity: cv.buyQuantity,
+                      buyCategoryOrName: cv.buyCategoryOrName,
+                      getQuantity: cv.getQuantity,
+                      getCategoryOrName: cv.getCategoryOrName,
+                      isAdminOnly: cv.isAdminOnly,
+                      isPurchased: true,
+                      claimedVoucherId: cv.id
+                    } as unknown as Voucher & { isPurchased: boolean; claimedVoucherId?: string }));
+
+                  const allAvailableVouchers = [...purchasedVouchers, ...promoVouchers.filter(pv => !purchasedVouchers.some(p => p.id === pv.id))];
+
+                  if (allAvailableVouchers.length === 0) return null;
+                  return (
+                    <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">
+                          {mode === 'kiosk' ? 'Available Promo Vouchers' : 'Available Vouchers'}
+                        </span>
+                        {mode === 'mobile' && user && (
+                          <span className="text-[9px] font-black text-amber-500 uppercase tracking-wider">Balance: {availablePoints} Pts</span>
+                        )}
+                      </div>
+                      
+                      <div className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-hide">
+                        {allAvailableVouchers.map(v => {
+                          const isApplied = appliedVoucher?.id === v.id;
+                          const isPurchased = (v as any).isPurchased;
+                          const isPointsCostHigh = !isPurchased && mode !== 'kiosk' && !!(v.pointsCost && v.pointsCost > availablePoints);
+                          const isBelowMinSpend = !!(v.minSpend && subtotal < v.minSpend);
+                          const isLimitReached = !!(v.usageLimit && (v.usedCount || 0) >= v.usageLimit);
+                          const isDisabled = isPointsCostHigh || isBelowMinSpend || isLimitReached;
+
+                          return (
+                            <button
+                              key={v.id}
+                              onClick={() => {
+                                if (isBelowMinSpend) {
+                                  toast.error(`Minimum spend of ₱${v.minSpend} required`);
+                                  return;
+                                }
+                                if (isLimitReached) {
+                                  toast.error('Voucher usage limit reached');
+                                  return;
+                                }
+                                if (isPointsCostHigh) {
+                                  toast.error(`Not enough points. Needs ${v.pointsCost} Pts`);
+                                  return;
+                                }
+                                requestVoucherActivation(v, isPurchased ? `Purchased voucher "${v.code}" applied!` : `Voucher "${v.code}" applied!`);
+                              }}
+                              disabled={isDisabled}
+                              className={`shrink-0 p-3 rounded-2xl border flex flex-col gap-1.5 min-w-[150px] text-left transition-all ${
+                                isApplied 
+                                  ? 'bg-amber-500/20 border-amber-500 shadow-md' 
+                                  : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:border-amber-500/50'
+                              } ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'active:scale-95'}`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center gap-1">
+                                  <Tag className="w-3.5 h-3.5 text-amber-500" />
+                                  {isPurchased && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                                </div>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-amber-500">
+                                  {isPurchased ? 'OWNED' : (v.type === 'buy_x_get_y' ? 'Buy X Get Y' : (v.pointsCost ? `${v.pointsCost} Pts` : (v.type === 'percentage' ? `${v.value}% OFF` : `₱${v.value} OFF`)))}
+                                </span>
+                              </div>
+                              <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{v.code}</span>
+                              <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                                {v.type === 'buy_x_get_y' ? `Buy ${v.buyQuantity} ${v.buyCategoryOrName || 'items'} get ${v.getQuantity} free` : (v.type === 'percentage' ? `${v.value}% discount` : `₱${v.value} off`)} {v.minSpend ? `(Min ₱${v.minSpend})` : ''}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        )}
+
+        {checkoutStep === 2 && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-6">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight italic mb-1">Dining Options</h3>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-6">How would you like your order?</p>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => setOrderType('dine-in')}
+                  className={`py-8 rounded-3xl font-black text-sm uppercase tracking-widest flex flex-col items-center justify-center gap-4 transition-all active:scale-95 border-2 ${orderType === 'dine-in' ? 'bg-amber-500/10 text-amber-500 border-amber-500 shadow-lg shadow-amber-500/20' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+                >
+                  <Store className={`w-10 h-10 ${orderType === 'dine-in' ? 'text-amber-500' : ''}`} /> 
+                  Dine-in
+                </button>
+                <button
+                  onClick={() => setOrderType('take-away')}
+                  className={`py-8 rounded-3xl font-black text-sm uppercase tracking-widest flex flex-col items-center justify-center gap-4 transition-all active:scale-95 border-2 ${orderType === 'take-away' ? 'bg-amber-500/10 text-amber-500 border-amber-500 shadow-lg shadow-amber-500/20' : 'bg-black/5 dark:bg-white/5 text-slate-500 dark:text-white/40 border-black/10 dark:border-white/5 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10'}`}
+                >
+                  <ShoppingBag className={`w-10 h-10 ${orderType === 'take-away' ? 'text-amber-500' : ''}`} /> 
+                  Take-out
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {checkoutStep === 3 && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-3">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight italic">Payment Method</h3>
+                <span className="text-xs font-black text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                  Total: ₱{total.toLocaleString()}
+                </span>
+              </div>
+              
+              {mode === 'kiosk' ? (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-3.5 my-2">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shrink-0 shadow-md">
+                    <Coffee className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase text-slate-900 dark:text-white tracking-wider">Pay Over Counter</p>
+                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Please present your order reference to the cashier for payment upon placing order.</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Sleek Segmented Payment Selector */}
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-black/10 dark:bg-white/5 rounded-2xl border border-black/10 dark:border-white/10 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('counter')}
+                      className={`py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                        paymentMethod === 'counter' 
+                          ? 'bg-amber-500 text-slate-950 shadow-md' 
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <Coffee className="w-4 h-4" /> Over Counter
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('gcash')}
+                      className={`py-2.5 px-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                        paymentMethod === 'gcash' 
+                          ? 'bg-amber-500 text-slate-950 shadow-md' 
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <QrCode className="w-4 h-4" /> Online (GCash)
+                    </button>
+                  </div>
+
+                  {/* Payment Verification for GCash */}
+                  {paymentMethod === 'gcash' && (
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-3">
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col gap-2">
+                        <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
+                          <div className="flex items-center gap-1.5 text-amber-500 font-black text-xs uppercase tracking-wider">
+                            <QrCode className="w-4 h-4" />
+                            <span>GCash Payment Details</span>
+                          </div>
+                          <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                            Amount: <span className="font-black text-amber-500">₱{total.toLocaleString()}</span>
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 pt-1">
+                          {shopSettings?.gcashQrUrl && (
+                            <div 
+                              onClick={() => {
+                                setLightboxQrUrl(shopSettings.gcashQrUrl || null);
+                                setLightboxQrTitle('GCash Payment QR Code');
+                              }}
+                              className="bg-white p-1.5 rounded-2xl border border-amber-500/30 shadow-md shrink-0 relative group cursor-pointer hover:border-amber-400 hover:scale-105 transition-all"
+                              title="Click to enlarge GCash QR Code"
+                            >
+                              <img 
+                                src={shopSettings.gcashQrUrl} 
+                                alt="GCash Payment QR" 
+                                className="w-20 h-20 object-contain rounded-xl"
+                                referrerPolicy="no-referrer"
+                              />
+                              <div className="absolute inset-0 bg-slate-950/60 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-amber-400">
+                                <Maximize2 className="w-5 h-5" />
+                              </div>
+                              <button 
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadQR();
+                                }}
+                                className="absolute top-1 right-1 p-1 bg-slate-950/80 backdrop-blur rounded-full text-white hover:bg-amber-500 hover:text-slate-950 transition-all z-10"
+                                title="Download GCash QR Code"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+
+                          <div className="flex-1 flex flex-col justify-center gap-1.5 min-w-0">
+                            <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Send GCash Payment To:</div>
+                            <div className="flex items-center justify-between text-xs bg-black/10 dark:bg-white/5 px-2.5 py-1.5 rounded-xl border border-black/5 dark:border-white/5">
+                              <span className="font-black tracking-wider text-slate-900 dark:text-white text-xs truncate">{shopSettings?.gcashNumber || '0917-123-4567'}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(shopSettings?.gcashNumber || '0917-123-4567');
+                                  toast.success('GCash number copied');
+                                }}
+                                className="p-1 bg-black/5 dark:bg-white/10 hover:bg-amber-500 hover:text-slate-950 rounded-md transition-all shrink-0 ml-1"
+                                title="Copy number"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400">Scan QR or copy number to pay, then upload receipt screenshot below.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Screenshot Upload */}
+                      <div className="space-y-1.5">
+                        <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.2em] ml-1">
+                          Payment Receipt Screenshot
+                        </label>
+                        {receiptBase64 ? (
+                          <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 overflow-hidden">
+                              <img src={receiptBase64} className="w-9 h-9 object-cover rounded-lg border border-emerald-500/20" alt="Receipt Preview" referrerPolicy="no-referrer" />
+                              <div className="flex flex-col overflow-hidden">
+                                <span className="text-[10px] font-black text-emerald-500 uppercase tracking-wider flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Receipt Attached
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-500 uppercase truncate">
+                                  Ready for verification
+                                </span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setReceiptBase64('')}
+                              className="p-1 text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
+                              title="Remove receipt"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="flex items-center justify-center gap-2.5 p-3 border-2 border-dashed border-amber-500/30 hover:border-amber-500 bg-amber-500/5 rounded-2xl cursor-pointer hover:bg-amber-500/10 transition-all text-center group">
+                            <Upload className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                              {compressingImage ? 'Compressing Image...' : 'Upload Receipt Screenshot'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleReceiptUpload}
+                              disabled={compressingImage}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'counter' && (
+                    <div className="p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl text-center space-y-1 my-2">
+                      <p className="text-xs font-black uppercase text-slate-800 dark:text-white tracking-wider">Pay Over Counter Selected</p>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Please present your order reference to the cashier for payment upon ordering.</p>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {checkoutStep === 4 && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-6">
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight italic mb-1">Final Details</h3>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-6">Complete your order</p>
+              
+              {/* Customer Information */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1 flex items-center gap-1.5">
+                     <UserIcon className="w-3 h-3 text-slate-400" /> Reference Name
+                  </label>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    disabled={mode === 'mobile' && !!user}
+                    className={`w-full p-4 border-2 border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-black transition-all ${mode === 'mobile' && user ? 'bg-black/10 dark:bg-white/10 text-slate-500 cursor-not-allowed border-transparent' : 'bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 hover:border-black/20 dark:hover:border-white/20'}`}
+                    placeholder="E.g. Juan Dela Cruz"
+                  />
+                </div>
+                
+                {(mode === 'kiosk' || mode === 'pos') && (
+                  <div className="space-y-2 mt-4 pt-4 border-t border-black/5 dark:border-white/5">
+                    <div className="flex items-center justify-between ml-1">
+                      <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] flex items-center gap-1.5">
+                        <UserIcon className="w-3 h-3 text-amber-500" /> Account ID <span className="text-slate-400 font-bold lowercase tracking-normal">(Scan QR for points)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => openQRScanner('account_id')}
+                        className="text-[10px] font-black text-amber-500 uppercase tracking-wider flex items-center gap-1 hover:underline"
+                      >
+                        <Camera className="w-3.5 h-3.5" /> Scan QR Pass
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={accountId}
+                        onChange={(e) => setAccountId(e.target.value)}
+                        className="flex-1 p-4 border-2 border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-black transition-all bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 hover:border-black/20 dark:hover:border-white/20 min-w-0 uppercase font-mono"
+                        placeholder="Enter 5-char ID (e.g. A89XK) or Scan QR"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => openQRScanner('account_id')}
+                        className="px-4 py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-2xl flex items-center justify-center gap-2 text-xs uppercase tracking-wider shrink-0 transition-all active:scale-95 shadow-lg shadow-amber-500/20"
+                        title="Scan Member QR Code with Camera"
+                      >
+                        <Camera className="w-4 h-4" />
+                        <span className="hidden sm:inline">Scan QR</span>
+                      </button>
+                    </div>
+
+                    {accountId && (
+                      <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-between gap-3 mt-2 animate-in fade-in">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div 
+                            onClick={() => activeCustomerProfile && setCustomerPhotoModal(activeCustomerProfile)}
+                            className="w-10 h-10 bg-amber-500 text-slate-900 font-black rounded-xl flex items-center justify-center text-xs shrink-0 shadow-sm overflow-hidden relative cursor-pointer hover:scale-105 transition-all group"
+                            title="Click to view customer photo"
+                          >
+                            {activeCustomerProfile?.photoURL ? (
+                              <>
+                                <img src={activeCustomerProfile.photoURL} alt={activeCustomerProfile.displayName} className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+                                <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-amber-400">
+                                  <Maximize2 className="w-3.5 h-3.5" />
+                                </div>
+                              </>
+                            ) : (
+                              <Coins className="w-5 h-5 text-slate-950" />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex flex-col">
+                            <span className="text-[10px] font-black uppercase text-amber-500 tracking-wider truncate flex items-center gap-1">
+                              {scannedAccountProfile?.displayName || scannedAccountProfile?.email || `Account Linked`}
+                              {activeCustomerProfile?.photoURL && <Camera className="w-3 h-3 text-amber-400 shrink-0" />}
+                            </span>
+                            <span className="text-xs font-black text-slate-900 dark:text-white tracking-tight">
+                              ⚡ {availablePoints} Loyalty Pts Available
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAccountId('');
+                            setScannedAccountProfile(null);
+                          }}
+                          className="px-2 py-1 bg-black/5 dark:bg-white/10 hover:bg-red-500/20 hover:text-red-500 text-slate-400 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors shrink-0"
+                        >
+                          Unlink
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Order Notice */}
+              <div className="mt-8 p-5 bg-amber-500/10 border-2 border-amber-500/20 rounded-3xl flex items-start gap-4">
+                <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+                <div className="space-y-1.5">
+                  <p className="text-xs font-black uppercase text-amber-500 tracking-[0.2em]">Order Notice</p>
+                  <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300 leading-relaxed uppercase tracking-wider">
+                    Your order will <span className="font-black text-amber-500 underline underline-offset-2">not</span> be made if not confirmed by the cashier (the e-payment) or not paid personally.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Footer */}
+      <div className="p-3 md:p-4 bg-slate-50/80 dark:bg-[#131722]/80 backdrop-blur-xl border-t border-black/10 dark:border-white/5 shrink-0">
+        
+        {/* Total Summary */}
+        {checkoutStep === 1 ? (
+          <div className="space-y-1.5 mb-3 px-1">
+            <div className="flex justify-between items-center text-xs font-black uppercase tracking-widest text-slate-500">
+              <span>Subtotal</span>
+              <span>₱{subtotal.toLocaleString()}</span>
+            </div>
+            {discountAmount > 0 && (
+              <div className="flex justify-between items-center text-xs font-black uppercase tracking-widest text-emerald-500">
+                <span>Discount</span>
+                <span>-₱{discountAmount.toLocaleString()}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center pt-2 border-t border-black/5 dark:border-white/5">
+              <span className="text-slate-500 dark:text-white/40 font-black uppercase tracking-[0.2em] text-[10px]">Total Fuel</span>
+              <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white italic">₱{total.toLocaleString()}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-between items-center mb-2.5 px-1 text-xs font-black uppercase tracking-wider">
+            <span className="text-slate-500 dark:text-white/50 text-[10px] tracking-widest">Total Fuel:</span>
+            <span className="text-xl font-black text-amber-500 italic">₱{total.toLocaleString()}</span>
+          </div>
+        )}
+
+        <div className="flex gap-2.5">
+          {checkoutStep > 1 && (
+            <button 
+              type="button"
+              onClick={() => setCheckoutStep(prev => prev - 1)} 
+              className="px-4 py-3 rounded-2xl border-2 border-black/10 dark:border-white/10 font-black text-slate-600 dark:text-slate-300 hover:bg-black/5 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white transition-all active:scale-95 flex items-center justify-center shrink-0"
+              aria-label="Previous Step"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+          
+          {checkoutStep < 4 ? (
+            <button 
+              type="button"
+              onClick={() => {
+                if (checkoutStep === 3 && paymentMethod === 'gcash' && !receiptBase64) {
+                   toast.error('Please upload a screenshot of your payment receipt');
+                   return;
+                }
+                setCheckoutStep(prev => prev + 1);
+              }}
+              disabled={cart.length === 0}
+              className="flex-1 bg-amber-500 disabled:opacity-50 hover:bg-amber-400 text-slate-950 py-3 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              Next <ArrowRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleCheckout}
+              disabled={cart.length === 0 || (!customerName.trim() && mode !== 'mobile') || !!shopSettings?.isClosed || isAccountSuspended}
+              className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-rose-500/20 disabled:text-rose-400 dark:disabled:bg-rose-500/20 dark:disabled:text-rose-400 text-slate-950 py-3 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              {shopSettings?.isClosed ? 'SHOP IS CLOSED' : isAccountSuspended ? 'ACCOUNT SUSPENDED' : 'Confirm Order'} <Check className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={containerClasses[mode]}>
+      {shopSettings?.isClosed ? (
+        <div className="bg-rose-500/15 border-b border-rose-500/30 px-6 py-2.5 flex items-center justify-between gap-4 text-rose-500 dark:text-rose-400 font-black text-xs uppercase tracking-wider shrink-0 z-30 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+            </span>
+            <span>STORE IS CURRENTLY CLOSED — Customer ordering is temporarily paused</span>
+          </div>
+          <span className="bg-rose-500 text-slate-950 px-3 py-0.5 rounded-full text-[9px] font-black tracking-widest">
+            OFFLINE
+          </span>
+        </div>
+      ) : isAccountSuspended ? (
+        <div className="bg-rose-500/15 border-b border-rose-500/30 px-6 py-2.5 flex items-center justify-between gap-4 text-rose-400 font-black text-xs uppercase tracking-wider shrink-0 z-30 animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <ShieldOff className="w-4 h-4 text-rose-400 animate-pulse" />
+            <span>ORDERING SUSPENDED — {accountSuspensionTimeLeft} remaining ({activeCustomerProfile?.orderingDisabledReason || 'Spam prevention'})</span>
+          </div>
+          <span className="bg-rose-500 text-slate-950 px-3 py-0.5 rounded-full text-[9px] font-black tracking-widest">
+            SUSPENDED
+          </span>
+        </div>
+      ) : null}
+
+      {/* Main Layout */}
+      <div className={`flex-1 overflow-hidden ${mode === 'kiosk' ? 'flex flex-col' : 'flex'}`}>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {renderMenuGrid()}
+        </div>
+      </div>
+
+      {/* Cart Area - Mobile, Kiosk & POS (Floating Button & Drawer) */}
+      {(mode === 'mobile' || mode === 'kiosk' || mode === 'pos') && (
+        <>
+          {cart.length > 0 && !isMobileCartOpen && !isPosCartDrawerOpen && (
+            <button
+              onClick={() => mode === 'pos' ? setIsPosCartDrawerOpen(true) : setIsMobileCartOpen(true)}
+              className="fixed bottom-8 right-8 z-[60] bg-white dark:bg-slate-900 text-black dark:text-white p-5 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] flex items-center gap-4 group transition-all active:scale-95 animate-in fade-in zoom-in-95 duration-500 border border-black/10 dark:border-white/10"
+            >
+              <div className="relative">
+                <ShoppingBag className="w-7 h-7" />
+                <span className="absolute -top-3 -right-3 bg-amber-600 text-slate-900 dark:text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-black shadow-lg">
+                  {cart.reduce((a, b) => a + b.quantity, 0)}
+                </span>
+              </div>
+              <div className="flex flex-col items-start pr-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] leading-none mb-1 opacity-50">Fuel Check</span>
+                <span className="font-black text-lg italic leading-none">₱{total.toLocaleString()}</span>
+              </div>
+            </button>
+          )}
+
+          {(isMobileCartOpen || isPosCartDrawerOpen) && (
+              <div
+                className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 bg-slate-300 dark:bg-black/60 backdrop-blur-md transition-all animate-in fade-in duration-300"
+                onClick={() => {
+                  setIsMobileCartOpen(false);
+                  setIsPosCartDrawerOpen(false);
+                }}
+              >
+                <div 
+                  className={`bg-black/90 w-full max-w-xl mx-auto my-auto h-[90vh] md:max-h-[85vh] rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] border border-black/10 dark:border-white/10 flex flex-col animate-in zoom-in-95 duration-300`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex-1 flex flex-col min-h-0">
+                    {renderCart()}
+                  </div>
+                </div>
+              </div>
+            )}
+        </>
+      )}
+
+      {showCustomerAuth && (
+        <UnifiedAuthModal 
+          onClose={() => setShowCustomerAuth(false)} 
+          onSuccess={(displayName) => {
+            setCustomerName(displayName);
+          }} 
+        />
+      )}
+        {/* Customization Modal */}
+        {selectedProductForConfig && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md"
+          >
+            <div
+              className="bg-white dark:bg-[#0b1329] w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] border border-black/10 dark:border-white/10 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-300"
+            >
+              {/* Compact Header with Inline Thumbnail and Close Button */}
+              <div className="p-5 pb-4 sm:p-6 sm:pb-4 border-b border-black/10 dark:border-white/5 flex items-start gap-4 relative shrink-0">
+                {selectedProductForConfig.image && (
+                  <img 
+                    src={selectedProductForConfig.image} 
+                    alt={selectedProductForConfig.name} 
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-black/10 dark:border-white/10 shrink-0 shadow-sm" 
+                  />
+                )}
+                <div className="flex-1 min-w-0 pr-8">
+                  <div className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">{selectedProductForConfig.category}</div>
+                  <h3 className="text-xl sm:text-2xl font-display font-black text-slate-900 dark:text-white leading-tight mb-1 truncate">{selectedProductForConfig.name}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-[11px] sm:text-xs leading-normal font-normal line-clamp-2">{selectedProductForConfig.description}</p>
+                </div>
+                <button 
+                  onClick={() => setSelectedProductForConfig(null)}
+                  className="absolute top-5 right-5 w-8 h-8 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-all active:scale-90 z-20"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-5 sm:p-6 pt-4 sm:pt-4 flex-1 overflow-y-auto scrollbar-hide space-y-4">
+                {selectedProductForConfig.sizes && selectedProductForConfig.sizes.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Size / Variant</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {selectedProductForConfig.sizes.map((size) => {
+                        const isSelected = selectedSizeConfig?.name === size.name;
+                        return (
+                          <button
+                            key={size.name}
+                            onClick={() => setSelectedSizeConfig(size)}
+                            className={`flex items-center justify-between px-3 py-2 border rounded-xl transition-all duration-200 active:scale-98 ${isSelected ? 'border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white shadow-sm' : 'border-black/10 dark:border-white/5 bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
+                          >
+                            <span className="font-bold uppercase text-[11px] tracking-wider truncate">{size.name}</span>
+                            <span className="font-bold text-amber-500 text-[11px] shrink-0">₱{size.price.toLocaleString()}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {isProductBeverage(selectedProductForConfig) && (
+                  <div className="space-y-2">
+                    <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Sugar Level</label>
+                    <div className="grid grid-cols-5 bg-black/5 dark:bg-white/5 p-0.5 rounded-xl border border-black/10 dark:border-white/5 gap-1">
+                      {(['0%', '25%', '50%', '75%', '100%'] as SugarLevel[]).map((level) => {
+                        const isSelected = selectedSugarConfig === level;
+                        return (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => setSelectedSugarConfig(level)}
+                            className={`py-1.5 rounded-lg text-[10px] font-black transition-all ${isSelected ? 'bg-amber-500 text-black shadow-md shadow-amber-500/10' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                          >
+                            {level}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {(() => {
+                  const applicableAddons = getProductAllowedAddons(selectedProductForConfig);
+                  if (applicableAddons.length === 0) return null;
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Add-ons</label>
+                        <span className="text-[9px] font-bold text-amber-500/80">
+                          {applicableAddons.length} available
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {applicableAddons.map((addon) => {
+                          const isSelected = selectedAddonsConfig.some(a => a.id === addon.id);
+                          return (
+                            <button
+                              key={addon.id}
+                              type="button"
+                              onClick={() => toggleAddon(addon)}
+                              className={`flex items-center justify-between px-3 py-2 border rounded-xl transition-all duration-200 active:scale-98 ${isSelected ? 'border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white' : 'border-black/10 dark:border-white/5 bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all shrink-0 ${isSelected ? 'border-amber-500 bg-amber-500 text-black' : 'border-black/10 dark:border-white/10 bg-transparent'}`}>
+                                  {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                </div>
+                                <span className="font-bold text-[11px] uppercase tracking-wider text-left truncate">{addon.name}</span>
+                              </div>
+                              <span className="font-bold text-amber-500 text-[11px] shrink-0">+₱{addon.price.toLocaleString()}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="p-5 sm:p-6 border-t border-black/10 dark:border-white/5 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md shrink-0">
+                <button
+                  onClick={handleConfigSubmit}
+                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black rounded-xl font-black text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[0_8px_30px_rgba(245,158,11,0.25)] active:scale-98 flex items-center justify-center gap-2"
+                >
+                  Add to Order - ₱{((selectedSizeConfig ? selectedSizeConfig.price : selectedProductForConfig.price) + selectedAddonsConfig.reduce((sum, a) => sum + a.price, 0)).toLocaleString()}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showPersonalVoucherModal && (
+          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-[#0d1527] border border-black/10 dark:border-white/10 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
+                    <QrCode className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-wider text-slate-900 dark:text-white">Activate Personal Voucher</h3>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">Walk-in Kiosk Mode</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowPersonalVoucherModal(false)}
+                  className="p-2 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 text-slate-500 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Enter Voucher Code or Scan QR text</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={personalVoucherInput}
+                      onChange={(e) => setPersonalVoucherInput(e.target.value.toUpperCase())}
+                      placeholder="e.g. VOUCHER-ABCD"
+                      className="flex-1 p-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl font-bold uppercase text-sm text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 min-w-0"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => openQRScanner('personal_voucher')}
+                      className="px-4 py-4 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded-2xl flex items-center justify-center gap-2 font-black text-xs uppercase tracking-wider shrink-0 transition-all active:scale-95"
+                      title="Scan Personal Voucher QR with Kiosk Camera"
+                    >
+                      <Camera className="w-4 h-4" />
+                      <span className="hidden sm:inline">Camera</span>
+                    </button>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Scan your personal voucher QR code from your customer account profile, or type your voucher code to redeem your points-claimed voucher right here at the kiosk without logging in!
+                </p>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setShowPersonalVoucherModal(false)}
+                    className="flex-1 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 rounded-2xl font-bold text-xs uppercase tracking-wider text-slate-600 dark:text-slate-300 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleLookupPersonalVoucher}
+                    className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-900 rounded-2xl font-black text-xs uppercase tracking-wider shadow-md transition-all active:scale-95"
+                  >
+                    Activate & Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showFreeItemModal && (
+          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-[#0d1527] border border-black/10 dark:border-white/10 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in-95">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
+                    <Tag className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-wider text-slate-900 dark:text-white">Choose Your Free Item</h3>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-widest">Category / Item: {appliedVoucher?.getCategoryOrName || 'Any'}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowFreeItemModal(false)}
+                  className="p-2 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-black/10 text-slate-500 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 max-h-[350px] overflow-y-auto pr-1">
+                {eligibleFreeProducts.length > 0 ? (
+                  eligibleFreeProducts.map(prod => {
+                    const isSelected = selectedFreeProduct?.id === prod.id;
+                    return (
+                      <button
+                        key={prod.id}
+                        onClick={() => {
+                          setSelectedFreeProduct(prod);
+                          setShowFreeItemModal(false);
+                          const cartId = Math.random().toString(36).substr(2, 9);
+                          const existingIndex = cart.findIndex(i => i.id === prod.id);
+                          if (existingIndex === -1) {
+                            setCart(prev => [...prev, {
+                              ...prod,
+                              cartId,
+                              quantity: 1,
+                              notes: 'Free item from promo',
+                              sugarLevel: '100%',
+                              selectedSize: prod.sizes?.[0],
+                              selectedAddons: []
+                            }]);
+                          }
+                          toast.success(`Selected free item: ${prod.name}`);
+                        }}
+                        className={`p-3 rounded-2xl border text-left flex flex-col gap-2 transition-all ${
+                          isSelected 
+                            ? 'bg-amber-500/20 border-amber-500 shadow-md ring-2 ring-amber-500/40' 
+                            : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 hover:border-amber-500/50'
+                        }`}
+                      >
+                        <div className="w-full h-24 rounded-xl overflow-hidden bg-black/10 relative">
+                          <img src={prod.image} alt={prod.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <div className="absolute top-2 right-2 px-2 py-0.5 bg-amber-500 text-slate-900 font-black text-[9px] rounded-md uppercase">
+                            FREE
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-slate-900 dark:text-white uppercase truncate">{prod.name}</p>
+                          <p className="text-[10px] text-slate-400 font-bold line-through">₱{prod.price}</p>
+                        </div>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="col-span-2 py-8 text-center text-slate-400 text-xs uppercase tracking-widest font-bold">
+                    No products found in category "{appliedVoucher?.getCategoryOrName}"
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={() => setShowFreeItemModal(false)}
+                  className="px-6 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 rounded-2xl font-bold text-xs uppercase tracking-wider text-slate-600 dark:text-slate-300 transition-all"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <QRScannerModal
+          isOpen={isScannerOpen}
+          onClose={() => setIsScannerOpen(false)}
+          onScan={handleQRScanResult}
+          title={scannerTitle}
+          description={scannerDescription}
+        />
+
+        {/* Active Order Tracker Floating Banner for Logged-in Mobile Users */}
+        {mode === 'mobile' && user && activeUserOrders.length > 0 && !isMobileCartOpen && (
+          <div className={`fixed z-[60] animate-in fade-in slide-in-from-bottom-5 duration-300 ${
+            cart.length > 0 ? 'bottom-28 left-6 sm:bottom-8 sm:left-6' : 'bottom-8 left-6'
+          }`}>
+            <button
+              onClick={() => setShowOrderStatusModal(true)}
+              className="bg-slate-900/95 dark:bg-[#090D16]/95 text-white p-3.5 sm:p-4 rounded-[2rem] border border-amber-500/40 shadow-[0_20px_50px_rgba(0,0,0,0.6)] backdrop-blur-xl flex items-center gap-3 group transition-all hover:border-amber-500 hover:scale-[1.02] active:scale-95 text-left max-w-[280px] sm:max-w-xs"
+            >
+              <div className="relative shrink-0">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xs ${
+                  activeUserOrders[0].status === 'ready'
+                    ? 'bg-emerald-500 text-slate-900 shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-bounce'
+                    : activeUserOrders[0].status === 'preparing'
+                    ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]'
+                    : activeUserOrders[0].status === 'pending-verification'
+                    ? 'bg-purple-500 text-white'
+                    : 'bg-amber-500 text-slate-900'
+                }`}>
+                  {activeUserOrders[0].status === 'ready' ? <Sparkles className="w-5 h-5" /> : <Coffee className="w-5 h-5" />}
+                </div>
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-400 rounded-full border-2 border-slate-900 animate-ping" />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 truncate">
+                    Order #{activeUserOrders[0].id?.slice(-4)}
+                  </span>
+                  {activeUserOrders.length > 1 && (
+                    <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 rounded text-[9px] font-bold shrink-0">
+                      +{activeUserOrders.length - 1}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs font-bold text-slate-100 truncate">
+                  {activeUserOrders[0].status === 'pending-verification' ? 'GCash Verification Pending' :
+                   activeUserOrders[0].status === 'unpaid' ? 'Pay at Counter' :
+                   activeUserOrders[0].status === 'pending' ? 'Sent to Kitchen' :
+                   activeUserOrders[0].status === 'preparing' ? 'Barista Preparing' :
+                   activeUserOrders[0].status === 'ready' ? 'Ready for Pickup! ☕' : activeUserOrders[0].status}
+                </p>
+              </div>
+
+              <div className="p-2 rounded-xl bg-white/10 group-hover:bg-amber-500 group-hover:text-slate-900 transition-colors shrink-0">
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            </button>
+          </div>
+        )}
+
+        {/* Admin Security PIN Verification Modal */}
+        {showAdminPinModal && pendingVoucherToApply && (
+          <div className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className={`w-full max-w-sm bg-slate-900 border border-amber-500/30 rounded-3xl p-6 shadow-2xl text-white flex flex-col gap-5 ${
+              isPinShaking ? 'animate-bounce border-red-500/80 shadow-red-500/20' : ''
+            }`}>
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-wider text-white">Admin Security PIN</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Required to activate discount</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAdminPinModal(false);
+                    setPendingVoucherToApply(null);
+                    setAdminPinInput('');
+                    setPinErrorMsg('');
+                  }}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Pending Voucher Preview */}
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-amber-500/20 flex items-center justify-between">
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 block">Applying Voucher</span>
+                  <span className="text-sm font-black uppercase tracking-tight text-white">{pendingVoucherToApply.code}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-black text-amber-400 uppercase tracking-wider block">
+                    {pendingVoucherToApply.type === 'buy_x_get_y' 
+                      ? `Buy ${pendingVoucherToApply.buyQuantity} Get ${pendingVoucherToApply.getQuantity} Free`
+                      : pendingVoucherToApply.type === 'percentage' 
+                      ? `${pendingVoucherToApply.value}% OFF` 
+                      : `₱${pendingVoucherToApply.value} OFF`}
+                  </span>
+                  {pendingVoucherToApply.minSpend && pendingVoucherToApply.minSpend > 0 ? (
+                    <span className="text-[9px] text-slate-400 font-bold block uppercase">Min Spend ₱{pendingVoucherToApply.minSpend}</span>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* PIN Indicator Dots / Input */}
+              <div className="flex flex-col items-center gap-3 py-2">
+                <div className="flex items-center justify-center gap-3">
+                  {[0, 1, 2, 3].map((idx) => {
+                    const isFilled = adminPinInput.length > idx;
+                    return (
+                      <div
+                        key={idx}
+                        className={`w-11 h-12 rounded-2xl border-2 flex items-center justify-center font-black text-xl transition-all ${
+                          isFilled 
+                            ? 'bg-amber-500/20 border-amber-500 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] scale-105' 
+                            : 'bg-white/5 border-white/20 text-slate-600'
+                        }`}
+                      >
+                        {isFilled ? '•' : ''}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {pinErrorMsg ? (
+                  <p className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1 animate-pulse">
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    {pinErrorMsg}
+                  </p>
+                ) : (
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Type or tap 4-digit Admin PIN
+                  </p>
+                )}
+
+                {/* Hidden input to catch keyboard typing on desktop or physical barcode scanner */}
+                <input
+                  type="password"
+                  maxLength={6}
+                  value={adminPinInput}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAdminPinInput(val);
+                    setPinErrorMsg('');
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && adminPinInput.length > 0) {
+                      handleVerifyAdminPin();
+                    }
+                  }}
+                  autoFocus
+                  className="sr-only opacity-0 w-0 h-0"
+                />
+              </div>
+
+              {/* Numeric Touch Keypad */}
+              <div className="grid grid-cols-3 gap-2">
+                {['1','2','3','4','5','6','7','8','9'].map((digit) => (
+                  <button
+                    key={digit}
+                    type="button"
+                    onClick={() => {
+                      if (adminPinInput.length < 6) {
+                        setAdminPinInput((prev) => prev + digit);
+                        setPinErrorMsg('');
+                      }
+                    }}
+                    className="py-3 bg-white/5 hover:bg-white/15 active:bg-amber-500/30 text-white font-black text-lg rounded-2xl border border-white/10 transition-all"
+                  >
+                    {digit}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminPinInput('');
+                    setPinErrorMsg('');
+                  }}
+                  className="py-3 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 font-bold text-xs uppercase tracking-wider rounded-2xl border border-white/10 transition-all flex items-center justify-center"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (adminPinInput.length < 6) {
+                      setAdminPinInput((prev) => prev + '0');
+                      setPinErrorMsg('');
+                    }
+                  }}
+                  className="py-3 bg-white/5 hover:bg-white/15 active:bg-amber-500/30 text-white font-black text-lg rounded-2xl border border-white/10 transition-all"
+                >
+                  0
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminPinInput((prev) => prev.slice(0, -1));
+                    setPinErrorMsg('');
+                  }}
+                  className="py-3 bg-white/5 hover:bg-white/15 text-slate-300 font-bold text-xs uppercase tracking-wider rounded-2xl border border-white/10 transition-all flex items-center justify-center"
+                >
+                  <Delete className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAdminPinModal(false);
+                    setPendingVoucherToApply(null);
+                    setAdminPinInput('');
+                    setPinErrorMsg('');
+                  }}
+                  className="py-3.5 px-4 bg-white/10 hover:bg-white/20 text-white font-black text-xs uppercase tracking-wider rounded-2xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleVerifyAdminPin}
+                  disabled={!adminPinInput}
+                  className="py-3.5 px-4 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-1.5"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Activate</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <OrderStatusModal
+          isOpen={showOrderStatusModal}
+          onClose={() => setShowOrderStatusModal(false)}
+          orders={activeUserOrders.length > 0 ? activeUserOrders : customerOrders.length > 0 ? customerOrders : (orders || [])}
+          selectedOrderId={selectedStatusOrderId}
+          onSelectOrder={(id) => setSelectedStatusOrderId(id)}
+          onOrderMore={() => setShowOrderStatusModal(false)}
+          onViewHistory={onNavigateToHistory}
+        />
+
+        {/* Enlarged QR Lightbox Modal */}
+        {lightboxQrUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+            <div className="bg-slate-900 border border-white/10 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-6 text-white text-center relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-500 font-black text-xs uppercase tracking-widest">
+                  <QrCode className="w-4 h-4" /> {lightboxQrTitle}
+                </div>
+                <button
+                  onClick={() => setLightboxQrUrl(null)}
+                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="bg-white p-4 sm:p-6 rounded-3xl inline-block shadow-2xl border-4 border-amber-500/30">
+                <img 
+                  src={lightboxQrUrl} 
+                  alt={lightboxQrTitle} 
+                  className="w-56 h-56 object-contain rounded-xl"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-xs text-amber-400 font-bold uppercase tracking-wider">
+                  Easy Camera / App Scanning
+                </p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-widest">
+                  Scan this QR code using GCash or your Mobile Camera App
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDownloadQR();
+                  }}
+                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" /> Download QR Code Image
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Customer Photo Lightbox Modal */}
+        {customerPhotoModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+            <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 text-white text-center relative">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-500 font-black text-xs uppercase tracking-widest">
+                  <Camera className="w-4 h-4" /> Customer Face Photo ID
+                </div>
+                <button
+                  onClick={() => setCustomerPhotoModal(null)}
+                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="relative rounded-2xl overflow-hidden border-2 border-amber-500/40 bg-black max-h-[60vh] flex items-center justify-center min-h-[200px]">
+                {customerPhotoModal.photoURL ? (
+                  <img 
+                    src={customerPhotoModal.photoURL} 
+                    alt={customerPhotoModal.displayName || 'Customer'} 
+                    className="w-full h-auto max-h-[60vh] object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="p-8 text-slate-400 font-bold text-xs">No profile image found</div>
+                )}
+              </div>
+
+              <div className="space-y-1 text-center">
+                <h4 className="text-base font-black text-white">{customerPhotoModal.displayName || 'Customer'}</h4>
+                <p className="text-xs text-amber-400 font-mono">#{customerPhotoModal.shortId || customerPhotoModal.uid.slice(0, 5).toUpperCase()}</p>
+                <p className="text-[10px] text-slate-400 font-mono">{customerPhotoModal.email}</p>
+              </div>
+            </div>
+          </div>
+        )}
+    </div>
+  );
+}

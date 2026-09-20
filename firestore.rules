@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Rules for Your MIX Ingredients & Bases
+    match /your_mix_ingredients/{ingredientId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /your_mix_bases/{baseId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Rules for vouchers
+    match /vouchers/{voucherId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Rules for settings
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Rules for addons
+    match /addons/{addonId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Admin Collection
+    match /admins/{userId} {
+      allow read, create: if request.auth != null && request.auth.uid == userId;
+      allow update, delete: if isAdmin();
+    }
+
+    // Products Collection
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Categories Collection
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Orders Collection
+    match /orders/{orderId} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    // Claimed Vouchers Collection
+    match /claimed_vouchers/{claimedVoucherId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+
+    // Profiles Collection
+    match /profiles/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Reviews Collection
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create, update: if request.auth != null;
+      allow delete: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.userId);
+    }
+
+    // Chat Threads & Subcollection Messages
+    match /chat_threads/{threadId} {
+      allow read, create, update: if true;
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read, create, update: if true;
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}

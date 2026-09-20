@@ -1,0 +1,1406 @@
+import React, { useState, useEffect } from 'react';
+import { SplashScreen, ShopSettings } from '../types';
+import { Layout, Image, Type, MousePointer2, Save, Eye, Palette, Building, MapPin, Phone, Upload, Sun, Moon, ScrollText, Receipt, QrCode, Link, Trash2, Lock, Store, Power, Download, Maximize2, X, FlaskConical, Sparkles, Sliders, RefreshCw, Box, ZoomIn, Move, RotateCw, Compass, Snowflake, Wind } from 'lucide-react';
+import { useTheme } from '../lib/ThemeProvider';
+import { useToast } from '../lib/ToastContext';
+
+interface AdminSettingsProps {
+  splashScreen: SplashScreen | null;
+  shopSettings: ShopSettings | null;
+  onUpdateSplash: (updates: Partial<SplashScreen>) => Promise<void>;
+  onUpdateShop: (updates: Partial<ShopSettings>) => Promise<void>;
+  onNavigateToYourMix?: () => void;
+}
+
+export function AdminSettings({ splashScreen, shopSettings, onUpdateSplash, onUpdateShop, onNavigateToYourMix }: AdminSettingsProps) {
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<'shop' | 'splash'>('shop');
+  const { theme, setTheme } = useTheme();
+  
+  const [splashData, setSplashData] = useState<Partial<SplashScreen>>({
+    title: '',
+    subtitle: '',
+    imageUrl: '',
+    buttonText: '',
+    isActive: true,
+    useGlb: true,
+    glbUrl: '/coffee_cup_with_plate.glb',
+    glbScale: 1.0,
+    glbZoom: 100,
+    glbPositionX: 0,
+    glbPositionY: 0,
+    glbRotationY: 0,
+    glbCameraPitch: 60,
+    glbAutoRotate: true,
+  });
+
+  const [shopData, setShopData] = useState<Partial<ShopSettings>>({
+    name: '',
+    initials: '',
+    logoUrl: '',
+    qrCodeUrl: '',
+    receiptName: '',
+    receiptLogoUrl: '',
+    themeColor: '#4b2c20',
+    notificationSoundUrl: '',
+    notificationVolume: 1.0,
+    gridColumns: 4,
+    mobileGridColumns: 2,
+    address: '',
+    phone: '',
+    tagline: '',
+    speakCustomerName: false,
+    kioskPin: '0000',
+    pointsEarnedPer10Pesos: 1,
+    pointsEarnedPer100Pesos: 10,
+    gcashQrUrl: '',
+    gcashNumber: '',
+    isClosed: false,
+    yourMixEnabled: true,
+    yourMixStatus: 'active',
+    snowEnabled: true,
+    snowSpeedMultiplier: 1.0,
+    snowFlakeCount: 50
+  });
+
+  const [saving, setSaving] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+
+  const handleDownloadGcashQr = () => {
+    if (!shopData.gcashQrUrl) return;
+    const a = document.createElement('a');
+    a.href = shopData.gcashQrUrl;
+    a.download = `GCash_Payment_QR_${shopData.name || 'Store'}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    toast.success('GCash QR Code image downloaded!');
+  };
+
+  useEffect(() => {
+    if (splashScreen) {
+      setSplashData({
+        title: splashScreen.title,
+        subtitle: splashScreen.subtitle,
+        imageUrl: splashScreen.imageUrl,
+        buttonText: splashScreen.buttonText,
+        isActive: splashScreen.isActive,
+        useGlb: splashScreen.useGlb !== undefined ? splashScreen.useGlb : true,
+        glbUrl: splashScreen.glbUrl || '/coffee_cup_with_plate.glb',
+        glbScale: splashScreen.glbScale ?? 1.0,
+        glbZoom: splashScreen.glbZoom ?? 100,
+        glbPositionX: splashScreen.glbPositionX ?? 0,
+        glbPositionY: splashScreen.glbPositionY ?? 0,
+        glbRotationY: splashScreen.glbRotationY ?? 0,
+        glbCameraPitch: splashScreen.glbCameraPitch ?? 60,
+        glbAutoRotate: splashScreen.glbAutoRotate !== false,
+      });
+    }
+  }, [splashScreen]);
+
+  useEffect(() => {
+    if (shopSettings) {
+      setShopData({
+        name: shopSettings.name,
+        initials: shopSettings.initials,
+        logoUrl: shopSettings.logoUrl,
+        qrCodeUrl: shopSettings.qrCodeUrl || '',
+        receiptName: shopSettings.receiptName || '',
+        receiptLogoUrl: shopSettings.receiptLogoUrl || '',
+        themeColor: shopSettings.themeColor,
+        themeMode: shopSettings.themeMode || 'dark',
+        gridColumns: shopSettings.gridColumns || 4,
+        mobileGridColumns: shopSettings.mobileGridColumns || 2,
+        address: shopSettings.address || '',
+        phone: shopSettings.phone || '',
+        tagline: shopSettings.tagline || '',
+        notificationSoundUrl: shopSettings.notificationSoundUrl || '',
+        notificationVolume: shopSettings.notificationVolume !== undefined ? shopSettings.notificationVolume : 1.0,
+        speakCustomerName: shopSettings.speakCustomerName || false,
+        kioskPin: shopSettings.kioskPin || '0000',
+        adminPin: shopSettings.adminPin || shopSettings.kioskPin || '0000',
+        pointsEarnedPer10Pesos: shopSettings.pointsEarnedPer10Pesos ?? (shopSettings.pointsEarnedPer100Pesos ? Math.max(1, Math.round(shopSettings.pointsEarnedPer100Pesos / 10)) : 1),
+        pointsEarnedPer100Pesos: shopSettings.pointsEarnedPer100Pesos || 10,
+        gcashQrUrl: shopSettings.gcashQrUrl || '',
+        gcashNumber: shopSettings.gcashNumber || '',
+        footerContent: shopSettings.footerContent || '',
+        isClosed: shopSettings.isClosed || false,
+        yourMixEnabled: shopSettings.yourMixEnabled !== undefined ? shopSettings.yourMixEnabled : true,
+        yourMixStatus: shopSettings.yourMixStatus || 'active',
+        snowEnabled: shopSettings.snowEnabled !== undefined ? shopSettings.snowEnabled : true,
+        snowSpeedMultiplier: shopSettings.snowSpeedMultiplier !== undefined ? shopSettings.snowSpeedMultiplier : 1.0,
+        snowFlakeCount: shopSettings.snowFlakeCount || 50
+      });
+    }
+  }, [shopSettings]);
+
+  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.warning('QR Code image must be less than 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setShopData(prev => ({ ...prev, qrCodeUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleGcashQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.warning('GCash QR Code image must be less than 2MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setShopData(prev => ({ ...prev, gcashQrUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.warning("Audio file is too large. Please select a file under 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target?.result as string;
+      if (base64String) {
+        setShopData(prev => ({ ...prev, notificationSoundUrl: base64String }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'receiptLogoUrl' = 'logoUrl') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 1.5 * 1024 * 1024) {
+      toast.warning("Image size is too large. Please select an image under 1.5MB to ensure reliable storage.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target?.result as string;
+      if (base64String) {
+        setShopData(prev => ({ ...prev, [field]: base64String }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSplashSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onUpdateSplash(splashData);
+      await onUpdateShop(shopData);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleShopSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onUpdateShop(shopData);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="h-full bg-transparent p-3 sm:p-6 md:p-8 lg:p-12 overflow-y-auto">
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8 md:mb-12">
+        <div>
+          <div className="flex items-center gap-4 mb-3 md:mb-4">
+            <div className="px-3 py-1 bg-black/5 dark:bg-white/5 text-amber-500 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.3em] rounded-full border border-black/10 dark:border-white/10">
+              Control Panel
+            </div>
+            <div className="h-[1px] flex-1 lg:w-48 bg-black/5 dark:bg-white/5" />
+          </div>
+          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter leading-[0.85] flex flex-wrap items-baseline gap-x-3 sm:gap-x-4">
+            System <span className="text-white/20 not-italic font-medium text-2xl sm:text-4xl md:text-5xl lg:text-6xl">Settings</span>
+          </h1>
+          <div className="flex items-center gap-3 mt-4 sm:mt-6">
+            <div className="h-1.5 w-12 sm:w-16 bg-amber-600 rounded-full shadow-[0_0_15px_rgba(217,119,6,0.5)] shrink-0" />
+            <span className="text-[10px] sm:text-xs font-bold text-white/30 uppercase tracking-widest leading-relaxed">
+              Configure your brand identity and display presence.
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex bg-black/5 dark:bg-white/5 backdrop-blur-md rounded-2xl p-1.5 shadow-sm border border-black/10 dark:border-white/10 overflow-x-auto scrollbar-hide max-w-full shrink-0 mb-8 md:mb-12 w-fit">
+        <button 
+          onClick={() => setActiveTab('shop')}
+          className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-[0.2em] transition-all shrink-0 ${activeTab === 'shop' ? 'text-slate-900 dark:text-white bg-amber-600 shadow-[0_10px_20px_rgba(245,158,11,0.3)]' : 'text-slate-500 dark:text-white/40 hover:text-slate-900 dark:hover:text-white'}`}
+        >
+          Brand Identity
+        </button>
+        <button 
+          onClick={() => setActiveTab('splash')}
+          className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl font-black text-[9px] sm:text-[10px] uppercase tracking-[0.2em] transition-all shrink-0 ${activeTab === 'splash' ? 'text-slate-900 dark:text-white bg-amber-600 shadow-[0_10px_20px_rgba(245,158,11,0.3)]' : 'text-slate-500 dark:text-white/40 hover:text-slate-900 dark:hover:text-white'}`}
+        >
+          Splash Screen
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
+        {/* Form Area */}
+        <div className="space-y-8">
+          {activeTab === 'shop' ? (
+            <form onSubmit={handleShopSubmit} className="space-y-6 bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 shadow-2xl">
+              {/* Store Operating Status Control */}
+              <div className={`p-5 sm:p-6 rounded-3xl border transition-all ${
+                shopData.isClosed 
+                  ? 'bg-rose-500/10 border-rose-500/40 text-rose-500 shadow-lg shadow-rose-500/5' 
+                  : 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 shadow-lg shadow-emerald-500/5'
+              }`}>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
+                      shopData.isClosed ? 'bg-rose-500 text-slate-950' : 'bg-emerald-500 text-slate-950'
+                    }`}>
+                      <Store className="w-6 h-6 stroke-[2.5]" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-[0.25em]">Store Status</span>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                          shopData.isClosed ? 'bg-rose-500 text-slate-950' : 'bg-emerald-500 text-slate-950 animate-pulse'
+                        }`}>
+                          {shopData.isClosed ? 'CLOSED' : 'OPEN'}
+                        </span>
+                      </div>
+                      <h4 className="text-base font-black uppercase tracking-tight text-slate-900 dark:text-white mt-0.5">
+                        {shopData.isClosed ? 'Shop is CLOSED (Ordering Disabled)' : 'Shop is OPEN (Accepting Orders)'}
+                      </h4>
+                      <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-0.5">
+                        {shopData.isClosed 
+                          ? 'Customers see a closed notice & cannot place orders.' 
+                          : 'Customers can place orders on Mobile & Kiosk terminals.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Switch Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextIsClosed = !shopData.isClosed;
+                      setShopData(prev => ({ ...prev, isClosed: nextIsClosed }));
+                      onUpdateShop({ isClosed: nextIsClosed });
+                      if (nextIsClosed) {
+                        toast.info('Shop set to CLOSED. Customer ordering is now disabled.');
+                      } else {
+                        toast.success('Shop set to OPEN. Customer ordering is now active!');
+                      }
+                    }}
+                    className={`relative inline-flex h-9 w-16 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      shopData.isClosed ? 'bg-rose-500/40 hover:bg-rose-500/60' : 'bg-emerald-500'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-8 w-8 transform rounded-full bg-white shadow-xl ring-0 transition duration-200 ease-in-out ${
+                        shopData.isClosed ? 'translate-x-0' : 'translate-x-7'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Shop & Receipt Name</label>
+                  <div className="relative">
+                    <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.name}
+                      onChange={e => setShopData({ ...shopData, name: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. Astro Coffee"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Tagline / Designation</label>
+                  <div className="relative">
+                    <Building className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.tagline || ''}
+                      onChange={e => setShopData({ ...shopData, tagline: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. Refuel Station"
+                    />
+                  </div>
+                </div>
+              </div>
+              <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1 ml-1 uppercase tracking-wider font-bold">These control the branding and tagline printed on system & direct thermal receipts.</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Initials</label>
+                  <input 
+                    type="text" 
+                    maxLength={3}
+                    value={shopData.initials}
+                    onChange={e => setShopData({ ...shopData, initials: e.target.value.toUpperCase() })}
+                    className="w-full px-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-center text-sm"
+                    placeholder="AC"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Theme Config</label>
+                  <div className="flex gap-3">
+                    <input 
+                      type="color" 
+                      value={shopData.themeColor}
+                      onChange={e => setShopData({ ...shopData, themeColor: e.target.value })}
+                      className="w-14 h-14 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl cursor-pointer overflow-hidden p-0 shrink-0"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newMode = (shopData.themeMode || theme) === 'dark' ? 'light' : 'dark';
+                        setShopData({ ...shopData, themeMode: newMode });
+                        setTheme(newMode);
+                        onUpdateShop({ themeMode: newMode }); // Auto-save for immediate global sync
+                      }}
+                      className="flex-1 min-w-0 flex items-center justify-center gap-2 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-2xl transition-all h-14"
+                      title="Toggle System Theme"
+                    >
+                      {(shopData.themeMode || theme) === 'dark' ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-slate-700" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Desktop Columns</label>
+                  <select 
+                    value={shopData.gridColumns}
+                    onChange={e => setShopData({ ...shopData, gridColumns: parseInt(e.target.value) })}
+                    className="w-full px-4 py-4 bg-white dark:bg-[#111115] border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm cursor-pointer"
+                  >
+                    {[2, 3, 4, 5, 6, 7, 8].map(num => (
+                      <option key={num} value={num} className="bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white">{num} Columns</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Mobile Columns</label>
+                  <select 
+                    value={shopData.mobileGridColumns}
+                    onChange={e => setShopData({ ...shopData, mobileGridColumns: parseInt(e.target.value) })}
+                    className="w-full px-4 py-4 bg-white dark:bg-[#111115] border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm cursor-pointer"
+                  >
+                    {[1, 2, 3, 4].map(num => (
+                      <option key={num} value={num} className="bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-white">{num} Columns</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10">
+                <input 
+                  type="checkbox"
+                  id="speakCustomerName"
+                  checked={shopData.speakCustomerName || false}
+                  onChange={e => {
+                    const val = e.target.checked;
+                    setShopData({ ...shopData, speakCustomerName: val });
+                    onUpdateShop({ speakCustomerName: val });
+                  }}
+                  className="w-5 h-5 accent-amber-500 rounded cursor-pointer"
+                />
+                <label htmlFor="speakCustomerName" className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider cursor-pointer">
+                  Read Customer Name Out Loud When Ready (Docking)
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Logo of the Web / App</label>
+                <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10">
+                  {/* File Upload Box */}
+                  <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-xl p-4 cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5 text-center group">
+                    <Upload className="w-6 h-6 text-slate-500 dark:text-white/40 group-hover:text-amber-500 mb-2 transition-all" />
+                    <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Upload Logo</span>
+                    <span className="text-[8px] font-bold text-slate-500 dark:text-white/40 uppercase tracking-widest mt-1">PNG, JPG up to 1.5MB</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleLogoUpload}
+                      className="hidden" 
+                    />
+                  </label>
+
+                  <div className="flex items-center justify-center font-bold text-[10px] text-white/30 uppercase tracking-[0.2em] px-2">OR</div>
+
+                  {/* URL Input Box */}
+                  <div className="flex-[2] relative flex flex-col justify-center">
+                    <span className="text-[8px] font-black text-amber-500/50 uppercase tracking-[0.2em] mb-1.5 ml-1">Paste Image URL</span>
+                    <div className="relative">
+                      <Image className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20 dark:text-white/20" />
+                      <input 
+                        type="text" 
+                        value={shopData.logoUrl || ''}
+                        onChange={e => setShopData({ ...shopData, logoUrl: e.target.value })}
+                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-[#111115] border border-black/10 dark:border-white/10 rounded-xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-xs"
+                        placeholder="https://example.com/logo.png"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Name</label>
+                  <div className="relative">
+                    <ScrollText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/20 dark:text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.receiptName || ''}
+                      onChange={e => setShopData({ ...shopData, receiptName: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. Astro Coffee Ltd."
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Logo</label>
+                  <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center bg-black/5 dark:bg-white/5 p-2 rounded-2xl border border-black/10 dark:border-white/10">
+                    <label className="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-xl p-3 cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5 text-center group">
+                      <Upload className="w-5 h-5 text-slate-500 dark:text-white/40 group-hover:text-amber-500 mb-1 transition-all" />
+                      <span className="text-[9px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Upload PNG</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => handleLogoUpload(e, 'receiptLogoUrl')}
+                        className="hidden" 
+                      />
+                    </label>
+                    <div className="flex-[2] relative flex flex-col justify-center">
+                      <div className="relative">
+                        <Image className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-black/20 dark:text-white/20" />
+                        <input 
+                          type="text" 
+                          value={shopData.receiptLogoUrl || ''}
+                          onChange={e => setShopData({ ...shopData, receiptLogoUrl: e.target.value })}
+                          className="w-full pl-9 pr-3 py-2 bg-white dark:bg-[#111115] border border-black/10 dark:border-white/10 rounded-xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-xs"
+                          placeholder="Or paste image URL"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Address</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/20 dark:text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.address || ''}
+                      onChange={e => setShopData({ ...shopData, address: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. 123 Nebula Boulevard, Spaceport"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Receipt Phone</label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/20 dark:text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.phone || ''}
+                      onChange={e => setShopData({ ...shopData, phone: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. +63 900 123 4567"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Kiosk Mode Exit PIN / Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/20 dark:text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.kioskPin || ''}
+                      onChange={e => setShopData({ ...shopData, kioskPin: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. 0000"
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">This PIN is used to exit Kiosk mode, separate from your main Admin credentials.</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Admin Voucher Security PIN</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-amber-500/60" />
+                    <input 
+                      type="text" 
+                      value={shopData.adminPin || ''}
+                      onChange={e => setShopData({ ...shopData, adminPin: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-amber-500/30 dark:border-amber-500/20 rounded-2xl focus:border-amber-500 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. 0000"
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">Required by cashier/admin to activate vouchers on orders.</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Points Earned per 10 Pesos Spent</label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      value={shopData.pointsEarnedPer10Pesos ?? 1}
+                      onChange={e => {
+                        const val = parseInt(e.target.value) || 0;
+                        setShopData({ 
+                          ...shopData, 
+                          pointsEarnedPer10Pesos: val,
+                          pointsEarnedPer100Pesos: val * 10
+                        });
+                      }}
+                      className="w-full px-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. 1"
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">Configure how many loyalty points a user receives for every 10 pesos spent (allows points on small orders).</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 border-t border-black/10 dark:border-white/10 pt-6 mt-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Footer Content</label>
+                  <div className="relative">
+                    <textarea 
+                      value={shopData.footerContent || ''}
+                      onChange={e => setShopData({ ...shopData, footerContent: e.target.value })}
+                      className="w-full px-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. © 2026 Astro Coffee. All rights reserved."
+                      rows={3}
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">The footer text displayed at the bottom of all pages.</p>
+                </div>
+                
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">GCash Account/Phone Number</label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-black/20 dark:text-white/20" />
+                    <input 
+                      type="text" 
+                      value={shopData.gcashNumber || ''}
+                      onChange={e => setShopData({ ...shopData, gcashNumber: e.target.value })}
+                      className="w-full pl-12 pr-4 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                      placeholder="e.g. 0917-123-4567"
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">The GCash number shown to customers during online payment checkout.</p>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">GCash Payment QR Code</label>
+                  <div className="flex items-center gap-4 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10 h-[58px]">
+                    {shopData.gcashQrUrl ? (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div 
+                          onClick={() => setIsQrModalOpen(true)}
+                          className="w-10 h-10 rounded-xl bg-white p-0.5 overflow-hidden shrink-0 border border-black/10 dark:border-white/10 relative group cursor-pointer hover:border-amber-500 transition-all shadow-sm"
+                          title="Click to enlarge GCash QR"
+                        >
+                          <img src={shopData.gcashQrUrl} alt="GCash QR Code" className="w-full h-full object-contain" />
+                          <div className="absolute inset-0 bg-slate-950/60 text-amber-400 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Maximize2 className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleDownloadGcashQr}
+                          className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 transition-all"
+                          title="Download GCash QR"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          type="button" 
+                          onClick={() => setShopData({...shopData, gcashQrUrl: ''})} 
+                          className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 transition-all"
+                          title="Remove QR Code"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 flex items-center justify-center shrink-0">
+                        <QrCode className="w-5 h-5 text-slate-400" />
+                      </div>
+                    )}
+                    <label className="flex-1 flex items-center justify-center border-2 border-dashed border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-xl p-2 cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5 text-center group h-full">
+                      <Upload className="w-4 h-4 text-slate-500 dark:text-white/40 group-hover:text-amber-500 mr-2 transition-all cursor-pointer" />
+                      <span className="text-[9px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Upload QR</span>
+                      <input type="file" accept="image/*" onChange={handleGcashQrUpload} className="hidden" />
+                    </label>
+                  </div>
+                  <p className="text-[9px] text-slate-500 dark:text-white/40 mt-1.5 ml-1 uppercase tracking-wider font-bold">Upload GCash QR code image for users to scan and pay.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Notification Audio File</label>
+                  <div className="flex flex-col gap-4 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10">
+                    <label className="flex items-center justify-center border-2 border-dashed border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-xl p-4 cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5 text-center group">
+                      <Upload className="w-5 h-5 text-slate-500 dark:text-white/40 group-hover:text-amber-500 mr-2 transition-all" />
+                      <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Upload Sound</span>
+                      <input type="file" accept="audio/*" onChange={handleAudioUpload} className="hidden" />
+                    </label>
+                    {shopData.notificationSoundUrl && <span className="text-[8px] text-green-500 font-bold uppercase text-center">Audio Loaded</span>}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Notification Volume ({Math.round((shopData.notificationVolume || 1) * 100)}%)</label>
+                  <div className="bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10 flex items-center h-[90px]">
+                    <input type="range" min="0" max="1" step="0.1" value={shopData.notificationVolume || 1} onChange={(e) => setShopData({...shopData, notificationVolume: parseFloat(e.target.value)})} className="w-full accent-amber-500" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Your MIX Custom Drink Studio Settings */}
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-amber-500/10 via-purple-500/5 to-cyan-500/10 border border-amber-500/30 shadow-lg space-y-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 text-amber-500 flex items-center justify-center shrink-0">
+                      <FlaskConical className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                          Your MIX — Custom Drink Studio
+                        </h4>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                          Special Category
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Enable interactive digital beverage laboratory for customers to formulate custom drinks.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShopData({ ...shopData, yourMixEnabled: !shopData.yourMixEnabled })}
+                      className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+                        shopData.yourMixEnabled
+                          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                          : 'bg-black/10 dark:bg-white/10 text-slate-500 dark:text-slate-400 hover:bg-black/20'
+                      }`}
+                    >
+                      <Power className="w-4 h-4" />
+                      {shopData.yourMixEnabled ? 'Enabled (ON)' : 'Disabled (OFF)'}
+                    </button>
+                  </div>
+                </div>
+
+                {shopData.yourMixEnabled && (
+                  <div className="pt-4 border-t border-black/10 dark:border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                        Operating Status:
+                      </span>
+                      <div className="flex gap-1.5">
+                        {(['active', 'paused', 'offline'] as const).map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            onClick={() => setShopData({ ...shopData, yourMixStatus: st })}
+                            className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                              shopData.yourMixStatus === st
+                                ? st === 'active'
+                                  ? 'bg-emerald-500 text-white'
+                                  : st === 'paused'
+                                  ? 'bg-amber-500 text-slate-950'
+                                  : 'bg-rose-500 text-white'
+                                : 'bg-black/5 dark:bg-white/5 text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                            }`}
+                          >
+                            {st === 'active' ? '● Live' : st === 'paused' ? '⏸ Peak Rush Paused' : '✕ Offline'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {onNavigateToYourMix && (
+                      <button
+                        type="button"
+                        onClick={onNavigateToYourMix}
+                        className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-black text-[11px] uppercase tracking-wider hover:bg-amber-400 transition-all flex items-center gap-1.5 shadow-md active:scale-95"
+                      >
+                        <FlaskConical className="w-3.5 h-3.5" />
+                        <span>Manage Ingredients & Bases</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Winter Snowfall Background Settings */}
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-slate-500/10 border border-cyan-500/30 shadow-lg space-y-5">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center shrink-0">
+                      <Snowflake className="w-6 h-6 animate-spin-slow" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                          Winter Snowfall Background
+                        </h4>
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30">
+                          Winternet Effect
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Interactive site-wide animated snowfall with speed, wind drift, and depth particle layers.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShopData({ ...shopData, snowEnabled: !(shopData.snowEnabled !== false) })}
+                    className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+                      shopData.snowEnabled !== false
+                        ? 'bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/30'
+                        : 'bg-black/10 dark:bg-white/10 text-slate-500 dark:text-slate-400 hover:bg-black/20'
+                    }`}
+                  >
+                    <Power className="w-4 h-4" />
+                    {shopData.snowEnabled !== false ? 'Active (ON)' : 'Disabled (OFF)'}
+                  </button>
+                </div>
+
+                {shopData.snowEnabled !== false && (
+                  <div className="pt-4 border-t border-black/10 dark:border-white/10 space-y-5">
+                    {/* Snowfall Speed Adjustment */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        <span className="flex items-center gap-2"><Wind className="w-4 h-4 text-cyan-400" /> Snow Flake Speed</span>
+                        <span className="text-amber-500 font-black text-xs">
+                          {(shopData.snowSpeedMultiplier ?? 1.0) < 1.0 
+                            ? (shopData.snowSpeedMultiplier ?? 1.0).toFixed(2) 
+                            : (shopData.snowSpeedMultiplier ?? 1.0).toFixed(1)}x Speed
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.02"
+                        max="4.0"
+                        step="0.02"
+                        value={shopData.snowSpeedMultiplier ?? 1.0}
+                        onChange={e => setShopData({ ...shopData, snowSpeedMultiplier: parseFloat(e.target.value) })}
+                        className="w-full accent-cyan-400 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                      />
+                      <div className="flex gap-2 pt-1 flex-wrap">
+                        {[
+                          { name: '🧊 Ultra Slow Float', speed: 0.1 },
+                          { name: '❄️ Gentle Drift', speed: 0.4 },
+                          { name: '🌨️ Normal Snowfall', speed: 1.0 },
+                          { name: '⚡ Blizzard Speed', speed: 2.5 },
+                        ].map(preset => (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => setShopData({ ...shopData, snowSpeedMultiplier: preset.speed })}
+                            className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                              Math.abs((shopData.snowSpeedMultiplier ?? 1.0) - preset.speed) < 0.05
+                                ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
+                                : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:border-cyan-500/50'
+                            }`}
+                          >
+                            {preset.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Flake Density Adjustment */}
+                    <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
+                      <div className="flex justify-between items-center text-[11px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        <span className="flex items-center gap-2"><Snowflake className="w-4 h-4 text-purple-400" /> Flake Density (Count)</span>
+                        <span className="text-amber-500 font-black text-xs">{shopData.snowFlakeCount ?? 50} Flakes</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="15"
+                        max="120"
+                        step="5"
+                        value={shopData.snowFlakeCount ?? 50}
+                        onChange={e => setShopData({ ...shopData, snowFlakeCount: parseInt(e.target.value) })}
+                        className="w-full accent-cyan-400 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={saving}
+                className="w-full py-5 bg-white text-black rounded-3xl font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-white/90 transition-all shadow-xl active:scale-95 disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'UPDATING...' : 'SAVE CHANGES'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSplashSubmit} className="space-y-6 bg-black/5 dark:bg-white/5 backdrop-blur-xl p-5 sm:p-8 md:p-10 rounded-2xl sm:rounded-[2.5rem] border border-black/10 dark:border-white/10 shadow-2xl">
+              <div>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Terminal Title</label>
+                <input 
+                  type="text" 
+                  value={splashData.title}
+                  onChange={e => setSplashData({ ...splashData, title: e.target.value })}
+                  className="w-full px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                  placeholder="e.g. Galaxy Terminal"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Subtitle</label>
+                <textarea 
+                  value={splashData.subtitle}
+                  onChange={e => setSplashData({ ...splashData, subtitle: e.target.value })}
+                  className="w-full px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm h-24 resize-none"
+                  placeholder="The finest orbital roast..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">QR Code ({shopData.name || 'CAIDOZ'})</label>
+                <div className="flex items-center gap-4 bg-black/5 dark:bg-white/5 p-4 rounded-2xl border border-black/10 dark:border-white/10">
+                  {shopData.qrCodeUrl ? (
+                    <div className="w-16 h-16 rounded-xl bg-white p-1 overflow-hidden shrink-0 border border-black/10 dark:border-white/10 relative group">
+                      <img src={shopData.qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />
+                      <button type="button" onClick={() => setShopData({...shopData, qrCodeUrl: ''})} className="absolute inset-0 bg-red-500/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 flex items-center justify-center shrink-0">
+                      <QrCode className="w-6 h-6 text-slate-400" />
+                    </div>
+                  )}
+                  <label className="flex-1 flex items-center justify-center border-2 border-dashed border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-xl p-4 cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5 text-center group">
+                    <Upload className="w-5 h-5 text-slate-500 dark:text-white/40 group-hover:text-amber-500 mr-2 transition-all" />
+                    <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-wider">Upload QR</span>
+                    <input type="file" accept="image/*" onChange={handleQrUpload} className="hidden" />
+                  </label>
+                </div>
+                <p className="text-[9px] font-bold text-amber-500/50 mt-2 uppercase tracking-widest ml-1">
+                  Note: Make sure to hit "SAVE CHANGES" at the bottom of the form after uploading. You might also want to click the Brand Identity tab to save there.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Hero Asset Mode</label>
+                  <button
+                    type="button"
+                    onClick={() => setSplashData({ ...splashData, useGlb: !splashData.useGlb })}
+                    className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                      splashData.useGlb 
+                        ? 'bg-purple-500/10 border-purple-500/30 text-purple-400 font-black' 
+                        : 'bg-blue-500/10 border-blue-500/30 text-blue-400 font-black'
+                    }`}
+                  >
+                    {splashData.useGlb ? '3D GLB MODEL' : 'SKETCHFAB EMBED'}
+                  </button>
+                </div>
+                {splashData.useGlb && (
+                  <div className="animate-in fade-in slide-in-from-top-1 duration-200 space-y-3 col-span-1 sm:col-span-2">
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] ml-1">3D Model File Path</label>
+                      <button
+                        type="button"
+                        onClick={() => setSplashData({ ...splashData, glbUrl: '/coffee_cup_with_plate.glb' })}
+                        className="text-[10px] font-black uppercase text-amber-500 hover:underline"
+                      >
+                        Reset Default
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={splashData.glbUrl || ''}
+                        onChange={e => setSplashData({ ...splashData, glbUrl: e.target.value })}
+                        className="flex-1 px-5 py-3.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                        placeholder="e.g. /coffee_cup_with_plate.glb or /xmastree.glb"
+                      />
+                      <label className="px-4 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl cursor-pointer flex items-center justify-center shrink-0 transition-all">
+                        Upload .GLB
+                        <input 
+                          type="file" 
+                          accept=".glb,.gltf" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                if (typeof reader.result === 'string') {
+                                  setSplashData(prev => ({ ...prev, glbUrl: reader.result as string }));
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    {/* Quick Preset Models */}
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider ml-1">Quick Presets:</span>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { name: '☕ Coffee Cup', path: '/coffee_cup_with_plate.glb' },
+                          { name: '🎄 Stylised Xmas Tree', path: '/stylised_christmas_tree.glb' },
+                          { name: '🎄 Xmas Tree', path: '/xmastree.glb' },
+                          { name: '🪐 Celestial Sphere', path: '/celestial_sphere.glb' },
+                          { name: '🌐 Sphere 2020', path: '/celestial_sphere_2020_update.glb' },
+                        ].map(preset => (
+                          <button
+                            key={preset.path}
+                            type="button"
+                            onClick={() => setSplashData(prev => ({ ...prev, glbUrl: preset.path }))}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                              splashData.glbUrl === preset.path
+                                ? 'bg-amber-500 text-slate-950 border-amber-500 font-black shadow-md shadow-amber-500/20'
+                                : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:border-amber-500/50'
+                            }`}
+                          >
+                            {preset.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 3D Model Zoom, Scale & Position Calibration Panel */}
+                    <div className="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-3xl p-4 sm:p-6 space-y-5 mt-4">
+                      <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3">
+                        <div className="flex items-center gap-2">
+                          <Sliders className="w-4 h-4 text-amber-500" />
+                          <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">
+                            3D Model Zoom & Card Position Setup
+                          </h4>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSplashData(prev => ({
+                            ...prev,
+                            glbScale: 1.0,
+                            glbZoom: 100,
+                            glbPositionX: 0,
+                            glbPositionY: 0,
+                            glbRotationY: 0,
+                            glbCameraPitch: 60,
+                            glbAutoRotate: true
+                          }))}
+                          className="text-[10px] font-black uppercase text-amber-500 hover:underline flex items-center gap-1"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" /> Reset Calibration
+                        </button>
+                      </div>
+
+                      {/* Grid of Sliders */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        {/* 1. Scale Factor */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-[10px] font-extrabold uppercase text-slate-500">
+                            <span className="flex items-center gap-1.5"><Box className="w-3.5 h-3.5 text-purple-400" /> Object Scale</span>
+                            <span className="text-amber-500 font-black text-xs">{(splashData.glbScale ?? 1.0).toFixed(2)}x</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.2"
+                            max="3.0"
+                            step="0.05"
+                            value={splashData.glbScale ?? 1.0}
+                            onChange={e => setSplashData({ ...splashData, glbScale: parseFloat(e.target.value) })}
+                            className="w-full accent-amber-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                          />
+                          <div className="flex gap-1 justify-between pt-0.5">
+                            {[0.5, 1.0, 1.5, 2.0].map(sc => (
+                              <button
+                                key={sc}
+                                type="button"
+                                onClick={() => setSplashData({ ...splashData, glbScale: sc })}
+                                className="px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-amber-500/20 text-[9px] font-black text-slate-600 dark:text-slate-400 border border-black/5 dark:border-white/5"
+                              >
+                                {sc}x
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 2. Camera Zoom */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-[10px] font-extrabold uppercase text-slate-500">
+                            <span className="flex items-center gap-1.5"><ZoomIn className="w-3.5 h-3.5 text-blue-400" /> Camera Zoom Level</span>
+                            <span className="text-amber-500 font-black text-xs">{splashData.glbZoom ?? 100}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="20"
+                            max="300"
+                            step="5"
+                            value={splashData.glbZoom ?? 100}
+                            onChange={e => setSplashData({ ...splashData, glbZoom: parseInt(e.target.value) })}
+                            className="w-full accent-amber-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                          />
+                          <div className="flex gap-1 justify-between pt-0.5">
+                            {[50, 100, 150, 200].map(zm => (
+                              <button
+                                key={zm}
+                                type="button"
+                                onClick={() => setSplashData({ ...splashData, glbZoom: zm })}
+                                className="px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-amber-500/20 text-[9px] font-black text-slate-600 dark:text-slate-400 border border-black/5 dark:border-white/5"
+                              >
+                                {zm}%
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 3. Position X (Horizontal Offset) */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-[10px] font-extrabold uppercase text-slate-500">
+                            <span className="flex items-center gap-1.5"><Move className="w-3.5 h-3.5 text-emerald-400" /> Card Pos Horizontal (X)</span>
+                            <span className="text-amber-500 font-black text-xs">{(splashData.glbPositionX ?? 0) > 0 ? `+${splashData.glbPositionX}%` : `${splashData.glbPositionX ?? 0}%`}</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="-100"
+                            max="100"
+                            step="1"
+                            value={splashData.glbPositionX ?? 0}
+                            onChange={e => setSplashData({ ...splashData, glbPositionX: parseInt(e.target.value) })}
+                            className="w-full accent-amber-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                          />
+                          <div className="flex gap-1 justify-between pt-0.5">
+                            {[-25, 0, 25].map(px => (
+                              <button
+                                key={px}
+                                type="button"
+                                onClick={() => setSplashData({ ...splashData, glbPositionX: px })}
+                                className="px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-amber-500/20 text-[9px] font-black text-slate-600 dark:text-slate-400 border border-black/5 dark:border-white/5"
+                              >
+                                {px === 0 ? 'Center' : `${px}%`}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 4. Position Y (Vertical Offset) */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-[10px] font-extrabold uppercase text-slate-500">
+                            <span className="flex items-center gap-1.5"><Move className="w-3.5 h-3.5 text-rose-400 rotate-90" /> Card Pos Vertical (Y)</span>
+                            <span className="text-amber-500 font-black text-xs">{(splashData.glbPositionY ?? 0) > 0 ? `+${splashData.glbPositionY}%` : `${splashData.glbPositionY ?? 0}%`}</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="-100"
+                            max="100"
+                            step="1"
+                            value={splashData.glbPositionY ?? 0}
+                            onChange={e => setSplashData({ ...splashData, glbPositionY: parseInt(e.target.value) })}
+                            className="w-full accent-amber-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                          />
+                          <div className="flex gap-1 justify-between pt-0.5">
+                            {[-25, 0, 25].map(py => (
+                              <button
+                                key={py}
+                                type="button"
+                                onClick={() => setSplashData({ ...splashData, glbPositionY: py })}
+                                className="px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-amber-500/20 text-[9px] font-black text-slate-600 dark:text-slate-400 border border-black/5 dark:border-white/5"
+                              >
+                                {py === 0 ? 'Center' : `${py}%`}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 5. Orbit Rotation Y */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center text-[10px] font-extrabold uppercase text-slate-500">
+                            <span className="flex items-center gap-1.5"><RotateCw className="w-3.5 h-3.5 text-amber-400" /> Orbit Orientation Angle</span>
+                            <span className="text-amber-500 font-black text-xs">{splashData.glbRotationY ?? 0}°</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="-180"
+                            max="180"
+                            step="5"
+                            value={splashData.glbRotationY ?? 0}
+                            onChange={e => setSplashData({ ...splashData, glbRotationY: parseInt(e.target.value) })}
+                            className="w-full accent-amber-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                          />
+                        </div>
+
+                        {/* 6. Pitch & Auto Rotate Toggle */}
+                        <div className="space-y-2 flex flex-col justify-between">
+                          <div className="flex justify-between items-center text-[10px] font-extrabold uppercase text-slate-500">
+                            <span className="flex items-center gap-1.5"><Compass className="w-3.5 h-3.5 text-cyan-400" /> Camera Pitch (Tilt)</span>
+                            <span className="text-amber-500 font-black text-xs">{splashData.glbCameraPitch ?? 60}°</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="90"
+                            step="5"
+                            value={splashData.glbCameraPitch ?? 60}
+                            onChange={e => setSplashData({ ...splashData, glbCameraPitch: parseInt(e.target.value) })}
+                            className="w-full accent-amber-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                          />
+                          
+                          <div className="flex items-center justify-between pt-2 border-t border-black/5 dark:border-white/5">
+                            <span className="text-[10px] font-black uppercase text-slate-500">Auto Spin Animation</span>
+                            <button
+                              type="button"
+                              onClick={() => setSplashData({ ...splashData, glbAutoRotate: !(splashData.glbAutoRotate !== false) })}
+                              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border ${
+                                splashData.glbAutoRotate !== false
+                                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                  : 'bg-black/10 dark:bg-white/10 text-slate-400 border-black/10 dark:border-white/10'
+                              }`}
+                            >
+                              {splashData.glbAutoRotate !== false ? 'Active (ON)' : 'Off'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">Action CTA</label>
+                  <input 
+                    type="text" 
+                    value={splashData.buttonText}
+                    onChange={e => setSplashData({ ...splashData, buttonText: e.target.value })}
+                    className="w-full px-6 py-4 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-2xl focus:border-amber-500/50 outline-none transition-all font-black text-slate-900 dark:text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] mb-3 ml-1">State</label>
+                  <button
+                    type="button"
+                    onClick={() => setSplashData({ ...splashData, isActive: !splashData.isActive })}
+                    className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                      splashData.isActive 
+                        ? 'bg-green-500/10 border-green-500/30 text-green-400' 
+                        : 'bg-red-500/10 border-red-500/30 text-red-400'
+                    }`}
+                  >
+                    {splashData.isActive ? 'ACTIVE' : 'OFFLINE'}
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={saving}
+                className="w-full py-5 bg-white text-black rounded-3xl font-black text-xs uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-white/90 transition-all shadow-xl active:scale-95 disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'UPDATING...' : 'SAVE DISPLAY'}
+              </button>
+            </form>
+          )}
+        </div>
+
+        {/* Live Preview Area */}
+        <div className="space-y-6">
+          <h3 className="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.3em] flex items-center gap-3">
+            <Eye className="w-4 h-4" /> System Vision
+          </h3>
+          
+          {activeTab === 'shop' ? (
+            <div className="bg-white dark:bg-[#020205] rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-12 flex flex-col items-center justify-center border-2 border-black/10 dark:border-white/5 aspect-square shadow-2xl relative overflow-hidden max-w-md mx-auto lg:max-w-none">
+               <div className="absolute inset-0 opacity-20">
+                 <div className="absolute top-0 -left-20 w-64 h-64 bg-purple-600 rounded-full blur-[100px]" />
+                 <div className="absolute bottom-0 -right-20 w-64 h-64 bg-amber-600 rounded-full blur-[100px]" />
+               </div>
+               <div 
+                className="w-32 h-32 sm:w-48 sm:h-48 rounded-2xl sm:rounded-[2rem] flex items-center justify-center shadow-2xl mb-6 sm:mb-8 relative overflow-hidden group border border-black/10 dark:border-white/10 z-10 bg-black/5 dark:bg-white/5"
+                style={{ backgroundColor: shopData.themeColor || '#4b2c20' }}
+               >
+                 {shopData.logoUrl ? (
+                   <img src={shopData.logoUrl || undefined} className="w-full h-full object-cover" alt="Logo" referrerPolicy="no-referrer" />
+                 ) : (
+                   <span className="text-5xl sm:text-7xl font-black text-slate-900 dark:text-white italic tracking-tighter">{shopData.initials || 'CH'}</span>
+                 )}
+               </div>
+               <h4 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white text-center leading-tight mb-2 uppercase italic tracking-tighter">
+                 {shopData.name || 'Astro Coffee'}
+               </h4>
+               <p className="text-[10px] sm:text-xs text-amber-500 font-black uppercase tracking-[0.25em] mb-4">
+                 {shopData.tagline || 'Refuel Station'}
+               </p>
+               <p className="text-[8px] sm:text-[9px] text-coffee-600 font-black uppercase tracking-[0.2em]">Signature Mark Preview</p>
+            </div>
+          ) : (
+            <div className="relative aspect-[9/16] w-full max-w-sm mx-auto rounded-[2rem] sm:rounded-[3rem] overflow-hidden shadow-2xl border-4 sm:border-8 border-black/80 bg-white dark:bg-[#020205]">
+               <div className="absolute inset-0 bg-white dark:bg-[#020205]" />
+               <div className="absolute top-0 -left-20 w-64 h-64 bg-purple-900/20 rounded-full blur-[100px]" />
+               <div className="absolute bottom-0 -right-20 w-64 h-64 bg-amber-900/20 rounded-full blur-[100px]" />
+               <div className="relative h-full flex flex-col p-6 sm:p-8">
+                  <header className="flex justify-between items-center mb-8 sm:mb-12">
+                     <div className="w-8 h-8 rounded-xl border border-black/10 dark:border-white/10" style={{ backgroundColor: shopData.themeColor }} />
+                     <div className="flex gap-2">
+                        <div className="w-4 h-4 rounded-full bg-black/10 dark:bg-white/10" />
+                        <div className="w-4 h-4 rounded-full bg-black/10 dark:bg-white/10" />
+                     </div>
+                  </header>
+
+                  <main className="flex-1 flex flex-col justify-center">
+                    <div className="aspect-square w-full rounded-[2rem] overflow-hidden border-2 border-black/10 dark:border-white/10 shadow-2xl mb-6 sm:mb-8 relative bg-[#090D16]">
+                      {splashData.useGlb ? (
+                        <div 
+                          className="w-full h-full flex items-center justify-center transition-all duration-300"
+                          style={{
+                            transform: `translate(${splashData.glbPositionX ?? 0}%, ${splashData.glbPositionY ?? 0}%)`,
+                            transformOrigin: 'center center'
+                          }}
+                        >
+                          <model-viewer
+                            src={splashData.glbUrl || "/coffee_cup_with_plate.glb"}
+                            alt="3D Model Preview"
+                            {...(splashData.glbAutoRotate !== false ? { 'auto-rotate': true } : {})}
+                            camera-controls
+                            style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
+                            scale={`${splashData.glbScale ?? 1.0} ${splashData.glbScale ?? 1.0} ${splashData.glbScale ?? 1.0}`}
+                            camera-orbit={`${splashData.glbRotationY ?? 0}deg ${splashData.glbCameraPitch ?? 60}deg ${splashData.glbZoom ?? 100}%`}
+                            min-camera-orbit="auto auto 5%"
+                            max-camera-orbit="auto auto 500%"
+                            shadow-intensity="2"
+                            exposure="1.2"
+                            interaction-prompt="none"
+                          ></model-viewer>
+                        </div>
+                      ) : (
+                        <img 
+                          src="https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80" 
+                          alt="Hero"
+                          className="w-full h-full object-cover opacity-60"
+                          referrerPolicy="no-referrer"
+                        />
+                      )}
+                    </div>
+                    <span className="text-amber-500 font-black uppercase tracking-[0.4em] text-[8px] mb-3 opacity-50">
+                      {splashData.title || "Premium Coffee"}
+                    </span>
+                    <h1 className="text-3xl sm:text-4xl font-black text-slate-900 dark:text-white leading-tight mb-4 uppercase italic tracking-tighter">
+                      Galaxy <br /> 
+                      <span className="text-slate-500 dark:text-white/40">Launch.</span>
+                    </h1>
+                    <p className="text-[9px] sm:text-[10px] text-coffee-600 leading-relaxed font-black uppercase tracking-widest">
+                      {splashData.subtitle || "Your cosmic ritual, elevated."}
+                    </p>
+                    {shopData.qrCodeUrl && (
+                      <div className="mt-4 flex items-center gap-2 sm:gap-3 bg-black/10 dark:bg-white/5 p-2 rounded-xl">
+                        <div className="w-10 h-10 bg-white p-1 rounded-lg shrink-0">
+                          <img src={shopData.qrCodeUrl} alt="QR Code" className="w-full h-full object-contain" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[8px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Order Mobile</p>
+                          <p className="text-[7px] font-bold text-amber-500 uppercase tracking-widest">Scan QR</p>
+                        </div>
+                      </div>
+                    )}
+                  </main>
+               </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* GCash QR Lightbox Modal */}
+      {isQrModalOpen && shopData.gcashQrUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-6 text-white text-center relative overflow-hidden">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-500 font-black text-xs uppercase tracking-widest">
+                <QrCode className="w-4 h-4" /> GCash Payment QR Code
+              </div>
+              <button
+                onClick={() => setIsQrModalOpen(false)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-white p-4 rounded-3xl inline-block shadow-2xl border-4 border-amber-500/30">
+              <img 
+                src={shopData.gcashQrUrl} 
+                alt="GCash Payment QR Code" 
+                className="w-56 h-56 object-contain rounded-xl" 
+              />
+            </div>
+
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-white">{shopData.name || 'Store'} GCash QR</h4>
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest">
+                Displayed to customers during checkout
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleDownloadGcashQr}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Download QR Image
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

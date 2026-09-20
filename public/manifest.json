@@ -1,0 +1,31 @@
+{
+  "name": "CAIDOZ",
+  "short_name": "CAIDOZ",
+  "description": "CAIDOZ Point of Sale and Mobile Ordering system with live order status tracking, kitchen queue, and inventory management.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D0F14",
+  "theme_color": "#F59E0B",
+  "orientation": "any",
+  "categories": ["food", "productivity"],
+  "icons": [
+    {
+      "src": "icon-512.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    }
+  ]
+}
