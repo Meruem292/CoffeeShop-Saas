@@ -453,10 +453,10 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       setAccountId(user.uid);
     } else if (mode === 'kiosk') {
       if (activeCustomerProfile) {
-        setCustomerName(activeCustomerProfile.displayName || activeCustomerProfile.email?.split('@')[0] || 'Customer');
+        setCustomerName(activeCustomerProfile.displayName || activeCustomerProfile.email?.split('@')[0] || '');
         setAccountId(activeCustomerProfile.uid);
       } else {
-        setCustomerName('Guest');
+        setCustomerName('');
         setAccountId('');
       }
     }
@@ -1050,9 +1050,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       return;
     }
     
-    const finalCustomerName = customerName.trim() || (mode === 'kiosk' ? 'Guest' : '');
-    if (!finalCustomerName) {
-      toast.warning('Please enter your name before placing the order.');
+    if (!customerName.trim()) {
+      toast.warning('Please enter your reference name so we can call you when your order is ready.');
       return;
     }
 
@@ -1070,7 +1069,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       ? (scannedAccountProfile || userProfile)
       : (activeCustomerProfile || (mode === 'mobile' ? userProfile : null));
     const targetCustomerId = targetCustomer?.uid || (mode === 'mobile' ? user?.uid : undefined);
-    const targetCustomerName = finalCustomerName || targetCustomer?.displayName || (mode === 'kiosk' ? 'Guest' : 'Customer');
+    const targetCustomerName = customerName.trim() || targetCustomer?.displayName || 'Customer';
 
     onPlaceOrder({
       items: cart,
@@ -2107,17 +2106,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                 <div className="space-y-2">
                   <div className="flex items-center justify-between ml-1">
                     <label className="block text-[10px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] flex items-center gap-1.5">
-                       <UserIcon className="w-3 h-3 text-slate-400" /> Reference Name
+                       <UserIcon className="w-3 h-3 text-slate-400" /> Reference Name <span className="text-rose-500 font-bold">*</span>
                     </label>
-                    {mode === 'kiosk' && (
-                      <button
-                        type="button"
-                        onClick={() => setCustomerName('Guest')}
-                        className="text-[10px] font-black text-amber-500 uppercase tracking-wider hover:underline"
-                      >
-                        Reset to 'Guest'
-                      </button>
-                    )}
                   </div>
                   <input
                     type="text"
@@ -2125,8 +2115,13 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                     onChange={(e) => setCustomerName(e.target.value)}
                     disabled={mode === 'mobile' && !!user}
                     className={`w-full p-4 border-2 border-black/10 dark:border-white/10 rounded-2xl focus:outline-none focus:border-amber-500/50 text-sm font-black transition-all ${mode === 'mobile' && user ? 'bg-black/10 dark:bg-white/10 text-slate-500 cursor-not-allowed border-transparent' : 'bg-black/5 dark:bg-white/5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 hover:border-black/20 dark:hover:border-white/20'}`}
-                    placeholder={mode === 'kiosk' ? "Guest (Tap to customize name)" : "E.g. Juan Dela Cruz"}
+                    placeholder="Enter your name (e.g. Juan)"
                   />
+                  {!customerName.trim() && (
+                    <p className="text-[10px] font-bold text-amber-500/90 ml-1">
+                      Required — used by barista to call out your name when serving.
+                    </p>
+                  )}
                 </div>
                 
                 {(mode === 'kiosk' || mode === 'pos') && (
@@ -2281,7 +2276,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
             <button
               type="button"
               onClick={handleCheckout}
-              disabled={cart.length === 0 || (!customerName.trim() && mode !== 'mobile' && mode !== 'kiosk') || !!shopSettings?.isClosed || isAccountSuspended}
+              disabled={cart.length === 0 || !customerName.trim() || !!shopSettings?.isClosed || isAccountSuspended}
               className="flex-1 bg-emerald-500 hover:bg-emerald-400 disabled:bg-rose-500/20 disabled:text-rose-400 dark:disabled:bg-rose-500/20 dark:disabled:text-rose-400 text-slate-950 py-3 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
             >
               {shopSettings?.isClosed ? 'SHOP IS CLOSED' : isAccountSuspended ? 'ACCOUNT SUSPENDED' : 'Confirm Order'} <Check className="w-4 h-4" />
