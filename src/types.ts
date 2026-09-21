@@ -102,6 +102,9 @@ export interface ChatMessage {
   orderCard?: {
     id: string;
     total: number;
+    subtotal?: number;
+    discountAmount?: number;
+    voucherCode?: string;
     status: string;
     itemSummary: string;
     createdAt: number;

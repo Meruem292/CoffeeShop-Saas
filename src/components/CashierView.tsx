@@ -410,6 +410,12 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
       });
 
       data += divider;
+      const calcSubtotal = order.subtotal || (order.total + (order.discountAmount || 0));
+      if (order.discountAmount && order.discountAmount > 0) {
+        data += padText("SUBTOTAL:", `PHP ${Math.round(calcSubtotal).toLocaleString()}`);
+        const vCode = order.voucherCode ? ` (${order.voucherCode.toUpperCase()})` : '';
+        data += padText(`DISCOUNT${vCode}:`, `-PHP ${Math.round(order.discountAmount).toLocaleString()}`);
+      }
       data += padText("TOTAL AMOUNT:", `PHP ${Math.round(order.total).toLocaleString()}`);
       data += padText("PAYMENT:", order.source === 'pos' ? 'CASH' : 'ONLINE');
       data += padText("STATUS:", "PAID");
@@ -865,7 +871,21 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
 
               {/* Summary Block */}
               <div className="space-y-1 text-[10px] mt-2">
-                <div className="flex justify-between font-black text-xs">
+                {((printingOrder.discountAmount && printingOrder.discountAmount > 0) || (printingOrder.subtotal && printingOrder.subtotal > printingOrder.total)) && (
+                  <>
+                    <div className="flex justify-between text-[9px]">
+                      <span>SUBTOTAL:</span>
+                      <span>₱{(printingOrder.subtotal || (printingOrder.total + (printingOrder.discountAmount || 0))).toLocaleString()}</span>
+                    </div>
+                    {printingOrder.discountAmount && printingOrder.discountAmount > 0 && (
+                      <div className="flex justify-between text-[9px] text-gray-800 font-bold">
+                        <span>DISCOUNT {printingOrder.voucherCode ? `(${printingOrder.voucherCode.toUpperCase()})` : ''}:</span>
+                        <span>-₱{printingOrder.discountAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div className="flex justify-between font-black text-xs pt-0.5">
                   <span>TOTAL AMOUNT:</span>
                   <span>₱{printingOrder.total.toLocaleString()}</span>
                 </div>
@@ -875,7 +895,7 @@ export function CashierView({ orders = [], onUpdateStatus, onUpdateOrder, onDele
                 </div>
                 <div className="flex justify-between text-[8px]">
                   <span>PAYMENT STATUS:</span>
-                  <span className="font-bold uppercase px-1 border border-black leading-none py-0.5 bg-black text-slate-900 dark:text-white">
+                  <span className="font-bold uppercase px-1 border border-black leading-none py-0.5 bg-black text-white">
                     PAID
                   </span>
                 </div>

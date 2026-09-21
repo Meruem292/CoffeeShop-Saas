@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher, YourMixIngredient, YourMixBasePreset } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, Lock, ShieldCheck, KeyRound, ShieldAlert, ShieldOff, Delete, Maximize2, FlaskConical } from 'lucide-react';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, Lock, ShieldCheck, KeyRound, ShieldAlert, ShieldOff, Delete, Maximize2, FlaskConical, RotateCcw } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
@@ -151,6 +151,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   const [adminPinInput, setAdminPinInput] = useState('');
   const [pinErrorMsg, setPinErrorMsg] = useState('');
   const [isPinShaking, setIsPinShaking] = useState(false);
+
+  // Start Over Warning Modal State
+  const [showStartOverWarningModal, setShowStartOverWarningModal] = useState(false);
 
   const { isBuyXGetYEligible, buyCount, requiredQty } = useMemo(() => {
     if (!appliedVoucher || appliedVoucher.type !== 'buy_x_get_y') return { isBuyXGetYEligible: false, buyCount: 0, requiredQty: 0 };
@@ -743,6 +746,30 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   useBackButton(isPosCartDrawerOpen, () => setIsPosCartDrawerOpen(false), 'ord_pos_cart');
   useBackButton(!!selectedProductForConfig, () => setSelectedProductForConfig(null), 'ord_product_config');
   useBackButton(showAdminPinModal, () => setShowAdminPinModal(false), 'ord_admin_pin');
+  useBackButton(showStartOverWarningModal, () => setShowStartOverWarningModal(false), 'ord_start_over');
+
+  const executeStartOver = useCallback(() => {
+    setCart([]);
+    setAppliedVoucher(null);
+    setSelectedFreeProduct(null);
+    setPromoCodeInput('');
+    setAccountId('');
+    setScannedAccountProfile(null);
+    setCheckoutStep(1);
+    setShowStartOverWarningModal(false);
+    if (onSwitchCustomer) {
+      onSwitchCustomer();
+    }
+    toast.info('Session reset. Returning to welcome screen.');
+  }, [onSwitchCustomer, toast]);
+
+  const handleStartOverClick = useCallback(() => {
+    if (scannedAccountProfile || userProfile || accountId || cart.length > 0) {
+      setShowStartOverWarningModal(true);
+    } else {
+      executeStartOver();
+    }
+  }, [scannedAccountProfile, userProfile, accountId, cart.length, executeStartOver]);
 
   // Sync grid columns if shopSettings change
   React.useEffect(() => {
@@ -1274,20 +1301,30 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                       {activeCustomerProfile.points || 0} Pts • #{activeCustomerProfile.shortId || activeCustomerProfile.uid.slice(0, 5).toUpperCase()}
                     </span>
                   </div>
-                  {onSwitchCustomer && (
-                    <button
-                      onClick={onSwitchCustomer}
-                      className="ml-2 px-2 py-1 bg-black/5 dark:bg-white/10 hover:bg-rose-500/20 hover:text-rose-400 rounded-lg text-[9px] font-black uppercase tracking-wider text-slate-400 transition-colors flex items-center gap-1"
-                      title="Switch Customer / Reset to Guest"
-                    >
-                      <LogOut className="w-3 h-3" />
-                      <span className="hidden sm:inline">Switch</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={handleStartOverClick}
+                    className="ml-2 px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 hover:text-rose-400 border border-rose-500/30 rounded-lg text-[9px] font-black uppercase tracking-wider text-rose-500 transition-all flex items-center gap-1 active:scale-95"
+                    title="Start Over & Disconnect Account"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Start Over</span>
+                  </button>
                 </div>
               )}
 
               <div className={`${mode === 'mobile' ? 'hidden' : 'flex items-center gap-4'}`}>
+                {/* Standalone Start Over Button on Menu Page Header - Kiosk Mode Only */}
+                {mode === 'kiosk' && (
+                  <button
+                    onClick={handleStartOverClick}
+                    className="px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-500/30 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm active:scale-95 shrink-0"
+                    title="Start Over & Disconnect Account"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Start Over</span>
+                  </button>
+                )}
+
                 {/* Column Toggle - POS/Kiosk Only */}
                 {mode !== 'mobile' && !localSearchQuery && (
                   <div className="flex flex-col items-end gap-2 pl-4 border-l border-slate-200">
@@ -1581,16 +1618,28 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
           <ShoppingBag className="w-4 h-4 text-amber-500" />
           {shopSettings?.name || 'CAIDOZ'}
         </h2>
-        {(mode === 'mobile' || mode === 'kiosk' || isPosCartDrawerOpen) && (
-          <button onClick={() => {
-            setIsMobileCartOpen(false);
-            setIsKioskCartOpen(false);
-            setIsPosCartDrawerOpen(false);
-            setTimeout(() => setCheckoutStep(1), 500);
-          }} className="p-1.5 text-slate-500 dark:text-white/40 bg-black/5 dark:bg-white/5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all">
-            <X className="w-4 h-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {mode === 'kiosk' && (
+            <button
+              onClick={handleStartOverClick}
+              className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 border border-rose-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all active:scale-95"
+              title="Start Over & Disconnect Account"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Start Over</span>
+            </button>
+          )}
+          {(mode === 'mobile' || mode === 'kiosk' || isPosCartDrawerOpen) && (
+            <button onClick={() => {
+              setIsMobileCartOpen(false);
+              setIsKioskCartOpen(false);
+              setIsPosCartDrawerOpen(false);
+              setTimeout(() => setCheckoutStep(1), 500);
+            }} className="p-1.5 text-slate-500 dark:text-white/40 bg-black/5 dark:bg-white/5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all">
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Modern Compact Stepper Progress Bar */}
@@ -1632,62 +1681,9 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
       <div className="flex-1 min-h-0 overflow-y-auto p-3 md:p-4 flex flex-col gap-3 scrollbar-hide">
         {checkoutStep === 1 && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-300 flex flex-col gap-4">
-            {cart.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 dark:text-white/40 space-y-4 py-8">
-                <div className="w-20 h-20 bg-black/5 dark:bg-white/5 rounded-full flex items-center justify-center border border-black/10 dark:border-white/10 opacity-50">
-                  <Coffee className="w-10 h-10 text-amber-500" />
-                </div>
-                <p className="font-black uppercase tracking-[0.3em] text-[10px]">Your orbit is empty</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {cart.map((item) => (
-                  <div
-                    key={item.cartId}
-                    className="flex items-center justify-between p-3 md:p-3.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl shadow-sm group hover:border-amber-500/30 transition-all"
-                  >
-                    <div className="flex-1 pr-4">
-                      <div className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors">
-                        {item.name}
-                        {item.selectedSize && (
-                          <span className="ml-2 text-[9px] text-amber-500 font-black bg-amber-500/10 px-2 py-0.5 rounded-full uppercase border border-amber-500/20">
-                            {item.selectedSize.name}
-                          </span>
-                        )}
-                      </div>
-                      {(item.sugarLevel || (item.selectedAddons && item.selectedAddons.length > 0)) && (
-                        <div className="text-[10px] text-slate-500 dark:text-white/40 font-bold uppercase tracking-widest mt-1 space-y-0.5">
-                          {item.sugarLevel && <div>Sugar: {item.sugarLevel}</div>}
-                          {item.selectedAddons && item.selectedAddons.length > 0 && (
-                            <div className="text-amber-500/60">+ {item.selectedAddons.map(a => a.name).join(', ')}</div>
-                          )}
-                        </div>
-                      )}
-                      <div className="text-slate-900 dark:text-white font-black text-xs mt-2">₱{(item.price * item.quantity).toLocaleString()}</div>
-                    </div>
-                    <div className="flex items-center gap-3 bg-black/5 dark:bg-white/5 p-1.5 rounded-2xl border border-black/10 dark:border-white/10">
-                      <button
-                        onClick={() => updateQuantity(item.cartId, -1)}
-                        className="p-2 bg-black/5 dark:bg-white/5 rounded-xl text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="w-6 text-center font-black text-slate-900 dark:text-white text-sm">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.cartId, 1)}
-                        className="p-2 bg-amber-500 text-black rounded-xl hover:bg-amber-400 shadow-lg transition-all active:scale-90"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {/* Vouchers & Promos */}
+            {/* Vouchers & Promos Section at Top */}
             {cart.length > 0 && (
-              <div className="space-y-4 pt-4 mt-2 border-t border-black/5 dark:border-white/5">
+              <div className="space-y-3 pb-3 border-b border-black/5 dark:border-white/5">
                 <div className="flex items-center justify-between">
                   <label className="block text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">Apply Voucher</label>
                   {(mode === 'kiosk' || mode === 'pos') && (
@@ -1818,7 +1814,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
 
                   if (allAvailableVouchers.length === 0) return null;
                   return (
-                    <div className="mt-3 pt-3 border-t border-black/5 dark:border-white/5 space-y-2">
+                    <div className="mt-2 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[9px] font-black text-slate-500 dark:text-white/40 uppercase tracking-[0.3em] ml-1">
                           {mode === 'kiosk' ? 'Available Promo Vouchers' : 'Available Vouchers'}
@@ -1828,7 +1824,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                         )}
                       </div>
                       
-                      <div className="flex overflow-x-auto gap-2.5 pb-2 scrollbar-hide">
+                      <div className="flex overflow-x-auto gap-2.5 pb-1 scrollbar-hide">
                         {allAvailableVouchers.map(v => {
                           const isApplied = appliedVoucher?.id === v.id;
                           const isPurchased = (v as any).isPurchased;
@@ -1890,6 +1886,60 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                     </div>
                   );
                 })()}
+              </div>
+            )}
+
+            {/* Cart Items List */}
+            {cart.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 dark:text-white/40 space-y-4 py-8">
+                <div className="w-20 h-20 bg-black/5 dark:bg-white/5 rounded-full flex items-center justify-center border border-black/10 dark:border-white/10 opacity-50">
+                  <Coffee className="w-10 h-10 text-amber-500" />
+                </div>
+                <p className="font-black uppercase tracking-[0.3em] text-[10px]">Your orbit is empty</p>
+              </div>
+            ) : (
+              <div className="space-y-3 overflow-y-auto max-h-[360px] md:max-h-[420px] scrollbar-hide pr-0.5">
+                {cart.map((item) => (
+                  <div
+                    key={item.cartId}
+                    className="flex items-center justify-between p-3 md:p-3.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 rounded-2xl shadow-sm group hover:border-amber-500/30 transition-all"
+                  >
+                    <div className="flex-1 pr-4">
+                      <div className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-tight group-hover:text-amber-500 transition-colors">
+                        {item.name}
+                        {item.selectedSize && (
+                          <span className="ml-2 text-[9px] text-amber-500 font-black bg-amber-500/10 px-2 py-0.5 rounded-full uppercase border border-amber-500/20">
+                            {item.selectedSize.name}
+                          </span>
+                        )}
+                      </div>
+                      {(item.sugarLevel || (item.selectedAddons && item.selectedAddons.length > 0)) && (
+                        <div className="text-[10px] text-slate-500 dark:text-white/40 font-bold uppercase tracking-widest mt-1 space-y-0.5">
+                          {item.sugarLevel && <div>Sugar: {item.sugarLevel}</div>}
+                          {item.selectedAddons && item.selectedAddons.length > 0 && (
+                            <div className="text-amber-500/60">+ {item.selectedAddons.map(a => a.name).join(', ')}</div>
+                          )}
+                        </div>
+                      )}
+                      <div className="text-slate-900 dark:text-white font-black text-xs mt-2">₱{(item.price * item.quantity).toLocaleString()}</div>
+                    </div>
+                    <div className="flex items-center gap-3 bg-black/5 dark:bg-white/5 p-1.5 rounded-2xl border border-black/10 dark:border-white/10">
+                      <button
+                        onClick={() => updateQuantity(item.cartId, -1)}
+                        className="p-2 bg-black/5 dark:bg-white/5 rounded-xl text-slate-600 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-6 text-center font-black text-slate-900 dark:text-white text-sm">{item.quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(item.cartId, 1)}
+                        className="p-2 bg-amber-500 text-black rounded-xl hover:bg-amber-400 shadow-lg transition-all active:scale-90"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -2188,10 +2238,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                         </div>
                         <button
                           type="button"
-                          onClick={() => {
-                            setAccountId('');
-                            setScannedAccountProfile(null);
-                          }}
+                          onClick={handleStartOverClick}
                           className="px-2 py-1 bg-black/5 dark:bg-white/10 hover:bg-red-500/20 hover:text-red-500 text-slate-400 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors shrink-0"
                         >
                           Unlink
@@ -2983,6 +3030,54 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                 <h4 className="text-base font-black text-white">{customerPhotoModal.displayName || 'Customer'}</h4>
                 <p className="text-xs text-amber-400 font-mono">#{customerPhotoModal.shortId || customerPhotoModal.uid.slice(0, 5).toUpperCase()}</p>
                 <p className="text-[10px] text-slate-400 font-mono">{customerPhotoModal.email}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Start Over & Account Disconnect Warning Modal */}
+        {showStartOverWarningModal && (
+          <div className="fixed inset-0 z-[110] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-white dark:bg-[#0d1527] border border-rose-500/30 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in zoom-in-95">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-500 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-6 h-6 animate-bounce" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black uppercase tracking-wider text-slate-900 dark:text-white">Start Over Session?</h3>
+                  <p className="text-[10px] text-rose-500 font-bold uppercase tracking-widest">Warning: Disconnect Account</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl space-y-2">
+                {(activeCustomerProfile || scannedAccountProfile || userProfile) ? (
+                  <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
+                    Starting over will <strong className="text-rose-500 dark:text-rose-400 font-black">disconnect your linked account</strong> ({activeCustomerProfile?.displayName || activeCustomerProfile?.email || scannedAccountProfile?.displayName || 'Linked Account'}) and reset your current order items.
+                  </p>
+                ) : (
+                  <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
+                    Starting over will clear all items from your current cart and return to the welcome screen.
+                  </p>
+                )}
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-bold italic">
+                  Are you sure you want to proceed?
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => setShowStartOverWarningModal(false)}
+                  className="flex-1 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-2xl font-bold text-xs uppercase tracking-wider text-slate-600 dark:text-slate-300 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeStartOver}
+                  className="flex-1 py-3 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-rose-500/30 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Yes, Start Over</span>
+                </button>
               </div>
             </div>
           </div>

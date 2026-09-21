@@ -49,6 +49,9 @@ interface SendMessagePayload {
   orderCard?: {
     id: string;
     total: number;
+    subtotal?: number;
+    discountAmount?: number;
+    voucherCode?: string;
     status: string;
     itemSummary: string;
     createdAt: number;
@@ -570,6 +573,9 @@ export function AdminChatView({
         orderCard: {
           id: order.id || 'ORDER',
           total: order.total,
+          subtotal: order.subtotal,
+          discountAmount: order.discountAmount,
+          voucherCode: order.voucherCode,
           status: order.status,
           itemSummary,
           createdAt: order.createdAt
@@ -1196,6 +1202,11 @@ export function AdminChatView({
                                   </span>
                                 </div>
                                 <p className="text-[10px] opacity-90 font-medium truncate">{msg.orderCard.itemSummary}</p>
+                                {msg.orderCard.discountAmount ? (
+                                  <div className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                                    Discount {msg.orderCard.voucherCode ? `(${msg.orderCard.voucherCode})` : ''}: -₱{msg.orderCard.discountAmount.toLocaleString()}
+                                  </div>
+                                ) : null}
                                 <div className="text-[10px] font-bold pt-1 border-t border-black/5">Total: ₱{msg.orderCard.total.toLocaleString()}</div>
                               </div>
                             )}

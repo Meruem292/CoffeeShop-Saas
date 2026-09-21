@@ -337,6 +337,12 @@ export function OrderStatusModal({
 
                 {/* Total Summary */}
                 <div className="border-t border-black/10 dark:border-white/10 pt-3 space-y-1 text-xs font-bold">
+                  {((activeOrder.discountAmount && activeOrder.discountAmount > 0) || (activeOrder.subtotal && activeOrder.subtotal > (activeOrder.total || 0))) && (
+                    <div className="flex justify-between text-slate-500 dark:text-slate-400 text-[11px]">
+                      <span>Subtotal</span>
+                      <span>₱{(activeOrder.subtotal || ((activeOrder.total || 0) + (activeOrder.discountAmount || 0))).toLocaleString()}</span>
+                    </div>
+                  )}
                   {activeOrder.discountAmount ? (
                     <div className="flex justify-between text-emerald-600 dark:text-emerald-400 text-[11px]">
                       <span>Discount ({activeOrder.voucherCode || 'Voucher'})</span>

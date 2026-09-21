@@ -266,10 +266,10 @@ export function OrderHistoryPage({
 
                     {/* Breakdown */}
                     <div className="pt-3 border-t border-black/5 dark:border-white/5 space-y-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
-                      {order.subtotal && (
+                      {((order.discountAmount && order.discountAmount > 0) || order.subtotal) && (
                         <div className="flex justify-between">
                           <span>Subtotal</span>
-                          <span>₱{order.subtotal.toLocaleString()}</span>
+                          <span>₱{(order.subtotal || (order.total + (order.discountAmount || 0))).toLocaleString()}</span>
                         </div>
                       )}
                       {order.discountAmount ? (
