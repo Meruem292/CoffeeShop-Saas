@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { 
   FlaskConical, Sparkles, Plus, Edit3, Trash2, Check, X, RotateCcw,
   Search, Droplets, Layers, ShieldCheck, AlertTriangle, ArrowLeft,
-  ChevronRight, Coffee, Info, Tag, DollarSign, Package
+  ChevronRight, Coffee, Info, Tag, DollarSign, Package, Star
 } from 'lucide-react';
-import { YourMixIngredient, YourMixBasePreset, YourMixIngredientCategory, ShopSettings } from '../types';
+import { YourMixIngredient, YourMixBasePreset, YourMixCupSize, YourMixIngredientCategory, ShopSettings } from '../types';
 import { useToast } from '../lib/ToastContext';
 
 interface AdminYourMixProps {
   ingredients: YourMixIngredient[];
   bases: YourMixBasePreset[];
+  cupSizes?: YourMixCupSize[];
   shopSettings: ShopSettings | null;
   onAddIngredient: (ing: Omit<YourMixIngredient, 'id'>) => Promise<string | undefined>;
   onUpdateIngredient: (id: string, updates: Partial<YourMixIngredient>) => Promise<void>;
@@ -17,6 +18,9 @@ interface AdminYourMixProps {
   onAddBase: (base: Omit<YourMixBasePreset, 'id'>) => Promise<string | undefined>;
   onUpdateBase: (id: string, updates: Partial<YourMixBasePreset>) => Promise<void>;
   onDeleteBase: (id: string) => Promise<void>;
+  onAddCupSize?: (cs: Omit<YourMixCupSize, 'id'>) => Promise<string | undefined>;
+  onUpdateCupSize?: (id: string, updates: Partial<YourMixCupSize>) => Promise<void>;
+  onDeleteCupSize?: (id: string) => Promise<void>;
   onResetDefaults: () => Promise<void>;
   onBackToSettings?: () => void;
 }
@@ -33,6 +37,7 @@ const CATEGORY_LABELS: Record<YourMixIngredientCategory, { label: string; color:
 export function AdminYourMix({
   ingredients,
   bases,
+  cupSizes = [],
   shopSettings,
   onAddIngredient,
   onUpdateIngredient,
@@ -40,13 +45,103 @@ export function AdminYourMix({
   onAddBase,
   onUpdateBase,
   onDeleteBase,
+  onAddCupSize,
+  onUpdateCupSize,
+  onDeleteCupSize,
   onResetDefaults,
   onBackToSettings
 }: AdminYourMixProps) {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'ingredients' | 'bases'>('ingredients');
+  const [activeTab, setActiveTab] = useState<'ingredients' | 'bases' | 'cup_sizes'>('ingredients');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Cup Size Modal State
+  const [isCupModalOpen, setIsCupModalOpen] = useState(false);
+  const [editingCupId, setEditingCupId] = useState<string | null>(null);
+  const [cupForm, setCupForm] = useState<Omit<YourMixCupSize, 'id'>>({
+    name: '',
+    capacityOz: 16,
+    basePrice: 40,
+    isActive: true,
+    isDefault: false
+  });
+
+  const handleOpenNewCup = () => {
+    setEditingCupId(null);
+    setCupForm({
+      name: '',
+      capacityOz: 16,
+      basePrice: 40,
+      isActive: true,
+      isDefault: false
+    });
+    setIsCupModalOpen(true);
+  };
+
+  const handleOpenEditCup = (cup: YourMixCupSize) => {
+    setEditingCupId(cup.id);
+    setCupForm({
+      name: cup.name,
+      capacityOz: cup.capacityOz,
+      basePrice: cup.basePrice,
+      isActive: cup.isActive !== false,
+      isDefault: !!cup.isDefault
+    });
+    setIsCupModalOpen(true);
+  };
+
+  const handleCupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cupForm.name.trim()) {
+      toast.error('Cup size name is required');
+      return;
+    }
+    if (cupForm.capacityOz <= 0) {
+      toast.error('Capacity must be greater than 0 oz');
+      return;
+    }
+
+    try {
+      if (editingCupId) {
+        if (onUpdateCupSize) {
+          await onUpdateCupSize(editingCupId, cupForm);
+        }
+      } else {
+        if (onAddCupSize) {
+          await onAddCupSize(cupForm);
+        }
+      }
+      setIsCupModalOpen(false);
+    } catch {
+      toast.error('Failed to save cup size');
+    }
+  };
+
+  const handleToggleCupActive = async (cup: YourMixCupSize) => {
+    if (!onUpdateCupSize) return;
+    try {
+      await onUpdateCupSize(cup.id, { isActive: !cup.isActive });
+    } catch {
+      toast.error('Failed to update cup size status');
+    }
+  };
+
+  const handleSetDefaultCup = async (cup: YourMixCupSize) => {
+    if (!onUpdateCupSize) return;
+    try {
+      for (const cs of cupSizes) {
+        if (cs.id === cup.id) {
+          await onUpdateCupSize(cs.id, { isDefault: true });
+        } else if (cs.isDefault) {
+          await onUpdateCupSize(cs.id, { isDefault: false });
+        }
+      }
+      toast.success(`"${cup.name}" set as default cup size`);
+    } catch {
+      toast.error('Failed to set default cup size');
+    }
+  };
 
   // Ingredient Modal State
   const [isIngredientModalOpen, setIsIngredientModalOpen] = useState(false);
@@ -277,7 +372,7 @@ export function AdminYourMix({
               <Plus className="w-4 h-4" />
               <span>New Ingredient</span>
             </button>
-          ) : (
+          ) : activeTab === 'bases' ? (
             <button
               onClick={handleOpenNewBase}
               className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95"
@@ -285,15 +380,23 @@ export function AdminYourMix({
               <Plus className="w-4 h-4" />
               <span>New Base Preset</span>
             </button>
+          ) : (
+            <button
+              onClick={handleOpenNewCup}
+              className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Cup Size</span>
+            </button>
           )}
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-white/10 pb-3">
+      <div className="flex flex-wrap gap-2 border-b border-white/10 pb-3">
         <button
           onClick={() => setActiveTab('ingredients')}
-          className={`px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+          className={`px-5 sm:px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
             activeTab === 'ingredients'
               ? 'bg-amber-500 text-slate-950 shadow-md'
               : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
@@ -304,7 +407,7 @@ export function AdminYourMix({
         </button>
         <button
           onClick={() => setActiveTab('bases')}
-          className={`px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+          className={`px-5 sm:px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
             activeTab === 'bases'
               ? 'bg-amber-500 text-slate-950 shadow-md'
               : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
@@ -313,47 +416,103 @@ export function AdminYourMix({
           <Layers className="w-4 h-4" />
           <span>Starting Base Presets ({bases.length})</span>
         </button>
+        <button
+          onClick={() => setActiveTab('cup_sizes')}
+          className={`px-5 sm:px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+            activeTab === 'cup_sizes'
+              ? 'bg-amber-500 text-slate-950 shadow-md'
+              : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Coffee className="w-4 h-4" />
+          <span>Cup Sizes & Availability ({cupSizes.length})</span>
+        </button>
       </div>
 
       {activeTab === 'ingredients' && (
         <div className="space-y-6">
           {/* Filters & Search Bar */}
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 bg-white/5 p-4 rounded-3xl border border-white/10">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all ${
-                  selectedCategory === 'all'
-                    ? 'bg-white text-slate-950 shadow'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                All Categories ({ingredients.length})
-              </button>
-              {(Object.keys(CATEGORY_LABELS) as YourMixIngredientCategory[]).map(catKey => (
-                <button
-                  key={catKey}
-                  onClick={() => setSelectedCategory(catKey)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
-                    selectedCategory === catKey
-                      ? 'bg-amber-500 text-slate-950 font-black shadow'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {CATEGORY_LABELS[catKey].label}
-                </button>
-              ))}
+          <div className="bg-white/5 p-4 sm:p-5 rounded-3xl border border-white/10 space-y-3.5 backdrop-blur-xl shadow-lg">
+            {/* Top Row: Search Input & Result Count Status */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search ingredients by name or notes..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-9 py-2.5 bg-black/40 border border-white/10 focus:border-amber-500 rounded-2xl text-xs font-bold text-white placeholder:text-slate-500 focus:outline-none transition-all shadow-inner"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-0.5 rounded-lg hover:bg-white/10 transition-colors"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2.5 text-xs font-bold text-slate-400 justify-between sm:justify-end">
+                <span className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[11px] font-mono">
+                  Showing <strong className="text-amber-400">{filteredIngredients.length}</strong> of {ingredients.length} items
+                </span>
+                {(selectedCategory !== 'all' || searchQuery) && (
+                  <button
+                    onClick={() => {
+                      setSelectedCategory('all');
+                      setSearchQuery('');
+                    }}
+                    className="text-[10px] font-black uppercase tracking-wider text-amber-500 hover:text-amber-400 hover:underline transition-all px-1.5"
+                  >
+                    Reset Filters
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div className="relative w-full md:w-72">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search ingredients..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-black/40 border border-white/10 rounded-2xl text-xs font-bold text-white placeholder:text-slate-500 focus:outline-none focus:border-amber-500 transition-all"
-              />
+            {/* Bottom Row: Category Filter Pills (Wrap cleanly without being squashed or cut off) */}
+            <div className="flex items-center flex-wrap gap-2 pt-2 border-t border-white/5">
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${
+                  selectedCategory === 'all'
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-md scale-[1.02]'
+                    : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5'
+                }`}
+              >
+                <span>All Categories</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  selectedCategory === 'all' ? 'bg-slate-950/20 text-slate-950' : 'bg-white/10 text-slate-300'
+                }`}>
+                  {ingredients.length}
+                </span>
+              </button>
+
+              {(Object.keys(CATEGORY_LABELS) as YourMixIngredientCategory[]).map(catKey => {
+                const count = ingredients.filter(i => i.category === catKey).length;
+                const isSel = selectedCategory === catKey;
+                return (
+                  <button
+                    key={catKey}
+                    onClick={() => setSelectedCategory(catKey)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${
+                      isSel
+                        ? 'bg-amber-500 text-slate-950 font-black shadow-md scale-[1.02]'
+                        : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5'
+                    }`}
+                  >
+                    <span>{CATEGORY_LABELS[catKey].label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                      isSel ? 'bg-slate-950/20 text-slate-950' : 'bg-white/10 text-slate-300'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -576,6 +735,141 @@ export function AdminYourMix({
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'cup_sizes' && (
+        <div className="space-y-6">
+          {/* Info Banner */}
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-5 rounded-3xl border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/30">
+                <Coffee className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-tight">
+                  Dynamic Cup Sizes & Stock Availability
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Control the cup volumes, base fees, and toggle instant availability (In Stock / Out of Stock) for customer drink formulations.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-mono px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300">
+                Active in Store: <strong className="text-emerald-400">{cupSizes.filter(c => c.isActive !== false).length}</strong> / {cupSizes.length}
+              </span>
+            </div>
+          </div>
+
+          {/* Cup Sizes Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {cupSizes.map(cup => {
+              const isAvailable = cup.isActive !== false;
+              return (
+                <div
+                  key={cup.id}
+                  className={`p-6 rounded-3xl border transition-all flex flex-col justify-between ${
+                    isAvailable
+                      ? 'bg-slate-900/60 border-white/10 hover:border-amber-500/40 shadow-xl'
+                      : 'bg-slate-950/40 border-rose-500/20 opacity-75'
+                  }`}
+                >
+                  <div>
+                    {/* Header with capacity badge and availability toggle */}
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border font-black text-sm shrink-0 ${
+                          isAvailable
+                            ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                            : 'bg-rose-500/15 border-rose-500/30 text-rose-400'
+                        }`}>
+                          {cup.capacityOz}oz
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-black text-white leading-tight">
+                              {cup.name}
+                            </h3>
+                            {cup.isDefault && (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-wider">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-slate-400 font-medium mt-0.5 block">
+                            Volume: {cup.capacityOz} fluid ounces
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Quick Availability Toggle */}
+                      <button
+                        onClick={() => handleToggleCupActive(cup)}
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-1.5 active:scale-95 ${
+                          isAvailable
+                            ? 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/30 text-emerald-400'
+                            : 'bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/30 text-rose-400'
+                        }`}
+                        title="Click to toggle availability"
+                      >
+                        <span className={`w-2 h-2 rounded-full ${isAvailable ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                        <span>{isAvailable ? 'In Stock' : 'Out of Stock'}</span>
+                      </button>
+                    </div>
+
+                    {/* Pricing breakdown */}
+                    <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 space-y-1 mb-5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400">Base Cup Fee:</span>
+                        <span className="font-black text-amber-400 text-sm">₱{cup.basePrice.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500">
+                        <span>Includes cup, ice & initial lab prep</span>
+                        <span>{isAvailable ? 'Customer orderable' : 'Disabled in Studio'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                    <div>
+                      {!cup.isDefault && (
+                        <button
+                          onClick={() => handleSetDefaultCup(cup)}
+                          className="text-[10px] font-bold text-slate-400 hover:text-amber-400 uppercase tracking-wider flex items-center gap-1 transition-colors"
+                        >
+                          <Star className="w-3 h-3" />
+                          <span>Set as Default</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleOpenEditCup(cup)}
+                        className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete cup size "${cup.name}"?`)) {
+                            if (onDeleteCupSize) onDeleteCupSize(cup.id);
+                          }
+                        }}
+                        className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 transition-all"
+                        title="Delete cup size"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -982,6 +1276,123 @@ export function AdminYourMix({
                   className="px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 active:scale-95"
                 >
                   {editingBaseId ? 'Save Preset' : 'Create Preset'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cup Size Modal */}
+      {isCupModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center">
+                  <Coffee className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-black text-white">
+                  {editingCupId ? 'Edit Cup Size' : 'Add New Cup Size'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsCupModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCupSubmit} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                  Cup Size Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 16 oz (Standard Lab Cup)"
+                  value={cupForm.name}
+                  onChange={e => setCupForm({ ...cupForm, name: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-black/40 border border-white/10 focus:border-amber-500 rounded-2xl text-xs font-bold text-white focus:outline-none transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                    Capacity (oz)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="4"
+                    max="64"
+                    step="1"
+                    value={cupForm.capacityOz}
+                    onChange={e => setCupForm({ ...cupForm, capacityOz: parseFloat(e.target.value) || 16 })}
+                    className="w-full px-4 py-2.5 bg-black/40 border border-white/10 focus:border-amber-500 rounded-2xl text-xs font-bold text-white focus:outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                    Base Fee (₱)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="1"
+                    value={cupForm.basePrice}
+                    onChange={e => setCupForm({ ...cupForm, basePrice: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-4 py-2.5 bg-black/40 border border-white/10 focus:border-amber-500 rounded-2xl text-xs font-bold text-white focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-black/30 border border-white/5 space-y-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={cupForm.isActive}
+                    onChange={e => setCupForm({ ...cupForm, isActive: e.target.checked })}
+                    className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500/20 bg-slate-950 border-white/20"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-white block">Available in Store (In Stock)</span>
+                    <span className="text-[10px] text-slate-400 block">Customers can formulate drinks in this cup size</span>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={cupForm.isDefault}
+                    onChange={e => setCupForm({ ...cupForm, isDefault: e.target.checked })}
+                    className="w-4 h-4 rounded text-amber-500 focus:ring-amber-500/20 bg-slate-950 border-white/20"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-white block">Default Selected Cup Size</span>
+                    <span className="text-[10px] text-slate-400 block">Automatically selected when customer opens the studio</span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsCupModalOpen(false)}
+                  className="px-5 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs uppercase tracking-wider"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 active:scale-95"
+                >
+                  {editingCupId ? 'Save Changes' : 'Create Cup Size'}
                 </button>
               </div>
             </form>

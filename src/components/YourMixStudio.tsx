@@ -49,8 +49,22 @@ export function YourMixStudio({
 }: YourMixStudioProps) {
   const { toast } = useToast();
 
-  // Active Cup Size
-  const [selectedCupSize, setSelectedCupSize] = useState<YourMixCupSize>(cupSizes[0] || DEFAULT_CUP_SIZES[0]);
+  // Active Cup Size: pick admin's default cup size if active, or first active size, or first size
+  const defaultSize = useMemo(() => {
+    const activeSizes = cupSizes.filter(c => c.isActive !== false);
+    const designatedDefault = activeSizes.find(c => c.isDefault);
+    return designatedDefault || activeSizes[0] || cupSizes[0] || DEFAULT_CUP_SIZES[0];
+  }, [cupSizes]);
+
+  const [selectedCupSize, setSelectedCupSize] = useState<YourMixCupSize>(defaultSize);
+
+  // Keep selected cup size in sync if cupSizes change and current selection is now invalid
+  useEffect(() => {
+    const exists = cupSizes.find(c => c.id === selectedCupSize.id);
+    if (!exists && defaultSize) {
+      setSelectedCupSize(defaultSize);
+    }
+  }, [cupSizes, defaultSize, selectedCupSize.id]);
 
   // Selected Starting Base (or null for "From Scratch")
   const [selectedBaseId, setSelectedBaseId] = useState<string | null>(null);
@@ -83,7 +97,15 @@ export function YourMixStudio({
   useEffect(() => {
     if (initialMixToLoad) {
       if (initialMixToLoad.cupSize) {
-        setSelectedCupSize(initialMixToLoad.cupSize);
+        const matched = cupSizes.find(c => c.id === initialMixToLoad.cupSize.id || c.name === initialMixToLoad.cupSize.name);
+        if (matched && matched.isActive === false) {
+          setSelectedCupSize(defaultSize);
+          toast.warning(`Notice: The original ${initialMixToLoad.cupSize.name} is currently out of stock. Switched to ${defaultSize.name}. Please verify volume.`);
+        } else if (matched) {
+          setSelectedCupSize(matched);
+        } else {
+          setSelectedCupSize(initialMixToLoad.cupSize);
+        }
       }
       setSelectedBaseId(initialMixToLoad.basePresetId || null);
       setCustomMixName(initialMixToLoad.mixName || '');
@@ -492,29 +514,41 @@ export function YourMixStudio({
             </div>
             <div className="grid grid-cols-2 gap-2.5">
               {cupSizes.map(size => {
+                const isAvailable = size.isActive !== false;
                 const isSel = selectedCupSize.id === size.id;
                 return (
                   <button
                     key={size.id}
+                    disabled={!isAvailable}
                     onClick={() => {
+                      if (!isAvailable) return;
                       setSelectedCupSize(size);
                       if (totalVolumeOz > size.capacityOz) {
                         toast.warning(`Total mix volume exceeds ${size.capacityOz} oz. Please adjust portions.`);
                       }
                     }}
-                    className={`py-2.5 px-3.5 rounded-2xl border text-left transition-all flex items-center justify-between ${
-                      isSel
-                        ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-lg shadow-amber-500/20 font-black'
-                        : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
+                    className={`py-2.5 px-3.5 rounded-2xl border text-left transition-all flex items-center justify-between relative overflow-hidden ${
+                      !isAvailable
+                        ? 'opacity-40 bg-slate-950/40 border-white/5 cursor-not-allowed text-slate-500'
+                        : isSel
+                          ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-lg shadow-amber-500/20 font-black'
+                          : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
                     }`}
                   >
                     <div>
-                      <div className="text-xs font-black uppercase">{size.name}</div>
-                      <div className={`text-[10px] ${isSel ? 'text-slate-900' : 'text-slate-400'}`}>
-                        Cap: {size.capacityOz} oz
+                      <div className="text-xs font-black uppercase flex items-center gap-1.5 flex-wrap">
+                        <span>{size.name}</span>
+                        {!isAvailable && (
+                          <span className="px-1.5 py-0.2 rounded text-[8px] bg-rose-500/20 text-rose-400 border border-rose-500/30 uppercase font-bold">
+                            Out of Stock
+                          </span>
+                        )}
+                      </div>
+                      <div className={`text-[10px] ${isSel ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>
+                        Cap: {size.capacityOz} oz • ₱{size.basePrice}
                       </div>
                     </div>
-                    {isSel && <Check className="w-4 h-4 stroke-[3]" />}
+                    {isSel && <Check className="w-4 h-4 stroke-[3] shrink-0" />}
                   </button>
                 );
               })}

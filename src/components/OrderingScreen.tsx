@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher, YourMixIngredient, YourMixBasePreset, SavedCustomMix } from '../types';
+import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher, YourMixIngredient, YourMixBasePreset, SavedCustomMix, YourMixCupSize } from '../types';
 import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, Lock, ShieldCheck, KeyRound, ShieldAlert, ShieldOff, Delete, Maximize2, FlaskConical, RotateCcw, Crown, Star } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
@@ -31,6 +31,7 @@ interface OrderingScreenProps {
   onNavigateToHistory?: () => void;
   yourMixIngredients?: YourMixIngredient[];
   yourMixBases?: YourMixBasePreset[];
+  yourMixCupSizes?: YourMixCupSize[];
   onSwitchCustomer?: () => void;
   onSaveCustomMix?: (mixData: any) => Promise<any>;
   communityMixes?: SavedCustomMix[];
@@ -56,6 +57,7 @@ export function OrderingScreen({
   onNavigateToHistory, 
   yourMixIngredients = [], 
   yourMixBases = [], 
+  yourMixCupSizes = [],
   onSwitchCustomer, 
   onSaveCustomMix,
   communityMixes = [],
@@ -1771,6 +1773,7 @@ export function OrderingScreen({
               ) : (
                 <div id="your-mix-studio-container" className="w-full pb-20 overflow-y-auto">
                   <YourMixStudio
+                    cupSizes={yourMixCupSizes}
                     ingredients={yourMixIngredients}
                     bases={yourMixBases}
                     mode={mode}

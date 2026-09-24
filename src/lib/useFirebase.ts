@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc, writeBatch, getDoc, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher, ClaimedVoucher, UserProfile, YourMixIngredient, YourMixBasePreset, Review, SavedCustomMix, CustomMixReview } from '../types';
-import { DEFAULT_YOUR_MIX_INGREDIENTS, DEFAULT_YOUR_MIX_BASES } from '../data/yourMixDefaults';
+import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher, ClaimedVoucher, UserProfile, YourMixIngredient, YourMixBasePreset, YourMixCupSize, Review, SavedCustomMix, CustomMixReview } from '../types';
+import { DEFAULT_YOUR_MIX_INGREDIENTS, DEFAULT_YOUR_MIX_BASES, DEFAULT_CUP_SIZES } from '../data/yourMixDefaults';
 import { handleFirestoreError } from './AuthContext';
 import { useToast } from './ToastContext';
 
@@ -31,6 +31,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
   const [yourMixIngredients, setYourMixIngredients] = useState<YourMixIngredient[]>([]);
   const [yourMixBases, setYourMixBases] = useState<YourMixBasePreset[]>([]);
+  const [yourMixCupSizes, setYourMixCupSizes] = useState<YourMixCupSize[]>([]);
   const [savedMixes, setSavedMixes] = useState<SavedCustomMix[]>([]);
   const [communityMixes, setCommunityMixes] = useState<SavedCustomMix[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -272,6 +273,32 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       }
     }, (err) => handleSnapshotError(err, OperationType.LIST, 'your_mix_bases'));
 
+    // Your MIX Cup Sizes Listener
+    const qYourMixCupSizes = query(collection(db, 'your_mix_cup_sizes'));
+    const unsubYourMixCupSizes = onSnapshot(qYourMixCupSizes, (snapshot) => {
+      if (snapshot.empty && isAdmin) {
+        // Auto-seed default laboratory cup sizes if empty
+        DEFAULT_CUP_SIZES.forEach(async (cs) => {
+          try {
+            await setDoc(doc(db, 'your_mix_cup_sizes', cs.id), cs);
+          } catch (e) {
+            console.error('Failed to seed default Your MIX cup size', e);
+          }
+        });
+        setYourMixCupSizes(DEFAULT_CUP_SIZES);
+      } else {
+        const list = snapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            isActive: data.isActive !== undefined ? data.isActive : true,
+            ...data
+          } as YourMixCupSize;
+        });
+        setYourMixCupSizes(list.length > 0 ? list : DEFAULT_CUP_SIZES);
+      }
+    }, (err) => handleSnapshotError(err, OperationType.LIST, 'your_mix_cup_sizes'));
+
     // Customer Reviews Listener
     const qReviews = query(collection(db, 'reviews'), orderBy('createdAt', 'desc'));
     const unsubReviews = onSnapshot(qReviews, (snapshot) => {
@@ -303,6 +330,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       unsubSavedMixes();
       unsubYourMixIngredients();
       unsubYourMixBases();
+      unsubYourMixCupSizes();
       unsubReviews();
       unsubCommunityMixes();
     };
@@ -696,6 +724,39 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     }
   };
 
+  const addYourMixCupSize = async (cupSize: Omit<YourMixCupSize, 'id'>) => {
+    try {
+      const clean = deepCleanUndefined(cupSize);
+      const docRef = await addDoc(collection(db, 'your_mix_cup_sizes'), clean);
+      toast.success(`Cup size "${cupSize.name}" created!`);
+      return docRef.id;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'your_mix_cup_sizes');
+      toast.error('Failed to create cup size');
+    }
+  };
+
+  const updateYourMixCupSize = async (id: string, updates: Partial<YourMixCupSize>) => {
+    try {
+      const clean = deepCleanUndefined(updates);
+      await setDoc(doc(db, 'your_mix_cup_sizes', id), clean, { merge: true });
+      toast.success('Cup size updated!');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `your_mix_cup_sizes/${id}`);
+      toast.error('Failed to update cup size');
+    }
+  };
+
+  const deleteYourMixCupSize = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'your_mix_cup_sizes', id));
+      toast.success('Cup size deleted');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `your_mix_cup_sizes/${id}`);
+      toast.error('Failed to delete cup size');
+    }
+  };
+
   const resetYourMixDefaults = async () => {
     try {
       const batch = writeBatch(db);
@@ -705,8 +766,11 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       DEFAULT_YOUR_MIX_BASES.forEach(base => {
         batch.set(doc(db, 'your_mix_bases', base.id), base);
       });
+      DEFAULT_CUP_SIZES.forEach(cs => {
+        batch.set(doc(db, 'your_mix_cup_sizes', cs.id), cs);
+      });
       await batch.commit();
-      toast.success('Your MIX ingredients & presets restored to defaults!');
+      toast.success('Your MIX ingredients, presets & cup sizes restored to defaults!');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'your_mix_defaults');
       toast.error('Failed to reset defaults');
@@ -1087,6 +1151,10 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     addYourMixBase,
     updateYourMixBase,
     deleteYourMixBase,
+    yourMixCupSizes,
+    addYourMixCupSize,
+    updateYourMixCupSize,
+    deleteYourMixCupSize,
     resetYourMixDefaults,
     submitReview,
     approveReview,

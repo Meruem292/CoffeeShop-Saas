@@ -44,6 +44,7 @@ export interface YourMixCupSize {
   name: string; // e.g. "16 oz", "22 oz"
   capacityOz: number; // 16, 22
   basePrice: number; // e.g. ₱40 base cup/ice/service fee
+  isActive: boolean; // Availability toggle (In Stock vs Out of Stock)
   isDefault?: boolean;
 }
 

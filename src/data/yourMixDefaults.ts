@@ -1,8 +1,8 @@
 import { YourMixIngredient, YourMixBasePreset, YourMixCupSize } from '../types';
 
 export const DEFAULT_CUP_SIZES: YourMixCupSize[] = [
-  { id: '16oz', name: '16 oz (Standard Lab Cup)', capacityOz: 16, basePrice: 40, isDefault: true },
-  { id: '22oz', name: '22 oz (Grand Mixology Flask)', capacityOz: 22, basePrice: 50 }
+  { id: '16oz', name: '16 oz (Standard Lab Cup)', capacityOz: 16, basePrice: 40, isActive: true, isDefault: true },
+  { id: '22oz', name: '22 oz (Grand Mixology Flask)', capacityOz: 22, basePrice: 50, isActive: true, isDefault: false }
 ];
 
 export const DEFAULT_YOUR_MIX_INGREDIENTS: YourMixIngredient[] = [

@@ -6,13 +6,18 @@ service cloud.firestore {
       return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
-    // Rules for Your MIX Ingredients & Bases
+    // Rules for Your MIX Ingredients, Bases & Cup Sizes
     match /your_mix_ingredients/{ingredientId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
     match /your_mix_bases/{baseId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /your_mix_cup_sizes/{cupSizeId} {
       allow read: if true;
       allow write: if isAdmin();
     }

@@ -161,6 +161,7 @@ export default function App() {
     userProfile,
     yourMixIngredients,
     yourMixBases,
+    yourMixCupSizes,
     savedMixes,
     communityMixes,
     likeCustomMix,
@@ -179,6 +180,9 @@ export default function App() {
     addYourMixBase,
     updateYourMixBase,
     deleteYourMixBase,
+    addYourMixCupSize,
+    updateYourMixCupSize,
+    deleteYourMixCupSize,
     resetYourMixDefaults,
     reviews,
     submitReview,
@@ -1391,6 +1395,7 @@ export default function App() {
                       orders={orders}
                       yourMixIngredients={yourMixIngredients}
                       yourMixBases={yourMixBases}
+                      yourMixCupSizes={yourMixCupSizes}
                       onSaveCustomMix={saveCustomMix}
                       communityMixes={communityMixes}
                       onLikeCustomMix={likeCustomMix}
@@ -1415,6 +1420,7 @@ export default function App() {
                       orders={orders}
                       yourMixIngredients={yourMixIngredients}
                       yourMixBases={yourMixBases}
+                      yourMixCupSizes={yourMixCupSizes}
                       onSaveCustomMix={saveCustomMix}
                       communityMixes={communityMixes}
                       onLikeCustomMix={likeCustomMix}
@@ -1444,6 +1450,7 @@ export default function App() {
                       onNavigateToHistory={() => setCurrentView('order-history')}
                       yourMixIngredients={yourMixIngredients}
                       yourMixBases={yourMixBases}
+                      yourMixCupSizes={yourMixCupSizes}
                       onSaveCustomMix={saveCustomMix}
                       communityMixes={communityMixes}
                       onLikeCustomMix={likeCustomMix}
@@ -1547,6 +1554,7 @@ export default function App() {
                         <AdminYourMix
                           ingredients={yourMixIngredients}
                           bases={yourMixBases}
+                          cupSizes={yourMixCupSizes}
                           shopSettings={shopSettings}
                           onAddIngredient={addYourMixIngredient}
                           onUpdateIngredient={updateYourMixIngredient}
@@ -1554,6 +1562,9 @@ export default function App() {
                           onAddBase={addYourMixBase}
                           onUpdateBase={updateYourMixBase}
                           onDeleteBase={deleteYourMixBase}
+                          onAddCupSize={addYourMixCupSize}
+                          onUpdateCupSize={updateYourMixCupSize}
+                          onDeleteCupSize={deleteYourMixCupSize}
                           onResetDefaults={resetYourMixDefaults}
                           onBackToSettings={() => setCurrentView('settings')}
                         />
