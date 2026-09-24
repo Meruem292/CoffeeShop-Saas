@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, serverTimestamp, setDoc, writeBatch, getDoc, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher, ClaimedVoucher, UserProfile, YourMixIngredient, YourMixBasePreset, Review } from '../types';
+import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, DynamicCategory, Voucher, ClaimedVoucher, UserProfile, YourMixIngredient, YourMixBasePreset, Review, SavedCustomMix, CustomMixReview } from '../types';
 import { DEFAULT_YOUR_MIX_INGREDIENTS, DEFAULT_YOUR_MIX_BASES } from '../data/yourMixDefaults';
 import { handleFirestoreError } from './AuthContext';
 import { useToast } from './ToastContext';
@@ -31,6 +31,8 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
   const [shopSettings, setShopSettings] = useState<ShopSettings | null>(null);
   const [yourMixIngredients, setYourMixIngredients] = useState<YourMixIngredient[]>([]);
   const [yourMixBases, setYourMixBases] = useState<YourMixBasePreset[]>([]);
+  const [savedMixes, setSavedMixes] = useState<SavedCustomMix[]>([]);
+  const [communityMixes, setCommunityMixes] = useState<SavedCustomMix[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -213,6 +215,7 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
 
     // Current User Profile Listener
     let unsubUserProfile = () => {};
+    let unsubSavedMixes = () => {};
     if (userUid) {
       const qUserProfile = doc(db, 'profiles', userUid);
       unsubUserProfile = onSnapshot(qUserProfile, (docSnap) => {
@@ -221,6 +224,14 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
           setUserProfile({ uid: docSnap.id, shortId: d.shortId || docSnap.id.slice(0, 5).toUpperCase(), ...d } as UserProfile);
         }
       }, (err) => handleSnapshotError(err, OperationType.GET, `profiles/${userUid}`));
+
+      const qSavedMixes = query(collection(db, 'profiles', userUid, 'saved_mixes'));
+      unsubSavedMixes = onSnapshot(qSavedMixes, (snapshot) => {
+        const list = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as SavedCustomMix));
+        setSavedMixes(list);
+      }, (err) => {
+        console.warn(`[Firestore] Notice for profiles/${userUid}/saved_mixes:`, err?.message || err);
+      });
     }
 
     // Your MIX Ingredients Listener
@@ -268,6 +279,15 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       setReviews(list);
     }, (err) => handleSnapshotError(err, OperationType.LIST, 'reviews'));
 
+    // Community Mixes Listener (Creatives Market)
+    const qCommunityMixes = query(collection(db, 'community_mixes'));
+    const unsubCommunityMixes = onSnapshot(qCommunityMixes, (snapshot) => {
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SavedCustomMix));
+      setCommunityMixes(list);
+    }, (err) => {
+      console.warn('[Firestore] Notice for community_mixes:', err?.message || err);
+    });
+
     return () => {
       unsubSettings();
       unsubSplash();
@@ -280,9 +300,11 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       unsubClaimed();
       unsubProfiles();
       unsubUserProfile();
+      unsubSavedMixes();
       unsubYourMixIngredients();
       unsubYourMixBases();
       unsubReviews();
+      unsubCommunityMixes();
     };
   }, [userUid, isAdmin]);
 
@@ -879,6 +901,139 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     }
   };
 
+  const saveCustomMix = async (mixData: Omit<SavedCustomMix, 'id' | 'createdAt' | 'userId'>) => {
+    if (!userUid) {
+      toast.error('Please log in to save your custom mix to your profile.');
+      return null;
+    }
+    try {
+      const mixId = `mix-${Date.now()}`;
+      const defaultHandle = `@${(userProfile?.displayName || auth.currentUser?.displayName || 'Mixologist').replace(/\s+/g, '')}`;
+      const newMix: SavedCustomMix = {
+        ...mixData,
+        id: mixId,
+        userId: userUid,
+        userName: userProfile?.displayName || auth.currentUser?.displayName || 'Customer',
+        creatorHandle: mixData.creatorHandle || defaultHandle,
+        createdAt: Date.now(),
+        orderCount: 0,
+        rating: 5,
+        reviewCount: 0,
+        likes: 0,
+        likedBy: [],
+        reviews: []
+      };
+      // Save to customer's personal profile
+      await setDoc(doc(db, 'profiles', userUid, 'saved_mixes', mixId), newMix);
+
+      // If published to Creatives Market, save to community_mixes collection
+      if (newMix.isPublic) {
+        await setDoc(doc(db, 'community_mixes', mixId), newMix);
+        toast.success(`Published "${newMix.mixName}" to the Creatives Market!`);
+      } else {
+        toast.success(`Saved "${newMix.mixName}" to your Profile!`);
+      }
+      return newMix;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, `profiles/${userUid}/saved_mixes`);
+      toast.error('Failed to save custom mix');
+      return null;
+    }
+  };
+
+  const deleteCustomMix = async (mixId: string) => {
+    if (!userUid) return;
+    try {
+      await deleteDoc(doc(db, 'profiles', userUid, 'saved_mixes', mixId));
+      // Also delete from community_mixes if it exists there
+      try {
+        await deleteDoc(doc(db, 'community_mixes', mixId));
+      } catch (e) {
+        // Silently ignore if not in community_mixes
+      }
+      toast.success('Custom mix removed');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `profiles/${userUid}/saved_mixes/${mixId}`);
+      toast.error('Failed to delete custom mix');
+    }
+  };
+
+  const likeCustomMix = async (mixId: string, currentUserId?: string) => {
+    const identifier = currentUserId || userUid || (typeof window !== 'undefined' ? localStorage.getItem('astro_guest_id') || Math.random().toString(36).substring(7) : 'guest');
+    if (typeof window !== 'undefined' && !localStorage.getItem('astro_guest_id')) {
+      localStorage.setItem('astro_guest_id', identifier);
+    }
+    try {
+      const mixRef = doc(db, 'community_mixes', mixId);
+      const mixSnap = await getDoc(mixRef);
+      if (!mixSnap.exists()) return;
+      const data = mixSnap.data() as SavedCustomMix;
+      const likedBy = data.likedBy || [];
+      const isLiked = likedBy.includes(identifier);
+      const updatedLikedBy = isLiked ? likedBy.filter(id => id !== identifier) : [...likedBy, identifier];
+      const updatedLikes = updatedLikedBy.length;
+      await updateDoc(mixRef, {
+        likes: updatedLikes,
+        likedBy: updatedLikedBy
+      });
+      if (!isLiked) {
+        toast.success(`Upvoted "${data.mixName}"!`);
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `community_mixes/${mixId}`);
+    }
+  };
+
+  const reviewCustomMix = async (mixId: string, review: { rating: number; comment: string; userName?: string; userId?: string }) => {
+    try {
+      const mixRef = doc(db, 'community_mixes', mixId);
+      const mixSnap = await getDoc(mixRef);
+      if (!mixSnap.exists()) {
+        toast.error('Drink not found in Creatives Market');
+        return false;
+      }
+      const data = mixSnap.data() as SavedCustomMix;
+      const existingReviews = data.reviews || [];
+      const newReview: CustomMixReview = {
+        id: `rev-${Date.now()}`,
+        mixId,
+        userId: review.userId || userUid || 'guest',
+        userName: review.userName || userProfile?.displayName || auth.currentUser?.displayName || 'Coffee Enthusiast',
+        rating: Math.max(1, Math.min(5, review.rating)),
+        comment: review.comment.trim(),
+        createdAt: Date.now()
+      };
+      const updatedReviews = [newReview, ...existingReviews];
+      const totalRating = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
+      const avgRating = Number((totalRating / updatedReviews.length).toFixed(1));
+
+      await updateDoc(mixRef, {
+        reviews: updatedReviews,
+        rating: avgRating,
+        reviewCount: updatedReviews.length
+      });
+      toast.success('Your review was posted to the Creatives Market!');
+      return true;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `community_mixes/${mixId}`);
+      toast.error('Failed to post review');
+      return false;
+    }
+  };
+
+  const incrementCommunityMixOrderCount = async (mixId: string) => {
+    try {
+      const mixRef = doc(db, 'community_mixes', mixId);
+      const mixSnap = await getDoc(mixRef);
+      if (mixSnap.exists()) {
+        const current = (mixSnap.data()?.orderCount || 0) + 1;
+        await updateDoc(mixRef, { orderCount: current });
+      }
+    } catch (e) {
+      // Non-critical background update
+    }
+  };
+
   return {
     products,
     addons,
@@ -894,9 +1049,16 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
     shopSettings,
     yourMixIngredients,
     yourMixBases,
+    savedMixes,
+    communityMixes,
+    likeCustomMix,
+    reviewCustomMix,
+    incrementCommunityMixOrderCount,
     reviews,
     loading,
     error,
+    saveCustomMix,
+    deleteCustomMix,
     updateShopSettings,
     updateSplashScreen,
     addProduct,

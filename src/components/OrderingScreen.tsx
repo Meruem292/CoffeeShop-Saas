@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { collection, query, where, onSnapshot, getDocs, doc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher, YourMixIngredient, YourMixBasePreset } from '../types';
-import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, Lock, ShieldCheck, KeyRound, ShieldAlert, ShieldOff, Delete, Maximize2, FlaskConical, RotateCcw } from 'lucide-react';
+import { Product, CartItem, Order, ProductSize, Addon, SugarLevel, ShopSettings, DynamicCategory, OrderStatus, Voucher, UserProfile, ClaimedVoucher, YourMixIngredient, YourMixBasePreset, SavedCustomMix } from '../types';
+import { Coffee, Minus, Plus, ShoppingBag, X, Check, Store, ArrowRight, ArrowLeft, ChevronRight, Search, ChevronDown, Flame, Layout, IceCream, QrCode, Upload, LogIn, LogOut, CheckCircle2, User as UserIcon, AlertTriangle, Copy, Download, Heart, Tag, Camera, Coins, Sparkles, Clock, Lock, ShieldCheck, KeyRound, ShieldAlert, ShieldOff, Delete, Maximize2, FlaskConical, RotateCcw, Crown, Star } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
 import { SnowCap } from './SnowCap';
 import { YourMixStudio } from './YourMixStudio';
+import { CreativesMarketModal } from './CreativesMarketModal';
 import { useAuth } from '../lib/AuthContext';
 import { UnifiedAuthModal } from './UnifiedAuthModal';
 import { useToast } from '../lib/ToastContext';
@@ -31,9 +32,39 @@ interface OrderingScreenProps {
   yourMixIngredients?: YourMixIngredient[];
   yourMixBases?: YourMixBasePreset[];
   onSwitchCustomer?: () => void;
+  onSaveCustomMix?: (mixData: any) => Promise<any>;
+  communityMixes?: SavedCustomMix[];
+  onLikeCustomMix?: (mixId: string) => void;
+  onReviewCustomMix?: (mixId: string, review: { rating: number; comment: string; userName?: string }) => Promise<boolean>;
+  currentUserId?: string;
+  currentUserName?: string;
+  isDesktopSidebarOpen?: boolean;
 }
 
-export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSettings, categoriesData, mostPickedProductIds, vouchers = [], userClaimedVouchers = [], userProfile, orders = [], onNavigateToHistory, yourMixIngredients = [], yourMixBases = [], onSwitchCustomer }: OrderingScreenProps) {
+export function OrderingScreen({ 
+  mode, 
+  menu, 
+  addons = [], 
+  onPlaceOrder, 
+  shopSettings, 
+  categoriesData, 
+  mostPickedProductIds, 
+  vouchers = [], 
+  userClaimedVouchers = [], 
+  userProfile, 
+  orders = [], 
+  onNavigateToHistory, 
+  yourMixIngredients = [], 
+  yourMixBases = [], 
+  onSwitchCustomer, 
+  onSaveCustomMix,
+  communityMixes = [],
+  onLikeCustomMix,
+  onReviewCustomMix,
+  currentUserId,
+  currentUserName,
+  isDesktopSidebarOpen = true
+}: OrderingScreenProps) {
   const { toast } = useToast();
   const categories = useMemo(() => {
     let list: string[] = [];
@@ -78,24 +109,24 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
     
     const isYourMixEnabled = shopSettings?.yourMixEnabled !== false;
 
-    // Add Your MIX as a featured special category if enabled in settings
-    if (isYourMixEnabled) {
-      uniqueList.push('Your MIX');
-      seen.add('your mix');
-    }
-
     for (const item of list) {
       if (!item || !item.trim()) continue;
       const cleanItem = item.trim();
       const lower = cleanItem.toLowerCase();
-      // Skip 'Your MIX' category when disabled in settings
-      if (!isYourMixEnabled && (lower === 'your mix' || lower === 'yourmix')) {
+      // Skip 'Your MIX' during standard menu category iteration
+      if (lower === 'your mix' || lower === 'yourmix') {
         continue;
       }
       if (!seen.has(lower)) {
         seen.add(lower);
         uniqueList.push(cleanItem);
       }
+    }
+
+    // Always append 'Your MIX' as the LAST category item if enabled
+    if (isYourMixEnabled) {
+      uniqueList.push('Your MIX');
+      seen.add('your mix');
     }
 
     return uniqueList;
@@ -120,6 +151,55 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
   const [showCustomerAuth, setShowCustomerAuth] = useState(false);
   const [receiptBase64, setReceiptBase64] = useState('');
   const [compressingImage, setCompressingImage] = useState(false);
+
+  // Creatives Market & Discover Favorites State
+  const [isCreativesMarketOpen, setIsCreativesMarketOpen] = useState(false);
+  const [mixToLoadInStudio, setMixToLoadInStudio] = useState<SavedCustomMix | null>(null);
+
+  const handleOrderCommunityMix = (mix: SavedCustomMix) => {
+    const customCartItem: CartItem = {
+      id: `your-mix-${Date.now()}`,
+      cartId: `mix-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: `${mix.mixName} (${mix.cupSize.capacityOz} oz)`,
+      category: 'Your MIX',
+      subCategory: 'Creatives Market',
+      price: mix.totalPrice,
+      cost: mix.recipeItems.reduce((sum, it) => sum + (it.pricePerUnit || 0) * it.quantity, 0),
+      image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=600&auto=format&fit=crop&q=80',
+      description: `Community Mix by ${mix.creatorHandle || mix.userName || 'Mixologist'}: ${mix.recipeItems.map(it => `${it.quantity}${it.unit} ${it.name}`).join(', ')}`,
+      stock: 999,
+      unit: 'cup',
+      lowStockThreshold: 5,
+      isActive: true,
+      quantity: 1,
+      notes: '',
+      isCustomMix: true,
+      recipeItems: mix.recipeItems,
+      drinkDetails: {
+        recipeItems: mix.recipeItems,
+        totalVolumeOz: mix.totalVolumeOz,
+        cupSizeName: mix.cupSize.name,
+        capacityOz: mix.cupSize.capacityOz,
+        caffeineMg: mix.caffeineMg,
+        sugarGrams: mix.sugarGrams,
+        calories: mix.calories,
+        baristaNotes: `Community Recipe created by ${mix.creatorHandle || mix.userName || 'Mixologist'}. Formula: ${mix.recipeItems.map(it => `${it.quantity}${it.unit} ${it.name}`).join(', ')}`,
+        customMixName: mix.mixName
+      }
+    };
+    setCart(prev => [...prev, { ...customCartItem, quantity: 1 }]);
+    toast.success(`Added "${mix.mixName}" to your order!`);
+    if (mode === 'mobile') setIsMobileCartOpen(true);
+    else if (mode === 'kiosk') setIsKioskCartOpen(true);
+  };
+
+  const handleRemixCommunityMix = (mix: SavedCustomMix) => {
+    setMixToLoadInStudio(mix);
+    setActiveCategory('Your MIX');
+    toast.success(`Loaded "${mix.mixName}" into the studio!`);
+    const studioElem = document.getElementById('your-mix-studio-container');
+    studioElem?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'best-seller' | 'alphabetical' | 'price-asc' | 'price-desc'>('best-seller');
@@ -1182,6 +1262,7 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
           user={user}
           onSignOut={logOut}
           onSignInClick={() => setShowCustomerAuth(true)}
+          isDesktopSidebarOpen={isDesktopSidebarOpen}
         />
       )}
 
@@ -1448,8 +1529,8 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
               </div>
             )}
 
-            {/* Overall Best Sellers Continuous Rotating Marquee Section */}
-            {((mode === 'kiosk' || mode === 'pos') || (mode === 'mobile' && overallBestSellers.length > 0)) && overallBestSellers.length > 0 && (
+            {/* Overall Best Sellers Continuous Rotating Marquee Section (Non-Your MIX categories) */}
+            {((mode === 'kiosk' || mode === 'pos') || (mode === 'mobile' && overallBestSellers.length > 0)) && overallBestSellers.length > 0 && activeCategory !== 'Your MIX' && (
               <div className="mb-3 sm:mb-6 p-2.5 sm:p-4 bg-amber-500/5 dark:bg-amber-500/5 rounded-2xl sm:rounded-3xl border border-amber-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 relative overflow-hidden">
                 <SnowCap variant="banner" />
                 <div className="flex items-center justify-between mb-1.5 sm:mb-2">
@@ -1520,6 +1601,130 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
               </div>
             )}
 
+            {/* Discover your new Favorites Section - Replaces Best Seller in YOUR MIX category */}
+            {activeCategory === 'Your MIX' && shopSettings?.yourMixEnabled !== false && !localSearchQuery && (
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-purple-500/10 rounded-2xl sm:rounded-3xl border border-amber-500/25 shadow-sm animate-in fade-in slide-in-from-top-4 relative overflow-hidden">
+                <SnowCap variant="banner" />
+                <div className="flex items-center justify-between mb-2 sm:mb-2.5">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <Crown className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-amber-400" />
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-1.5 sm:gap-2">
+                      Discover your new Favorites
+                      <span className="text-[7px] sm:text-[8px] text-amber-400 font-extrabold bg-amber-500/20 px-2 py-0.5 rounded-full uppercase border border-amber-500/30 tracking-widest hidden xs:inline-block">
+                        Community Mixes
+                      </span>
+                    </h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsCreativesMarketOpen(true)}
+                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-[10px] sm:text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all active:scale-95"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                      <span>Explore Creatives Market</span>
+                    </button>
+                  </div>
+                </div>
+
+                {communityMixes && communityMixes.length > 0 ? (
+                  <div className="relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)] py-0.5">
+                    <div className="flex gap-2.5 sm:gap-3.5 w-max animate-marquee hover:[animation-play-state:paused] py-0.5">
+                      {(() => {
+                        const base = communityMixes.slice(0, 10);
+                        let repeated = [...base];
+                        while (repeated.length < 6) {
+                          repeated = [...repeated, ...base];
+                        }
+                        const doubleList = [...repeated, ...repeated];
+                        return doubleList.map((mix, index) => {
+                          return (
+                            <div
+                              key={`fav-mix-${mix.id}-${index}`}
+                              className="shrink-0 w-60 sm:w-72 h-[100px] sm:h-[110px] bg-white dark:bg-[#0d121f] rounded-2xl border border-amber-500/30 p-2.5 sm:p-3 flex flex-col justify-between hover:border-amber-500 hover:shadow-lg transition-all relative group select-none shadow-sm overflow-hidden"
+                            >
+                              <div className="absolute top-0 left-0 right-0 h-1.5 flex overflow-hidden">
+                                {mix.recipeItems.map((it, itIdx) => (
+                                  <div
+                                    key={`mixbar-${it.id}-${itIdx}`}
+                                    className="h-full flex-1"
+                                    style={{ backgroundColor: it.color || '#f59e0b' }}
+                                  />
+                                ))}
+                              </div>
+
+                              <div className="flex items-start justify-between gap-2 mt-1">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="text-[9px] font-black text-amber-500 truncate block">
+                                      {mix.creatorHandle || mix.userName || 'Community Mixer'}
+                                    </span>
+                                    <span className="text-[8px] text-slate-400">• {mix.cupSize.capacityOz}oz</span>
+                                  </div>
+                                  <h4 className="text-xs font-black text-slate-900 dark:text-white truncate leading-tight">
+                                    {mix.mixName}
+                                  </h4>
+                                </div>
+                                <span className="text-xs font-black text-amber-500 italic shrink-0">
+                                  ₱{mix.totalPrice}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between pt-1 border-t border-black/5 dark:border-white/5">
+                                <div className="flex items-center gap-1 text-[10px] text-amber-400 font-bold">
+                                  <Star className="w-3 h-3 fill-amber-400" />
+                                  <span>{mix.rating ? mix.rating.toFixed(1) : '5.0'}</span>
+                                  <span className="text-slate-500 text-[9px]">({mix.reviews?.length || mix.reviewCount || 0})</span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    onClick={() => handleRemixCommunityMix(mix)}
+                                    className="px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-[9px] font-bold uppercase transition-all"
+                                    title="Remix formula in Mix Lab"
+                                  >
+                                    Remix
+                                  </button>
+                                  <button
+                                    onClick={() => handleOrderCommunityMix(mix)}
+                                    className="px-2.5 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[9px] font-black uppercase transition-all shadow-sm active:scale-95"
+                                  >
+                                    + Add
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3.5 rounded-2xl bg-black/20 border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-black shrink-0">
+                        <FlaskConical className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-white uppercase">Be the First Sensation Drink Maker!</h4>
+                        <p className="text-[10px] text-slate-400">
+                          Invent a recipe in the studio below, click "Save & Publish", and let other coffee lovers discover your creation!
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const studioElem = document.getElementById('your-mix-studio-container');
+                        studioElem?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 font-black text-[10px] uppercase tracking-wider whitespace-nowrap active:scale-95 transition-all"
+                    >
+                      Start Mixing Below ↓
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {availableSubCategories.length > 1 && !localSearchQuery && (
               <div className="flex flex-wrap gap-2 mb-8 animate-in fade-in slide-in-from-top-4">
                 {availableSubCategories.map(subCat => (
@@ -1564,11 +1769,15 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
                   </p>
                 </div>
               ) : (
-                <div className="w-full">
+                <div id="your-mix-studio-container" className="w-full pb-20 overflow-y-auto">
                   <YourMixStudio
                     ingredients={yourMixIngredients}
                     bases={yourMixBases}
                     mode={mode}
+                    isLoggedIn={!!userProfile}
+                    onSaveCustomMix={onSaveCustomMix}
+                    initialMixToLoad={mixToLoadInStudio}
+                    onOpenCreativesMarket={() => setIsCreativesMarketOpen(true)}
                     onAddToCart={(customItem) => {
                       setCart(prev => [...prev, customItem]);
                       if (mode === 'mobile') setIsMobileCartOpen(true);
@@ -3082,6 +3291,20 @@ export function OrderingScreen({ mode, menu, addons = [], onPlaceOrder, shopSett
             </div>
           </div>
         )}
+
+        {/* Community Creatives Market Modal */}
+        <CreativesMarketModal
+          isOpen={isCreativesMarketOpen}
+          onClose={() => setIsCreativesMarketOpen(false)}
+          communityMixes={communityMixes}
+          allIngredients={yourMixIngredients}
+          onOrderMix={handleOrderCommunityMix}
+          onRemixInStudio={handleRemixCommunityMix}
+          onLikeMix={(mixId) => onLikeCustomMix?.(mixId)}
+          onReviewMix={(mixId, rev) => onReviewCustomMix ? onReviewCustomMix(mixId, rev) : Promise.resolve(false)}
+          currentUserId={currentUserId}
+          currentUserName={currentUserName || userProfile?.displayName}
+        />
     </div>
   );
 }

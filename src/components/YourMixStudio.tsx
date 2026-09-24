@@ -2,11 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   FlaskConical, Sparkles, Plus, Minus, RotateCcw, ShoppingBag, 
   Layers, Check, AlertCircle, Info, ChevronRight, X, ArrowLeft,
-  Droplets, Flame, Snowflake, ShieldCheck, Tag
+  Droplets, Flame, Snowflake, ShieldCheck, Tag, BookmarkPlus, Share2,
+  Wand2, QrCode, Zap, Scale, Heart, Globe, Crown
 } from 'lucide-react';
 import { 
   YourMixIngredient, YourMixBasePreset, YourMixCupSize, 
-  YourMixIngredientCategory, CartItem, YourMixRecipeItem, YourMixDrinkDetails 
+  YourMixIngredientCategory, CartItem, YourMixRecipeItem, YourMixDrinkDetails,
+  SavedCustomMix 
 } from '../types';
 import { DEFAULT_CUP_SIZES } from '../data/yourMixDefaults';
 import { useToast } from '../lib/ToastContext';
@@ -16,8 +18,12 @@ interface YourMixStudioProps {
   bases: YourMixBasePreset[];
   cupSizes?: YourMixCupSize[];
   onAddToCart: (item: CartItem) => void;
+  onSaveCustomMix?: (mixData: Omit<SavedCustomMix, 'id' | 'createdAt' | 'userId'>) => Promise<any>;
   onClose?: () => void;
   mode?: 'mobile' | 'kiosk' | 'pos';
+  isLoggedIn?: boolean;
+  initialMixToLoad?: SavedCustomMix | null;
+  onOpenCreativesMarket?: () => void;
 }
 
 const CATEGORIES: { key: YourMixIngredientCategory | 'all'; label: string; icon: string }[] = [
@@ -34,8 +40,12 @@ export function YourMixStudio({
   bases,
   cupSizes = DEFAULT_CUP_SIZES,
   onAddToCart,
+  onSaveCustomMix,
   onClose,
-  mode = 'kiosk'
+  mode = 'kiosk',
+  isLoggedIn = false,
+  initialMixToLoad = null,
+  onOpenCreativesMarket
 }: YourMixStudioProps) {
   const { toast } = useToast();
 
@@ -51,9 +61,42 @@ export function YourMixStudio({
   // Active Category Filter
   const [activeCategory, setActiveCategory] = useState<YourMixIngredientCategory | 'all'>('all');
 
+  // Custom Mix Name State
+  const [customMixName, setCustomMixName] = useState<string>('');
+
   // Animation trigger for pouring liquid
   const [lastAddedIngredient, setLastAddedIngredient] = useState<YourMixIngredient | null>(null);
   const [isPouring, setIsPouring] = useState(false);
+
+  // Share Recipe Modal State
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Save & Publish to Creatives Market Modal
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [publishToMarket, setPublishToMarket] = useState(true);
+  const [creatorHandle, setCreatorHandle] = useState('');
+  const [drinkTagline, setDrinkTagline] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>(['#Sweet', '#Creamy']);
+
+  // Handle Loading an initial remix recipe from Creatives Market
+  useEffect(() => {
+    if (initialMixToLoad) {
+      if (initialMixToLoad.cupSize) {
+        setSelectedCupSize(initialMixToLoad.cupSize);
+      }
+      setSelectedBaseId(initialMixToLoad.basePresetId || null);
+      setCustomMixName(initialMixToLoad.mixName || '');
+      if (initialMixToLoad.recipeItems && initialMixToLoad.recipeItems.length > 0) {
+        const recipeMap: Record<string, number> = {};
+        initialMixToLoad.recipeItems.forEach(it => {
+          recipeMap[it.id] = it.quantity;
+        });
+        setActiveRecipe(recipeMap);
+      }
+      toast.success(`Loaded "${initialMixToLoad.mixName}" into Mix Lab!`);
+    }
+  }, [initialMixToLoad]);
 
   // Available Active Ingredients
   const availableIngredients = useMemo(() => {
@@ -70,6 +113,7 @@ export function YourMixStudio({
     if (!base) {
       setSelectedBaseId(null);
       setActiveRecipe({});
+      setCustomMixName('');
       toast.info('Starting with a clean, empty beaker!');
       return;
     }
@@ -80,13 +124,33 @@ export function YourMixStudio({
       recipeMap[it.ingredientId] = it.quantity;
     });
     setActiveRecipe(recipeMap);
-    toast.success(`Loaded "${base.name}" starting base! You can now customize ingredients.`);
+    setCustomMixName(`Custom ${base.name}`);
+    toast.success(`Loaded "${base.name}" starting base! Customize your ingredients.`);
   };
 
-  // Calculate current volume and price
-  const { totalVolumeOz, calculatedPrice, recipeItems, liquidLayers, hasIce, bobaLayer, foamLayer } = useMemo(() => {
+  // Auto-generate a creative drink name
+  const handleGenerateName = () => {
+    const prefixes = ['Velvet', 'Galactic', 'Midnight', 'Ruby', 'Golden', 'Celestial', 'Starlight', 'Aura', 'Atomic', 'Cosmic', 'Nebula'];
+    const activeNames = recipeItems.map(i => i.name.replace(/shot|brew|base|edition|fresh|syrup|puree|sauce|powder| pearls/gi, '').trim()).filter(Boolean);
+    const flavor = activeNames.length > 0 ? activeNames[0] : 'Espresso';
+    const suffixes = ['Infusion', 'Elixir', 'Cloud', 'Float', 'Mist', 'Brew', 'Special', 'Fusion', 'Latte', 'Nectar', 'Shake'];
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+    const generated = `${prefix} ${flavor} ${suffix}`;
+    setCustomMixName(generated);
+    toast.success(`Generated Mix Name: "${generated}"`);
+  };
+
+  // Calculate current volume, price, nutrition & layers
+  const { 
+    totalVolumeOz, calculatedPrice, recipeItems, liquidLayers, 
+    hasIce, bobaLayer, foamLayer, estimatedCaffeineMg, estimatedSugarGrams, estimatedCalories 
+  } = useMemo(() => {
     let vol = 0;
     let price = selectedCupSize.basePrice;
+    let caffeine = 0;
+    let sugar = 0;
+    let calories = 0;
     const items: YourMixRecipeItem[] = [];
     const liquids: { id: string; name: string; color: string; volumeOz: number; percent: number }[] = [];
     let iceQty = 0;
@@ -100,9 +164,15 @@ export function YourMixStudio({
 
       const itemVol = (ing.volumeOz || 1) * qty;
       const itemPrice = (ing.pricePerUnit || 0) * qty;
+      const itemCaffeine = (ing.caffeineMgPerUnit || 0) * qty;
+      const itemSugar = (ing.sugarGramsPerUnit || 0) * qty;
+      const itemCalories = (ing.caloriesPerUnit || 0) * qty;
 
       vol += itemVol;
       price += itemPrice;
+      caffeine += itemCaffeine;
+      sugar += itemSugar;
+      calories += itemCalories;
 
       const recipeItem: YourMixRecipeItem = {
         id: ing.id,
@@ -114,7 +184,11 @@ export function YourMixStudio({
         pricePerUnit: ing.pricePerUnit,
         totalPrice: itemPrice,
         color: ing.color || '#3E2723',
-        layerType: ing.layerType || 'liquid'
+        layerType: ing.layerType || 'liquid',
+        caffeineMg: itemCaffeine,
+        sugarGrams: itemSugar,
+        calories: itemCalories,
+        measureGrams: (ing.measureGramsPerUnit || 15) * qty
       };
       items.push(recipeItem);
 
@@ -130,12 +204,11 @@ export function YourMixStudio({
           name: ing.name,
           color: ing.color || '#3E2723',
           volumeOz: itemVol,
-          percent: 0 // Will compute relative to total liquid
+          percent: 0
         });
       }
     });
 
-    // Compute relative heights of liquids inside beaker
     const totalLiquidVol = liquids.reduce((acc, l) => acc + l.volumeOz, 0);
     if (totalLiquidVol > 0) {
       liquids.forEach(l => {
@@ -150,7 +223,10 @@ export function YourMixStudio({
       liquidLayers: liquids,
       hasIce: iceQty > 0,
       bobaLayer: bobaQty > 0,
-      foamLayer: foamQty > 0
+      foamLayer: foamQty > 0,
+      estimatedCaffeineMg: Math.round(caffeine),
+      estimatedSugarGrams: Math.round(sugar),
+      estimatedCalories: Math.round(calories)
     };
   }, [activeRecipe, availableIngredients, selectedCupSize]);
 
@@ -208,7 +284,55 @@ export function YourMixStudio({
   const handleClearAll = () => {
     setActiveRecipe({});
     setSelectedBaseId(null);
+    setCustomMixName('');
     toast.info('Beaker cleared');
+  };
+
+  // Save to Profile & Market Flow
+  const handleSaveToProfile = () => {
+    if (recipeItems.length === 0) {
+      toast.warning('Add ingredients to your mix before saving!');
+      return;
+    }
+
+    if (!onSaveCustomMix) {
+      toast.info('Log in to save your custom mix formulas to your profile!');
+      return;
+    }
+
+    setIsSaveModalOpen(true);
+  };
+
+  const handleConfirmSave = async () => {
+    if (recipeItems.length === 0) return;
+    if (!onSaveCustomMix) return;
+
+    const nameToSave = customMixName.trim() || `Custom Mix ${new Date().toLocaleDateString()}`;
+    setIsSaving(true);
+    try {
+      const baseName = availableBases.find(b => b.id === selectedBaseId)?.name;
+      await onSaveCustomMix({
+        mixName: nameToSave,
+        cupSize: selectedCupSize,
+        basePresetId: selectedBaseId || undefined,
+        basePresetName: baseName,
+        recipeItems,
+        totalVolumeOz,
+        totalPrice: calculatedPrice,
+        caffeineMg: estimatedCaffeineMg,
+        sugarGrams: estimatedSugarGrams,
+        calories: estimatedCalories,
+        isPublic: publishToMarket,
+        creatorHandle: creatorHandle.trim() || undefined,
+        tagline: drinkTagline.trim() || undefined,
+        tags: selectedTags
+      });
+      setIsSaveModalOpen(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Add Custom Drink to Cart
@@ -218,23 +342,24 @@ export function YourMixStudio({
       return;
     }
 
-    // Construct detailed barista mixture guide
     const baseName = availableBases.find(b => b.id === selectedBaseId)?.name;
-    const drinkTitle = baseName ? `Your MIX — ${baseName}` : `Your MIX Custom Creation`;
+    const finalDrinkName = customMixName.trim() || (baseName ? `Your MIX — ${baseName}` : `Your MIX Custom Creation`);
 
-    const recipeLines = recipeItems.map(it => `• ${it.quantity} ${it.unit} ${it.name}`);
+    const recipeLines = recipeItems.map(it => `• ${it.quantity} ${it.unit} ${it.name} (${it.measureGrams || it.quantity * 15}g/ml)`);
     const fullMixtureGuide = [
       `[YOUR MIX LAB CREATION - ${selectedCupSize.name}]`,
+      `Name: ${finalDrinkName}`,
       baseName ? `Base: ${baseName}` : `Style: From Scratch Custom Mix`,
       `Capacity: ${totalVolumeOz} oz / ${selectedCupSize.capacityOz} oz`,
-      `--- Exact Formula ---`,
+      `Estimated Nutrition: ${estimatedCaffeineMg}mg Caffeine | ${estimatedSugarGrams}g Sugar | ${estimatedCalories} kcal`,
+      `--- Barista Pouring & Recipe Steps ---`,
       ...recipeLines
     ].join('\n');
 
     const customCartItem: CartItem = {
       id: `your-mix-${Date.now()}`,
       cartId: `mix-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      name: `${drinkTitle} (${selectedCupSize.capacityOz} oz)`,
+      name: `${finalDrinkName} (${selectedCupSize.capacityOz} oz)`,
       category: 'Your MIX',
       subCategory: 'Custom Mixology Studio',
       price: calculatedPrice,
@@ -253,6 +378,7 @@ export function YourMixStudio({
       isCustomMix: true,
       mixtureGuide: fullMixtureGuide,
       customMixDetails: {
+        mixName: finalDrinkName,
         cupSize: selectedCupSize.name,
         capacityOz: selectedCupSize.capacityOz,
         totalVolumeOz,
@@ -260,12 +386,15 @@ export function YourMixStudio({
         ingredients: recipeItems,
         calculatedBasePrice: selectedCupSize.basePrice,
         calculatedIngredientsPrice: calculatedPrice - selectedCupSize.basePrice,
-        calculatedTotalPrice: calculatedPrice
+        calculatedTotalPrice: calculatedPrice,
+        estimatedCaffeineMg,
+        estimatedSugarGrams,
+        estimatedCalories
       }
     };
 
     onAddToCart(customCartItem);
-    toast.success(`🧪 Added "${drinkTitle}" to your order tray!`);
+    toast.success(`🧪 Added "${finalDrinkName}" to your order tray!`);
     if (onClose) onClose();
   };
 
@@ -274,9 +403,9 @@ export function YourMixStudio({
     : availableIngredients.filter(i => i.category === activeCategory);
 
   return (
-    <div className="w-full max-w-7xl mx-auto flex flex-col h-full bg-slate-950 text-slate-100 rounded-3xl overflow-hidden border border-white/10 shadow-2xl animate-in fade-in duration-300">
+    <div className="w-full max-w-7xl mx-auto flex flex-col bg-slate-950 text-slate-100 rounded-3xl border border-white/10 shadow-2xl animate-in fade-in duration-300">
       {/* Studio Header */}
-      <div className="p-4 sm:p-6 bg-slate-900/80 backdrop-blur-2xl border-b border-white/10 flex items-center justify-between gap-4 shrink-0">
+      <div className="p-4 sm:p-6 bg-slate-900/80 backdrop-blur-2xl border-b border-white/10 flex flex-wrap items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3.5">
           {onClose && (
             <button
@@ -299,12 +428,43 @@ export function YourMixStudio({
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Formulate your dream beverage with live visual layering & volume capacity metrics.
+              Formulate your custom beverage with dynamic fluid visualizer & exact barista step calculations.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {onOpenCreativesMarket && (
+            <button
+              onClick={onOpenCreativesMarket}
+              className="px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-amber-600/30 hover:from-amber-500/30 hover:to-amber-500/40 text-amber-400 hover:text-white text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border border-amber-500/40 shadow-sm active:scale-95 group"
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-12 transition-transform" />
+              <span>Creatives Market</span>
+            </button>
+          )}
+
+          {recipeItems.length > 0 && (
+            <>
+              <button
+                onClick={() => setIsShareModalOpen(true)}
+                className="px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 border border-cyan-500/30 active:scale-95"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Share Formula</span>
+              </button>
+
+              <button
+                onClick={handleSaveToProfile}
+                disabled={isSaving}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-purple-300 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 border border-purple-500/40 active:scale-95 disabled:opacity-50"
+              >
+                <BookmarkPlus className="w-3.5 h-3.5 text-purple-400" />
+                <span className="hidden sm:inline">Save & Publish</span>
+              </button>
+            </>
+          )}
+
           <button
             onClick={handleClearAll}
             className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 border border-white/10 active:scale-95"
@@ -316,15 +476,15 @@ export function YourMixStudio({
       </div>
 
       {/* Main Studio Body */}
-      <div className="flex-1 overflow-y-auto flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-white/10">
+      <div className="flex-1 flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-white/10">
         {/* Left Side: Interactive Visual Mixing Canvas & Gauge */}
-        <div className="w-full lg:w-[420px] xl:w-[460px] p-6 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900/50 to-slate-950/80 shrink-0">
+        <div className="w-full lg:w-[420px] xl:w-[460px] p-6 flex flex-col items-center justify-between bg-gradient-to-b from-slate-900/50 to-slate-950/80 shrink-0 space-y-4">
           
           {/* Step 1: Cup Size Selector */}
-          <div className="w-full mb-6">
+          <div className="w-full mb-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
-                <Tag className="w-3 h-3" /> Step 1: Select Cup Vessel
+                <Tag className="w-3 h-3" /> Step 1: Select Cup Size
               </span>
               <span className="text-xs font-bold text-slate-400">
                 Base Fee: ₱{selectedCupSize.basePrice}
@@ -342,7 +502,7 @@ export function YourMixStudio({
                         toast.warning(`Total mix volume exceeds ${size.capacityOz} oz. Please adjust portions.`);
                       }
                     }}
-                    className={`py-3 px-4 rounded-2xl border text-left transition-all flex items-center justify-between ${
+                    className={`py-2.5 px-3.5 rounded-2xl border text-left transition-all flex items-center justify-between ${
                       isSel
                         ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-lg shadow-amber-500/20 font-black'
                         : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10'
@@ -362,7 +522,7 @@ export function YourMixStudio({
           </div>
 
           {/* Interactive Layered Liquid Beaker Simulation */}
-          <div className="relative w-full flex flex-col items-center my-4">
+          <div className="relative w-full flex flex-col items-center my-2">
             
             {/* Pouring Stream Animation */}
             {isPouring && lastAddedIngredient && (
@@ -378,7 +538,7 @@ export function YourMixStudio({
             )}
 
             {/* Transparent Glass Beaker Container */}
-            <div className="relative w-48 sm:w-56 h-80 rounded-b-[3rem] rounded-t-xl border-4 border-white/20 bg-white/5 backdrop-blur-md shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col justify-end p-2 transition-all">
+            <div className="relative w-48 sm:w-56 h-72 rounded-b-[3rem] rounded-t-xl border-4 border-white/20 bg-white/5 backdrop-blur-md shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col justify-end p-2 transition-all">
               
               {/* Beaker Volume Scale Ticks */}
               <div className="absolute top-0 bottom-0 left-2 w-8 flex flex-col justify-between py-6 pointer-events-none z-20 opacity-60">
@@ -391,19 +551,19 @@ export function YourMixStudio({
 
               {/* Top Foam or Whipped Cream Peak */}
               {foamLayer && (
-                <div className="w-full h-10 bg-gradient-to-b from-white via-amber-50 to-amber-100 rounded-t-3xl shadow-inner flex items-center justify-center shrink-0 z-10 animate-in fade-in duration-500">
-                  <span className="text-[9px] font-black text-slate-800 uppercase tracking-widest opacity-80">
-                    Velvet Foam Crown
+                <div className="w-full h-8 bg-gradient-to-b from-white via-amber-50 to-amber-100 rounded-t-3xl shadow-inner flex items-center justify-center shrink-0 z-10 animate-in fade-in duration-500">
+                  <span className="text-[8px] font-black text-slate-800 uppercase tracking-widest opacity-80">
+                    Foam Crown
                   </span>
                 </div>
               )}
 
               {/* Floating Translucent Ice Cubes */}
               {hasIce && (
-                <div className="absolute inset-x-4 top-20 z-15 flex justify-center gap-2 pointer-events-none animate-bounce duration-1000">
-                  <div className="w-7 h-7 rounded-lg bg-cyan-100/40 border border-white/60 shadow-lg rotate-12 backdrop-blur-sm" />
-                  <div className="w-6 h-6 rounded-lg bg-cyan-100/30 border border-white/60 shadow-lg -rotate-6 backdrop-blur-sm" />
-                  <div className="w-8 h-8 rounded-lg bg-cyan-100/40 border border-white/60 shadow-lg rotate-45 backdrop-blur-sm" />
+                <div className="absolute inset-x-4 top-16 z-15 flex justify-center gap-2 pointer-events-none animate-bounce duration-1000">
+                  <div className="w-6 h-6 rounded-lg bg-cyan-100/40 border border-white/60 shadow-lg rotate-12 backdrop-blur-sm" />
+                  <div className="w-5 h-5 rounded-lg bg-cyan-100/30 border border-white/60 shadow-lg -rotate-6 backdrop-blur-sm" />
+                  <div className="w-7 h-7 rounded-lg bg-cyan-100/40 border border-white/60 shadow-lg rotate-45 backdrop-blur-sm" />
                 </div>
               )}
 
@@ -415,7 +575,7 @@ export function YourMixStudio({
                 {liquidLayers.length === 0 && !bobaLayer ? (
                   <div className="h-full w-full bg-amber-500/10 flex items-center justify-center text-center p-4">
                     <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                      Empty Laboratory Beaker
+                      Empty Beaker
                     </span>
                   </div>
                 ) : (
@@ -429,7 +589,6 @@ export function YourMixStudio({
                       }}
                       title={`${layer.name}: ${layer.volumeOz} oz`}
                     >
-                      {/* Subtle liquid shine gradient */}
                       <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-transparent to-black/20 pointer-events-none" />
                       <span className="text-[9px] font-black text-white/90 drop-shadow uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
                         {layer.name} ({layer.volumeOz} oz)
@@ -438,14 +597,14 @@ export function YourMixStudio({
                   ))
                 )}
 
-                {/* Bottom Boba Pearls / Crystal Jelly Layer */}
+                {/* Bottom Boba Pearls Layer */}
                 {bobaLayer && (
-                  <div className="h-10 w-full bg-[#1A120E] flex items-center justify-center gap-1 px-2 shrink-0 z-10 animate-in fade-in">
-                    <div className="w-3.5 h-3.5 rounded-full bg-black border border-amber-900/60 shadow-inner" />
-                    <div className="w-3.5 h-3.5 rounded-full bg-black border border-amber-900/60 shadow-inner" />
-                    <div className="w-3.5 h-3.5 rounded-full bg-black border border-amber-900/60 shadow-inner" />
-                    <div className="w-3.5 h-3.5 rounded-full bg-black border border-amber-900/60 shadow-inner" />
-                    <div className="w-3.5 h-3.5 rounded-full bg-black border border-amber-900/60 shadow-inner" />
+                  <div className="h-9 w-full bg-[#1A120E] flex items-center justify-center gap-1 px-2 shrink-0 z-10 animate-in fade-in">
+                    <div className="w-3 h-3 rounded-full bg-black border border-amber-900/60 shadow-inner" />
+                    <div className="w-3 h-3 rounded-full bg-black border border-amber-900/60 shadow-inner" />
+                    <div className="w-3 h-3 rounded-full bg-black border border-amber-900/60 shadow-inner" />
+                    <div className="w-3 h-3 rounded-full bg-black border border-amber-900/60 shadow-inner" />
+                    <div className="w-3 h-3 rounded-full bg-black border border-amber-900/60 shadow-inner" />
                   </div>
                 )}
               </div>
@@ -455,44 +614,69 @@ export function YourMixStudio({
             </div>
           </div>
 
-          {/* Real-time Volumetric Capacity Gauge */}
-          <div className="w-full bg-black/40 p-4 rounded-2xl border border-white/10 space-y-2 mt-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Droplets className="w-3.5 h-3.5 text-cyan-400" /> Current Beaker Volume
-              </span>
-              <span className={`font-mono font-black ${
-                isFull ? 'text-rose-400' : capacityPercent > 75 ? 'text-amber-400' : 'text-emerald-400'
-              }`}>
-                {totalVolumeOz} oz / {selectedCupSize.capacityOz} oz ({capacityPercent}%)
-              </span>
+          {/* Real-time Nutrition & Flavor Meters */}
+          <div className="w-full bg-black/40 p-3.5 rounded-2xl border border-white/10 space-y-2.5 mt-2">
+            {/* Volumetric Capacity Bar */}
+            <div>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Droplets className="w-3.5 h-3.5 text-cyan-400" /> Beaker Volume
+                </span>
+                <span className={`font-mono font-black text-xs ${
+                  isFull ? 'text-rose-400' : capacityPercent > 75 ? 'text-amber-400' : 'text-emerald-400'
+                }`}>
+                  {totalVolumeOz} / {selectedCupSize.capacityOz} oz ({capacityPercent}%)
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden p-0.5">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    isFull 
+                      ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]' 
+                      : capacityPercent > 75 
+                      ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' 
+                      : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
+                  }`}
+                  style={{ width: `${Math.min(100, capacityPercent)}%` }}
+                />
+              </div>
             </div>
 
-            {/* Gauge Progress Bar */}
-            <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden p-0.5">
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  isFull 
-                    ? 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]' 
-                    : capacityPercent > 75 
-                    ? 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]' 
-                    : 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]'
-                }`}
-                style={{ width: `${Math.min(100, capacityPercent)}%` }}
-              />
-            </div>
+            {/* Nutrition Badges */}
+            <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/10">
+              <div className="p-2 rounded-xl bg-white/5 border border-white/5 text-center">
+                <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-center gap-1">
+                  <Zap className="w-3 h-3 text-amber-400" /> Caffeine
+                </div>
+                <div className="text-xs font-black text-amber-400 font-mono mt-0.5">
+                  {estimatedCaffeineMg} mg
+                </div>
+              </div>
 
-            <div className="flex items-center justify-between text-[10px] text-slate-500">
-              <span>0 oz</span>
-              <span>Available Space: <strong>{(selectedCupSize.capacityOz - totalVolumeOz).toFixed(1)} oz</strong></span>
-              <span>{selectedCupSize.capacityOz} oz</span>
+              <div className="p-2 rounded-xl bg-white/5 border border-white/5 text-center">
+                <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-center gap-1">
+                  <Scale className="w-3 h-3 text-rose-400" /> Sugar
+                </div>
+                <div className="text-xs font-black text-rose-300 font-mono mt-0.5">
+                  {estimatedSugarGrams} g
+                </div>
+              </div>
+
+              <div className="p-2 rounded-xl bg-white/5 border border-white/5 text-center">
+                <div className="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center justify-center gap-1">
+                  <Flame className="w-3 h-3 text-emerald-400" /> Energy
+                </div>
+                <div className="text-xs font-black text-emerald-300 font-mono mt-0.5">
+                  {estimatedCalories} kcal
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Dynamic Price & Add to Cart */}
-          <div className="w-full pt-4 border-t border-white/10 mt-4 flex items-center justify-between gap-4">
+          <div className="w-full pt-4 border-t border-white/10 mt-3 flex items-center justify-between gap-3">
             <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Total Drink Price</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Total Formula Price</span>
               <div className="text-2xl font-black text-amber-400 font-mono">
                 ₱{calculatedPrice}
               </div>
@@ -501,7 +685,7 @@ export function YourMixStudio({
             <button
               onClick={handleConfirmAddToCart}
               disabled={recipeItems.length === 0}
-              className="flex-1 py-3.5 px-6 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:pointer-events-none text-slate-950 font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-xl shadow-amber-500/20 active:scale-95"
+              className="flex-1 py-3.5 px-5 rounded-2xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 disabled:pointer-events-none text-slate-950 font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-xl shadow-amber-500/20 active:scale-95"
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Add Mix to Order</span>
@@ -509,10 +693,32 @@ export function YourMixStudio({
           </div>
         </div>
 
-        {/* Right Side: Step 2 Starting Point Bases & Ingredient Controls */}
-        <div className="flex-1 p-4 sm:p-6 md:p-8 flex flex-col justify-between overflow-y-auto space-y-6">
+        {/* Right Side: Custom Drink Naming, Starting Bases & Ingredient Controls */}
+        <div className="flex-1 p-4 sm:p-6 md:p-8 flex flex-col justify-start overflow-y-auto space-y-6">
           
-          {/* Step 2: Starting Point Bases */}
+          {/* Custom Mix Name Generator & Input */}
+          <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
+                <Wand2 className="w-3.5 h-3.5 text-amber-400" /> Name Your Formula
+              </span>
+              <button
+                onClick={handleGenerateName}
+                className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20"
+              >
+                <Sparkles className="w-3 h-3" /> Auto-Generate Name
+              </button>
+            </div>
+            <input
+              type="text"
+              value={customMixName}
+              onChange={(e) => setCustomMixName(e.target.value)}
+              placeholder="e.g. Alex's Midnight Mocha, Velvet Uji Cloud..."
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white placeholder-slate-500 text-xs font-bold focus:outline-none focus:border-amber-500 transition-colors"
+            />
+          </div>
+
+          {/* Step 2: Starting Point Presets */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
@@ -571,7 +777,7 @@ export function YourMixStudio({
                     <div>
                       <div className="text-xs font-black leading-tight truncate">{base.name}</div>
                       <div className={`text-[10px] mt-0.5 ${isSelected ? 'text-slate-900' : 'text-slate-400'} line-clamp-1`}>
-                        {base.items.length} starter ingredients
+                        {base.items.length} starter elements
                       </div>
                     </div>
                   </button>
@@ -610,7 +816,7 @@ export function YourMixStudio({
             </div>
 
             {/* Ingredients Grid / Steppers */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto pr-1 scrollbar-hide">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[500px] lg:max-h-[650px] overflow-y-auto pr-2">
               {filteredIngredients.map(ing => {
                 const currentPortion = activeRecipe[ing.id] || 0;
                 const isAdded = currentPortion > 0;
@@ -620,7 +826,7 @@ export function YourMixStudio({
                 return (
                   <div
                     key={ing.id}
-                    className={`p-4 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                    className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
                       isAdded 
                         ? 'bg-amber-500/10 border-amber-500/50 shadow-md' 
                         : 'bg-slate-900/40 border-white/5 hover:border-white/20'
@@ -708,6 +914,221 @@ export function YourMixStudio({
           )}
         </div>
       </div>
+
+      {/* Share Recipe Modal */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-white/15 p-6 rounded-3xl max-w-md w-full text-slate-100 space-y-5 relative shadow-2xl">
+            <button
+              onClick={() => setIsShareModalOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-black">
+                <Share2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white uppercase">Share Your Formula</h3>
+                <p className="text-xs text-slate-400">Scan or copy recipe formula to share with friends</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-950 border border-white/10 text-center space-y-3">
+              <div className="w-32 h-32 mx-auto bg-white p-2 rounded-2xl flex items-center justify-center shadow-md">
+                <QrCode className="w-28 h-28 text-slate-950" />
+              </div>
+              <div className="text-xs font-black text-amber-400">
+                {customMixName || 'Custom Mix Creation'}
+              </div>
+              <p className="text-[11px] text-slate-400 font-mono">
+                {recipeItems.map(i => `${i.quantity}${i.unit} ${i.name}`).join(' + ')}
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                const text = `🧪 Check out my custom drink recipe "${customMixName || 'Custom Mix'}" from CoffeeShop: ${recipeItems.map(i => `${i.quantity} ${i.unit} ${i.name}`).join(', ')}!`;
+                navigator.clipboard.writeText(text);
+                toast.success('Recipe formula copied to clipboard!');
+                setIsShareModalOpen(false);
+              }}
+              className="w-full py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all"
+            >
+              Copy Shareable Formula Text
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Save & Publish to Creatives Market Modal */}
+      {isSaveModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-white/15 p-6 rounded-3xl max-w-lg w-full text-slate-100 space-y-5 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setIsSaveModalOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-black">
+                <Crown className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white uppercase tracking-tight">Save & Publish Mix</h3>
+                <p className="text-xs text-slate-400">Save to your favorites & showcase in the Creatives Market</p>
+              </div>
+            </div>
+
+            {/* Mix Name Input */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Drink Name
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={customMixName}
+                  onChange={(e) => setCustomMixName(e.target.value)}
+                  placeholder="e.g. Midnight Salted Velvet"
+                  maxLength={40}
+                  className="w-full bg-slate-950 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm font-bold text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={handleGenerateName}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500 text-amber-400 hover:text-slate-950 transition-colors"
+                  title="Generate Cool Drink Name"
+                >
+                  <Wand2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Publish to Creatives Market Switch */}
+            <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-black uppercase tracking-wider text-white">
+                    Publish to Creatives Market
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPublishToMarket(!publishToMarket)}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${
+                    publishToMarket ? 'bg-amber-500' : 'bg-white/20'
+                  }`}
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full bg-white transition-transform absolute top-0.5 ${
+                      publishToMarket ? 'right-0.5 shadow' : 'left-0.5'
+                    }`}
+                  />
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Feature your recipe in the community marketplace so other coffee enthusiasts can try, review, and make you the next sensation drink maker!
+              </p>
+
+              {publishToMarket && (
+                <div className="space-y-3 pt-2 border-t border-amber-500/20 animate-in fade-in">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">
+                      Creator Nickname / Handle
+                    </label>
+                    <input
+                      type="text"
+                      value={creatorHandle}
+                      onChange={(e) => setCreatorHandle(e.target.value)}
+                      placeholder="@BaristaAlex"
+                      maxLength={25}
+                      className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">
+                      Drink Tagline / Inspiration
+                    </label>
+                    <input
+                      type="text"
+                      value={drinkTagline}
+                      onChange={(e) => setDrinkTagline(e.target.value)}
+                      placeholder="e.g. Silky cold foam layered with roasted boba pearls"
+                      maxLength={70}
+                      className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1.5">
+                      Flavor Tags (Select up to 3)
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['#Sweet', '#StrongCoffee', '#Creamy', '#Refreshing', '#DessertStyle', '#BobaLover', '#LowSugar', '#BoldRoast'].map(tag => {
+                        const isSelected = selectedTags.includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedTags(selectedTags.filter(t => t !== tag));
+                              } else {
+                                if (selectedTags.length < 3) {
+                                  setSelectedTags([...selectedTags, tag]);
+                                } else {
+                                  toast.info('Maximum 3 tags allowed');
+                                }
+                              }
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${
+                              isSelected
+                                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                                : 'bg-white/5 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Recipe summary summary */}
+            <div className="p-3 rounded-xl bg-slate-950/70 border border-white/5 flex items-center justify-between text-xs text-slate-400">
+              <span>{recipeItems.length} elements • {selectedCupSize.capacityOz} oz</span>
+              <span className="font-black text-amber-400 text-sm">₱{calculatedPrice}</span>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsSaveModalOpen(false)}
+                className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 font-bold text-xs uppercase tracking-wider"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSave}
+                disabled={isSaving}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50"
+              >
+                {isSaving ? 'Saving...' : publishToMarket ? 'Save & Publish' : 'Save to Profile'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

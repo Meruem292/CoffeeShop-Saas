@@ -17,6 +17,14 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Community Mixes (Creatives Market & Discover Favorites)
+    match /community_mixes/{mixId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+    }
+
     // Rules for vouchers
     match /vouchers/{voucherId} {
       allow read: if true;
@@ -67,10 +75,20 @@ service cloud.firestore {
       allow update, delete: if request.auth != null;
     }
 
-    // Profiles Collection
+    // Profiles Collection & Subcollections (e.g. saved_mixes)
     match /profiles/{userId} {
       allow read: if true;
       allow write: if request.auth != null;
+
+      match /saved_mixes/{mixId} {
+        allow read: if true;
+        allow write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      }
+
+      match /{allSubcollections=**} {
+        allow read: if true;
+        allow write: if request.auth != null;
+      }
     }
 
     // Reviews Collection

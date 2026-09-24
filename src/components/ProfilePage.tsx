@@ -1,10 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { User, Copy, Tag, Clock, ShoppingBag, Award, ArrowUpRight, ArrowDownRight, Coins, ArrowRight, QrCode, Camera, Sparkles, Upload, CheckCircle2, RefreshCw, Download, Maximize2, X, MessageSquare, Star, MessageSquareQuote, Trash2, Image as ImageIcon, Check, Eye } from 'lucide-react';
+import { User, Copy, Tag, Clock, ShoppingBag, Award, ArrowUpRight, ArrowDownRight, Coins, ArrowRight, QrCode, Camera, Sparkles, Upload, CheckCircle2, RefreshCw, Download, Maximize2, X, MessageSquare, Star, MessageSquareQuote, Trash2, Image as ImageIcon, Check, Eye, FlaskConical, BookmarkPlus } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { doc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { db, auth } from '../firebase';
-import { Voucher, Order, ClaimedVoucher, UserProfile, ViewMode, Review } from '../types';
+import { Voucher, Order, ClaimedVoucher, UserProfile, ViewMode, Review, SavedCustomMix } from '../types';
 import { useToast } from '../lib/ToastContext';
 import { CustomerReviewModal } from './CustomerReviewModal';
 
@@ -14,10 +14,13 @@ interface ProfilePageProps {
   vouchers: Voucher[];
   userClaimedVouchers?: ClaimedVoucher[];
   orders: Order[];
+  savedMixes?: SavedCustomMix[];
   reviews?: Review[];
   onClaimVoucher?: (voucher: Voucher, currentBalance: number) => Promise<boolean>;
   onNavigate?: (view: ViewMode) => void;
   onSubmitReview?: (data: { rating: number; comment: string; userName?: string; userPhoto?: string }) => Promise<boolean | void>;
+  onDeleteSavedMix?: (id: string) => Promise<void>;
+  onAddToCartCustomMix?: (mix: SavedCustomMix) => void;
 }
 
 // Client-side image compression and square crop helper
@@ -60,7 +63,8 @@ const compressAndResizeImage = (file: File, maxSize: number = 400, quality: numb
   });
 };
 
-export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouchers = [], orders = [], reviews = [], onClaimVoucher, onNavigate, onSubmitReview }: ProfilePageProps) {
+export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouchers = [], orders = [], savedMixes = [], reviews = [], onClaimVoucher, onNavigate, onSubmitReview, onDeleteSavedMix, onAddToCartCustomMix }: ProfilePageProps) {
+  const [isSavedMixesModalOpen, setIsSavedMixesModalOpen] = useState(false);
   const { toast } = useToast();
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isMemberQrModalOpen, setIsMemberQrModalOpen] = useState(false);
@@ -521,7 +525,35 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
 
       {/* Direct Shortcuts to Order History, Rewards Store & Live Customer Chat Pages */}
       {onNavigate && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Saved Custom Mixes Shortcut Card */}
+          <div 
+            onClick={() => setIsSavedMixesModalOpen(true)}
+            className="p-5 bg-white dark:bg-[#0a0a0c] rounded-3xl border border-purple-500/30 dark:border-purple-500/20 shadow-md hover:border-purple-500 transition-all cursor-pointer group flex flex-col justify-between space-y-4 relative overflow-hidden"
+          >
+            <div className="flex items-center justify-between">
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-400 flex items-center justify-center font-black group-hover:scale-110 transition-transform">
+                <FlaskConical className="w-6 h-6" />
+              </div>
+              <span className="text-xs font-black uppercase bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full">
+                {savedMixes.length} Saved Mixes
+              </span>
+            </div>
+
+            <div>
+              <h3 className="text-base font-black uppercase italic tracking-tight text-slate-900 dark:text-white group-hover:text-purple-400 transition-colors">
+                My Saved Custom Mixes
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                View your personal custom mix formulas and reorder with 1-click.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-purple-400 pt-2 border-t border-black/5 dark:border-white/5">
+              <span>View Saved Mixes</span>
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
           {/* Order History Shortcut Card */}
           <div 
             onClick={() => onNavigate('order-history')}
@@ -829,6 +861,92 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
         </div>
       )}
 
+      {/* Saved Custom Mixes Modal */}
+      {isSavedMixesModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-white/15 p-6 rounded-3xl max-w-2xl w-full text-slate-100 space-y-5 relative shadow-2xl max-h-[85vh] overflow-y-auto">
+            <button
+              onClick={() => setIsSavedMixesModalOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-black">
+                <FlaskConical className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white uppercase">My Saved Custom Mixes</h3>
+                <p className="text-xs text-slate-400">Your personal laboratory mix formulas</p>
+              </div>
+            </div>
+
+            {savedMixes.length === 0 ? (
+              <div className="p-8 rounded-2xl bg-black/30 border border-white/10 text-center space-y-3">
+                <FlaskConical className="w-12 h-12 text-slate-600 mx-auto" />
+                <h4 className="text-sm font-black text-white uppercase">No Saved Formulas Yet</h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  Create your custom mix in the "Your MIX" Drink Studio and click "Save Mix" to keep your favorites here!
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {savedMixes.map(mix => (
+                  <div
+                    key={mix.id}
+                    className="p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-purple-500/50 transition-all"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-black text-white uppercase">{mix.mixName}</h4>
+                        <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase bg-purple-500/20 text-purple-300">
+                          {mix.cupSize?.name || '16 oz'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 font-mono">
+                        {mix.recipeItems.map(i => `${i.quantity}${i.unit} ${i.name}`).join(', ')}
+                      </p>
+                      <div className="flex items-center gap-3 text-[10px] text-slate-500 pt-1">
+                        <span>Price: <strong className="text-amber-400">₱{mix.totalPrice}</strong></span>
+                        {mix.caffeineMg !== undefined && <span>Caffeine: <strong className="text-amber-300">{mix.caffeineMg}mg</strong></span>}
+                        {mix.calories !== undefined && <span>Energy: <strong className="text-emerald-300">{mix.calories} kcal</strong></span>}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {onAddToCartCustomMix && (
+                        <button
+                          onClick={() => {
+                            onAddToCartCustomMix(mix);
+                            toast.success(`Added "${mix.mixName}" to your cart!`);
+                            setIsSavedMixesModalOpen(false);
+                          }}
+                          className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider transition-all shadow-md"
+                        >
+                          Add to Order (₱{mix.totalPrice})
+                        </button>
+                      )}
+                      {onDeleteSavedMix && (
+                        <button
+                          onClick={async () => {
+                            await onDeleteSavedMix(mix.id);
+                          }}
+                          className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
+                          title="Delete saved mix"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Customer Review Submission / Editing Modal */}
       {onSubmitReview && (
         <CustomerReviewModal
@@ -843,7 +961,6 @@ export function ProfilePage({ user, userProfile, vouchers = [], userClaimedVouch
           onSubmitReview={onSubmitReview}
         />
       )}
-
     </div>
   );
 }

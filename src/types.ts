@@ -22,6 +22,10 @@ export interface YourMixIngredient {
   isActive: boolean;
   image?: string;
   description?: string;
+  caffeineMgPerUnit?: number;
+  sugarGramsPerUnit?: number;
+  caloriesPerUnit?: number;
+  measureGramsPerUnit?: number;
 }
 
 export interface YourMixBasePreset {
@@ -54,17 +58,71 @@ export interface YourMixRecipeItem {
   totalPrice: number;
   color: string;
   layerType: 'liquid' | 'ice' | 'bottom_solid' | 'top_solid' | 'foam' | 'powder';
+  caffeineMg?: number;
+  sugarGrams?: number;
+  calories?: number;
+  measureGrams?: number;
 }
 
 export interface YourMixDrinkDetails {
-  cupSize: string; // "16 oz" | "22 oz"
+  mixName?: string;
+  customMixName?: string;
+  cupSize?: string;
+  cupSizeName?: string;
   capacityOz: number;
   totalVolumeOz: number;
   basePresetName?: string;
-  ingredients: YourMixRecipeItem[];
-  calculatedBasePrice: number;
-  calculatedIngredientsPrice: number;
-  calculatedTotalPrice: number;
+  ingredients?: YourMixRecipeItem[];
+  recipeItems?: YourMixRecipeItem[];
+  calculatedBasePrice?: number;
+  calculatedIngredientsPrice?: number;
+  calculatedTotalPrice?: number;
+  estimatedCaffeineMg?: number;
+  estimatedSugarGrams?: number;
+  estimatedCalories?: number;
+  caffeineMg?: number;
+  sugarGrams?: number;
+  calories?: number;
+  baristaNotes?: string;
+  baristaSteps?: { stepNumber: number; categoryLabel: string; instruction: string }[];
+}
+
+export interface CustomMixReview {
+  id: string;
+  mixId: string;
+  userId: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: number;
+}
+
+export interface SavedCustomMix {
+  id: string;
+  userId: string;
+  userName?: string;
+  mixName: string;
+  cupSize: YourMixCupSize;
+  basePresetId?: string;
+  basePresetName?: string;
+  recipeItems: YourMixRecipeItem[];
+  totalVolumeOz: number;
+  totalPrice: number;
+  caffeineMg?: number;
+  sugarGrams?: number;
+  calories?: number;
+  orderCount?: number;
+  isPublic?: boolean;
+  creatorHandle?: string;
+  tagline?: string;
+  tags?: string[];
+  rating?: number;
+  reviewCount?: number;
+  likes?: number;
+  likedBy?: string[];
+  reviews?: CustomMixReview[];
+  createdAt: number;
+  updatedAt?: number;
 }
 
 export interface ChatThread {
@@ -199,6 +257,8 @@ export interface CartItem extends Product {
   cost?: number;
   isCustomMix?: boolean;
   customMixDetails?: YourMixDrinkDetails;
+  drinkDetails?: YourMixDrinkDetails;
+  recipeItems?: YourMixRecipeItem[];
 }
 
 export interface ShopSettings {

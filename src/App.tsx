@@ -161,6 +161,13 @@ export default function App() {
     userProfile,
     yourMixIngredients,
     yourMixBases,
+    savedMixes,
+    communityMixes,
+    likeCustomMix,
+    reviewCustomMix,
+    incrementCommunityMixOrderCount,
+    saveCustomMix,
+    deleteCustomMix,
     addVoucher,
     updateVoucher,
     deleteVoucher,
@@ -229,6 +236,33 @@ export default function App() {
 
   const [isStarted, setIsStarted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('astro_desktop_sidebar_open');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  // Keyboard shortcut Ctrl+B or Cmd+B to toggle desktop sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        e.preventDefault();
+        setIsDesktopSidebarOpen((prev) => {
+          const next = !prev;
+          try {
+            localStorage.setItem('astro_desktop_sidebar_open', String(next));
+          } catch {}
+          return next;
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Natural Phone Back Button Navigation hooks
   useBackButton(showAdminLogin, () => setShowAdminLogin(false), 'app_admin_login');
@@ -615,6 +649,17 @@ export default function App() {
         status: initialStatus,
       };
       setSuccessOrder(modalOrder);
+
+      // Increment community mix order count for any community drinks in this order
+      orderData.items.forEach(it => {
+        if (it.category === 'Your MIX' && it.drinkDetails?.customMixName) {
+          const match = communityMixes.find(cm => cm.mixName.toLowerCase() === it.drinkDetails?.customMixName?.toLowerCase());
+          if (match) {
+            incrementCommunityMixOrderCount(match.id);
+          }
+        }
+      });
+
       toast.success(initialStatus === 'pending-verification' ? 'Order submitted! Pending GCash verification.' : 'Order placed successfully!');
     } catch (err) {
       console.error('Failed to place order', err);
@@ -829,157 +874,200 @@ export default function App() {
           </div>
         )}
 
-        {/* Elegant iOS-Inclined Sidebar - Desktop (lg and up) */}
-        {!isKioskModeActive && !(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
-          <aside className="hidden lg:flex flex-col w-72 bg-white/60 dark:bg-slate-950/40 border-r border-black/10 dark:border-white/5 backdrop-blur-3xl h-screen shrink-0 relative z-10 transition-all duration-300">
-            {/* Store Brand Header */}
-            <div className="p-6 border-b border-black/10 dark:border-white/5 flex items-center gap-3 shrink-0">
-              <div className="w-10 h-10 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-inner shrink-0">
-                {shopSettings?.logoUrl ? (
-                  <img src={shopSettings.logoUrl || undefined} className="w-full h-full object-cover" alt="Logo" />
-                ) : (
-                  <Coffee className="w-5 h-5 text-amber-500" />
-                )}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-black tracking-tight uppercase italic truncate block leading-tight">
-                  {shopSettings?.name || 'Astro Coffee'}
-                </span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">System Live</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation Menu Links */}
-            <nav className="flex-1 px-4 py-2 space-y-1.5 overflow-y-auto scrollbar-hide">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] px-3 block mb-2 leading-none">Navigation</span>
-              {allowedNavigation.map((item) => {
-                const isActive = currentView === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setCurrentView(item.id);
-                      if (item.id === 'mobile' || item.id === 'kiosk') {
-                        setIsStarted(false);
-                      } else {
-                        setIsStarted(true);
-                      }
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all group ${
-                      isActive 
-                        ? 'bg-black/10 dark:bg-white/10 text-slate-900 dark:text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border-r-2 border-amber-500 font-bold' 
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`transition-colors ${isActive ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:hover:text-white'}`}>
-                        {item.icon}
-                      </div>
-                      <span className="text-xs tracking-tight">{item.label}</span>
-                      {item.id === 'admin-chat' && totalUnreadAdmin > 0 && (
-                        <span className="ml-auto px-2 py-0.5 text-[10px] font-black bg-rose-500 text-white rounded-full animate-bounce shadow-lg shadow-rose-500/50 flex items-center justify-center">
-                          {totalUnreadAdmin}
-                        </span>
-                      )}
-                      {item.id === 'admin-reviews' && pendingReviewsCount > 0 && (
-                        <span className="ml-auto px-2 py-0.5 text-[10px] font-black bg-amber-500 text-slate-950 rounded-full shadow-lg shadow-amber-500/40 flex items-center justify-center font-mono">
-                          {pendingReviewsCount}
-                        </span>
-                      )}
-                      {((item.id === 'cashier' && (unpaidOrdersCount > 0 || pendingVerificationOrdersCount > 0)) || (item.id === 'queue' && pendingOrdersCount > 0)) && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse ml-2" />
-                      )}
-                    </div>
-                    {isActive && <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
-                  </button>
-                );
-              })}
-
-              {!isAdmin && (
-                <div className="pt-3 px-1">
-                  <button
-                    onClick={handleInstallApp}
-                    className="w-full relative group overflow-hidden p-3 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-amber-600/15 hover:from-amber-500/20 hover:to-amber-500/10 border border-amber-500/30 hover:border-amber-400/70 shadow-[0_4px_20px_rgba(245,158,11,0.1)] hover:shadow-[0_6px_25px_rgba(245,158,11,0.25)] transition-all duration-300 active:scale-[0.98] flex items-center gap-3"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 shadow-inner group-hover:bg-amber-500 group-hover:text-slate-950 transition-all duration-300 shrink-0">
-                      <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-                    </div>
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-amber-100 group-hover:text-amber-500 transition-colors">
-                      Download App
+        {/* Elegant iOS-Inclined Sidebar - Desktop (lg and up) - Session Users Only */}
+        {user && !isKioskModeActive && !(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
+          <aside
+            className={`hidden lg:flex flex-col bg-white/60 dark:bg-slate-950/40 border-r border-black/10 dark:border-white/5 backdrop-blur-3xl h-screen shrink-0 relative z-30 transition-all duration-300 ease-in-out ${
+              isDesktopSidebarOpen
+                ? 'w-72 opacity-100'
+                : 'w-0 opacity-0 overflow-hidden border-none pointer-events-none'
+            }`}
+          >
+            <div className="w-72 flex flex-col h-full shrink-0">
+              {/* Store Brand Header with Collapse Burger Toggle */}
+              <div className="px-5 py-4 border-b border-black/10 dark:border-white/5 flex items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center overflow-hidden shadow-inner shrink-0">
+                    {shopSettings?.logoUrl ? (
+                      <img src={shopSettings.logoUrl || undefined} className="w-full h-full object-cover" alt="Logo" />
+                    ) : (
+                      <Coffee className="w-4 h-4 text-amber-500" />
+                    )}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-black tracking-tight uppercase italic truncate block leading-tight">
+                      {shopSettings?.name || 'Astro Coffee'}
                     </span>
-                  </button>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest leading-none">System Live</span>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </nav>
 
-            {/* Bottom Profile / Admin Portal Widget */}
-            <div className="p-4 border-t border-black/10 dark:border-white/5 bg-white dark:bg-slate-950/20 shrink-0">
-              {isAdmin && (
+                {/* Burger Menu Button to HIDE / COLLAPSE desktop sidebar */}
                 <button
                   onClick={() => {
-                    setIsKioskModeActive(true);
-                    localStorage.setItem('astro_pos_kiosk_active', 'true');
-                    setCurrentView('kiosk');
-                    setIsStarted(false);
-                    toast.success('Secure Kiosk Mode activated!');
+                    setIsDesktopSidebarOpen(false);
+                    try {
+                      localStorage.setItem('astro_desktop_sidebar_open', 'false');
+                    } catch {}
                   }}
-                  className="w-full mb-3 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg"
+                  className="w-8 h-8 rounded-xl bg-black/5 dark:bg-white/5 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 border border-black/10 dark:border-white/10 hover:border-amber-500/30 flex items-center justify-center text-slate-600 dark:text-slate-400 hover:text-amber-500 transition-all active:scale-95 shrink-0"
+                  title="Hide sidebar (Collapse menu) [Ctrl+B]"
+                  aria-label="Hide sidebar"
                 >
-                  <MonitorSmartphone className="w-3.5 h-3.5" />
-                  Launch Secure Kiosk
+                  <Menu className="w-4 h-4" />
                 </button>
-              )}
-              {user ? (
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-xs shrink-0 overflow-hidden shadow-inner">
-                      {userProfile?.photoURL || user.photoURL ? (
-                        <img 
-                          src={userProfile?.photoURL || user.photoURL} 
-                          alt={userProfile?.displayName || user.email || 'User'} 
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        (userProfile?.displayName || user.email)?.slice(0, 2).toUpperCase() || 'CU'
-                      )}
-                    </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[11px] font-bold text-slate-900 dark:text-white truncate leading-none mb-1">{userProfile?.displayName || user.email}</span>
-                      <span className={`text-[8px] font-black uppercase tracking-widest leading-none ${isAdmin ? 'text-amber-500' : 'text-slate-400 dark:text-slate-400'}`}>
-                        {isAdmin ? 'Administrator' : 'Customer Account'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button 
-                      onClick={handleLogout}
-                      className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-red-400 transition-all shrink-0"
-                      title="Logout"
+              </div>
+
+              {/* Navigation Menu Links */}
+              <nav className="flex-1 px-4 py-2 space-y-1.5 overflow-y-auto scrollbar-hide">
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] px-3 block mb-2 leading-none">Navigation</span>
+                {allowedNavigation.map((item) => {
+                  const isActive = currentView === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setCurrentView(item.id);
+                        if (item.id === 'mobile' || item.id === 'kiosk') {
+                          setIsStarted(false);
+                        } else {
+                          setIsStarted(true);
+                        }
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all group ${
+                        isActive 
+                          ? 'bg-black/10 dark:bg-white/10 text-slate-900 dark:text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)] border-r-2 border-amber-500 font-bold' 
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 font-medium'
+                      }`}
                     >
-                      <LogOut className="w-4 h-4" />
+                      <div className="flex items-center gap-3">
+                        <div className={`transition-colors ${isActive ? 'text-amber-500' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:hover:text-white'}`}>
+                          {item.icon}
+                        </div>
+                        <span className="text-xs tracking-tight">{item.label}</span>
+                        {item.id === 'admin-chat' && totalUnreadAdmin > 0 && (
+                          <span className="ml-auto px-2 py-0.5 text-[10px] font-black bg-rose-500 text-white rounded-full animate-bounce shadow-lg shadow-rose-500/50 flex items-center justify-center">
+                            {totalUnreadAdmin}
+                          </span>
+                        )}
+                        {item.id === 'admin-reviews' && pendingReviewsCount > 0 && (
+                          <span className="ml-auto px-2 py-0.5 text-[10px] font-black bg-amber-500 text-slate-950 rounded-full shadow-lg shadow-amber-500/40 flex items-center justify-center font-mono">
+                            {pendingReviewsCount}
+                          </span>
+                        )}
+                        {((item.id === 'cashier' && (unpaidOrdersCount > 0 || pendingVerificationOrdersCount > 0)) || (item.id === 'queue' && pendingOrdersCount > 0)) && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse ml-2" />
+                        )}
+                      </div>
+                      {isActive && <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+                    </button>
+                  );
+                })}
+
+                {!isAdmin && (
+                  <div className="pt-3 px-1">
+                    <button
+                      onClick={handleInstallApp}
+                      className="w-full relative group overflow-hidden p-3 rounded-2xl bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-amber-600/15 hover:from-amber-500/20 hover:to-amber-500/10 border border-amber-500/30 hover:border-amber-400/70 shadow-[0_4px_20px_rgba(245,158,11,0.1)] hover:shadow-[0_6px_25px_rgba(245,158,11,0.25)] transition-all duration-300 active:scale-[0.98] flex items-center gap-3"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-500/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-500 shadow-inner group-hover:bg-amber-500 group-hover:text-slate-950 transition-all duration-300 shrink-0">
+                        <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+                      </div>
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-amber-100 group-hover:text-amber-500 transition-colors">
+                        Download App
+                      </span>
                     </button>
                   </div>
-                </div>
-              ) : (
-                <button 
-                  onClick={() => setShowAdminLogin(true)}
-                  className="w-full py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-slate-900 dark:text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
-                >
-                  <Lock className="w-3.5 h-3.5 text-amber-500" />
-                  Login
-                </button>
-              )}
+                )}
+              </nav>
+
+              {/* Bottom Profile / Admin Portal Widget */}
+              <div className="p-4 border-t border-black/10 dark:border-white/5 bg-white dark:bg-slate-950/20 shrink-0">
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setIsKioskModeActive(true);
+                      localStorage.setItem('astro_pos_kiosk_active', 'true');
+                      setCurrentView('kiosk');
+                      setIsStarted(false);
+                      toast.success('Secure Kiosk Mode activated!');
+                    }}
+                    className="w-full mb-3 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg"
+                  >
+                    <MonitorSmartphone className="w-3.5 h-3.5" />
+                    Launch Secure Kiosk
+                  </button>
+                )}
+                {user ? (
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-bold text-xs shrink-0 overflow-hidden shadow-inner">
+                        {userProfile?.photoURL || user.photoURL ? (
+                          <img 
+                            src={userProfile?.photoURL || user.photoURL} 
+                            alt={userProfile?.displayName || user.email || 'User'} 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          (userProfile?.displayName || user.email)?.slice(0, 2).toUpperCase() || 'CU'
+                        )}
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[11px] font-bold text-slate-900 dark:text-white truncate leading-none mb-1">{userProfile?.displayName || user.email}</span>
+                        <span className={`text-[8px] font-black uppercase tracking-widest leading-none ${isAdmin ? 'text-amber-500' : 'text-slate-400 dark:text-slate-400'}`}>
+                          {isAdmin ? 'Administrator' : 'Customer Account'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button 
+                        onClick={handleLogout}
+                        className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-red-400 transition-all shrink-0"
+                        title="Logout"
+                      >
+                        <LogOut className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setShowAdminLogin(true)}
+                    className="w-full py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-slate-900 dark:text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-amber-500" />
+                    Login
+                  </button>
+                )}
+              </div>
             </div>
           </aside>
         )}
 
         {/* Main Content Workspace Panel */}
         <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-20 min-w-0">
+          
+          {/* Desktop Extract / Open Sidebar Burger Button (Shown when sidebar is collapsed) */}
+          {user && !isDesktopSidebarOpen && !isKioskModeActive && !(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
+            <button
+              onClick={() => {
+                setIsDesktopSidebarOpen(true);
+                try {
+                  localStorage.setItem('astro_desktop_sidebar_open', 'true');
+                } catch {}
+              }}
+              className="hidden lg:flex fixed top-3.5 left-4 z-[55] h-9 px-3 rounded-xl bg-white/80 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 hover:text-amber-500 dark:hover:text-amber-400 border border-black/10 dark:border-white/10 backdrop-blur-2xl items-center gap-2 shadow-xl transition-all active:scale-95 group animate-in fade-in zoom-in-95 duration-200"
+              title="Extract sidebar (Show menu) [Ctrl+B]"
+              aria-label="Extract sidebar"
+            >
+              <Menu className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform" />
+              <span className="text-[11px] font-black uppercase tracking-wider pr-0.5">Menu</span>
+            </button>
+          )}
           
           {/* Customer Earned Points Corner Badge - Desktop Floating */}
           {user && !isAdmin && !isKioskModeActive && (
@@ -995,6 +1083,17 @@ export default function App() {
                 <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Points Balance</span>
                 <span className="text-xs font-black tracking-tight text-white">{totalCustomerPoints.toLocaleString()} Pts</span>
               </div>
+            </button>
+          )}
+
+          {/* Floating Login / Sign Up Button for Desktop Guest (No-Session) Users */}
+          {!user && !isKioskModeActive && (
+            <button
+              onClick={() => setShowAdminLogin(true)}
+              className="hidden lg:flex fixed top-4 right-4 z-[55] bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black px-4 py-2 rounded-2xl items-center gap-2 shadow-[0_8px_25px_rgba(245,158,11,0.4)] hover:shadow-[0_12px_30px_rgba(245,158,11,0.6)] transition-all active:scale-95 group text-xs uppercase tracking-wider border border-amber-300/40"
+            >
+              <Lock className="w-3.5 h-3.5 text-slate-950 group-hover:rotate-12 transition-transform" />
+              <span>Login / Sign Up</span>
             </button>
           )}
 
@@ -1020,6 +1119,17 @@ export default function App() {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
+                {/* Mobile Header Login / Sign Up Button */}
+                {!user && (
+                  <button
+                    onClick={() => setShowAdminLogin(true)}
+                    className="px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-[10px] sm:text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-amber-500/20 active:scale-95 transition-all shrink-0 border border-amber-300/30"
+                  >
+                    <Lock className="w-3 h-3 text-slate-950" />
+                    <span>Login / Sign Up</span>
+                  </button>
+                )}
+
                 {/* Customer Earned Points Badge inside Mobile Header */}
                 {user && !isAdmin && (
                   <button
@@ -1272,7 +1382,7 @@ export default function App() {
                       menu={products} 
                       addons={addons.filter(a => a.isActive)} 
                       onPlaceOrder={handlePlaceOrder} 
-                      shopSettings={shopSettings}
+                      shopSettings={shopSettings} 
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
                       vouchers={vouchers}
@@ -1281,6 +1391,13 @@ export default function App() {
                       orders={orders}
                       yourMixIngredients={yourMixIngredients}
                       yourMixBases={yourMixBases}
+                      onSaveCustomMix={saveCustomMix}
+                      communityMixes={communityMixes}
+                      onLikeCustomMix={likeCustomMix}
+                      onReviewCustomMix={reviewCustomMix}
+                      currentUserId={user?.uid}
+                      currentUserName={userProfile?.displayName || user?.displayName || undefined}
+                      isDesktopSidebarOpen={isDesktopSidebarOpen}
                     />
                   )}
                   {currentView === 'kiosk' && (
@@ -1289,7 +1406,7 @@ export default function App() {
                       menu={products} 
                       addons={addons.filter(a => a.isActive)} 
                       onPlaceOrder={handlePlaceOrder} 
-                      shopSettings={shopSettings}
+                      shopSettings={shopSettings} 
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
                       vouchers={vouchers}
@@ -1298,10 +1415,17 @@ export default function App() {
                       orders={orders}
                       yourMixIngredients={yourMixIngredients}
                       yourMixBases={yourMixBases}
+                      onSaveCustomMix={saveCustomMix}
+                      communityMixes={communityMixes}
+                      onLikeCustomMix={likeCustomMix}
+                      onReviewCustomMix={reviewCustomMix}
+                      currentUserId={kioskCustomerProfile?.uid || user?.uid}
+                      currentUserName={kioskCustomerProfile?.displayName || userProfile?.displayName || user?.displayName || undefined}
                       onSwitchCustomer={() => {
                         setKioskCustomerProfile(null);
                         setIsStarted(false);
                       }}
+                      isDesktopSidebarOpen={isDesktopSidebarOpen}
                     />
                   )}
                   {currentView === 'mobile' && (
@@ -1310,7 +1434,7 @@ export default function App() {
                       menu={products} 
                       addons={addons.filter(a => a.isActive)} 
                       onPlaceOrder={handlePlaceOrder} 
-                      shopSettings={shopSettings}
+                      shopSettings={shopSettings} 
                       categoriesData={categories}
                       mostPickedProductIds={mostPickedProductIds}
                       vouchers={vouchers}
@@ -1320,6 +1444,13 @@ export default function App() {
                       onNavigateToHistory={() => setCurrentView('order-history')}
                       yourMixIngredients={yourMixIngredients}
                       yourMixBases={yourMixBases}
+                      onSaveCustomMix={saveCustomMix}
+                      communityMixes={communityMixes}
+                      onLikeCustomMix={likeCustomMix}
+                      onReviewCustomMix={reviewCustomMix}
+                      currentUserId={user?.uid}
+                      currentUserName={userProfile?.displayName || user?.displayName || undefined}
+                      isDesktopSidebarOpen={isDesktopSidebarOpen}
                     />
                   )}
                   {currentView === 'cashier' && (
@@ -1443,10 +1574,16 @@ export default function App() {
                           vouchers={vouchers}
                           userClaimedVouchers={userClaimedVouchers}
                           orders={userOrders}
+                          savedMixes={savedMixes}
                           reviews={reviews}
                           onClaimVoucher={claimVoucher}
                           onNavigate={(view) => setCurrentView(view)}
                           onSubmitReview={submitReview}
+                          onDeleteSavedMix={deleteCustomMix}
+                          onAddToCartCustomMix={(mix) => {
+                            setCurrentView('mobile');
+                            toast.success(`Selected formula "${mix.mixName}". You can now order it in the catalog!`);
+                          }}
                         />
                       )}
                       {currentView === 'order-history' && (

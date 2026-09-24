@@ -16,6 +16,7 @@ interface CategorySidebarProps {
   user?: any;
   onSignOut?: () => void;
   onSignInClick?: () => void;
+  isDesktopSidebarOpen?: boolean;
 }
 
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -70,7 +71,8 @@ export const CategorySidebar = React.memo(({
   shopSettings,
   user,
   onSignOut,
-  onSignInClick
+  onSignInClick,
+  isDesktopSidebarOpen = true
 }: CategorySidebarProps) => {
   return (
     <div className={`flex flex-col py-6 md:py-8 h-full overflow-hidden shrink-0 z-20 transition-all ${
@@ -94,7 +96,9 @@ export const CategorySidebar = React.memo(({
       )}
 
       {/* Category items list */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col gap-2 px-2 pb-4">
+      <div className={`flex-1 overflow-y-auto scrollbar-hide flex flex-col gap-2 px-2 pb-4 transition-all duration-300 ${
+        user && !isDesktopSidebarOpen ? 'lg:pt-14' : ''
+      }`}>
         {categories.map((cat, idx) => {
           const isActive = activeCategory === cat;
           return (
