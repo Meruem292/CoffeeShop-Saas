@@ -94,8 +94,32 @@ export default function App() {
   const [exitKioskLoading, setExitKioskLoading] = useState(false);
 
   const { user, isAdmin, loading: authLoading, logOut, signInWithEmail } = useAuth();
+
+  const [guestChatUser, setGuestChatUser] = useState<{ guestId: string; name: string; email?: string } | null>(() => {
+    try {
+      const saved = localStorage.getItem('caidoz_guest_chat_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleStartGuestChat = (name: string, email?: string) => {
+    const newGuest = {
+      guestId: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: name.trim() || 'Guest',
+      email: email?.trim() || undefined
+    };
+    try {
+      localStorage.setItem('caidoz_guest_chat_user', JSON.stringify(newGuest));
+    } catch {}
+    setGuestChatUser(newGuest);
+  };
+
   const handleLogout = async () => {
     try {
+      localStorage.removeItem('caidoz_guest_chat_user');
+      setGuestChatUser(null);
       await logOut();
       toast.success('Logged out successfully');
     } catch (err: any) {
@@ -172,8 +196,9 @@ export default function App() {
   } = useChat({
     userId: user?.uid,
     isAdmin,
-    customerName: userProfile?.displayName || user?.displayName || 'Customer',
-    customerEmail: userProfile?.email || user?.email || undefined,
+    guestId: !user ? guestChatUser?.guestId : undefined,
+    customerName: userProfile?.displayName || user?.displayName || guestChatUser?.name || 'Customer',
+    customerEmail: userProfile?.email || user?.email || guestChatUser?.email || undefined,
     customerPhoto: userProfile?.photoURL || user?.photoURL || undefined,
     onNewMessageNotification: ({ senderName, text, role }) => {
       if (role === 'admin') {
@@ -1454,23 +1479,26 @@ export default function App() {
                             sendChatMessage({
                               ...payload,
                               senderRole: 'customer',
-                              senderId: user?.uid || 'guest',
-                              senderName: userProfile?.displayName || user?.displayName || 'Customer'
+                              senderId: user?.uid || guestChatUser?.guestId || 'guest',
+                              senderName: userProfile?.displayName || user?.displayName || guestChatUser?.name || 'Customer'
                             })
                           }
-                          onToggleReaction={(messageId, emoji) => toggleReaction(messageId, emoji, user?.uid || 'guest')}
-                          customerName={userProfile?.displayName || user?.displayName || 'Customer'}
-                          customerEmail={userProfile?.email || user?.email || undefined}
+                          onToggleReaction={(messageId, emoji) => toggleReaction(messageId, emoji, user?.uid || guestChatUser?.guestId || 'guest')}
+                          customerName={userProfile?.displayName || user?.displayName || guestChatUser?.name || 'Customer'}
+                          customerEmail={userProfile?.email || user?.email || guestChatUser?.email || undefined}
                           customerPhoto={userProfile?.photoURL || user?.photoURL || undefined}
                           shopName={shopSettings?.name || 'CAIDOZ'}
                           shopLogo={shopSettings?.logoUrl}
                           products={products}
-                          orders={orders.filter(o => o.customerId === (user?.uid || 'guest') || o.customerName === (userProfile?.displayName || user?.displayName || 'Customer'))}
+                          orders={orders.filter(o => o.customerId === (user?.uid || guestChatUser?.guestId || 'guest') || o.customerName === (userProfile?.displayName || user?.displayName || guestChatUser?.name || 'Customer'))}
                           onAddToCart={(prod) => {
                             toast.success(`${prod.name} added to your basket!`);
                           }}
-                          currentUserId={user?.uid || 'guest'}
+                          currentUserId={user?.uid || guestChatUser?.guestId || 'guest'}
                           onBack={() => setCurrentView('mobile')}
+                          isGuestOrLoggedIn={!!(user || guestChatUser)}
+                          onOpenLogin={() => setShowAdminLogin(true)}
+                          onStartGuestChat={handleStartGuestChat}
                         />
                       )}
                     </>
@@ -1620,17 +1648,20 @@ export default function App() {
               sendChatMessage({
                 ...payload,
                 senderRole: 'customer',
-                senderId: user?.uid || 'guest',
-                senderName: userProfile?.displayName || user?.displayName || 'Customer'
+                senderId: user?.uid || guestChatUser?.guestId || 'guest',
+                senderName: userProfile?.displayName || user?.displayName || guestChatUser?.name || 'Customer'
               })
             }
-            onToggleReaction={(messageId, emoji) => toggleReaction(messageId, emoji, user?.uid || 'guest')}
-            customerName={userProfile?.displayName || user?.displayName || 'Customer'}
+            onToggleReaction={(messageId, emoji) => toggleReaction(messageId, emoji, user?.uid || guestChatUser?.guestId || 'guest')}
+            customerName={userProfile?.displayName || user?.displayName || guestChatUser?.name || 'Customer'}
             shopName={shopSettings?.name || 'CAIDOZ'}
             shopLogo={shopSettings?.logoUrl}
             products={products}
-            orders={orders.filter(o => o.customerId === (user?.uid || 'guest') || o.customerName === (userProfile?.displayName || user?.displayName || 'Customer'))}
-            currentUserId={user?.uid || 'guest'}
+            orders={orders.filter(o => o.customerId === (user?.uid || guestChatUser?.guestId || 'guest') || o.customerName === (userProfile?.displayName || user?.displayName || guestChatUser?.name || 'Customer'))}
+            currentUserId={user?.uid || guestChatUser?.guestId || 'guest'}
+            isGuestOrLoggedIn={!!(user || guestChatUser)}
+            onOpenLogin={() => setShowAdminLogin(true)}
+            onStartGuestChat={handleStartGuestChat}
           />
         )}
         <Footer shopSettings={shopSettings} />

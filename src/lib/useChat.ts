@@ -65,10 +65,10 @@ export function useChat(params: {
   const { userId, isAdmin, guestId, customerName, customerEmail, customerPhoto, onNewMessageNotification } = params;
 
   // Determine actual customer identifier
-  const currentCustomerId = userId || guestId || 'guest_user';
+  const currentCustomerId = userId || guestId || null;
   const effectiveName = customerName || (userId ? 'Customer' : 'Guest');
 
-  const defaultCustomerThreadId = !isAdmin ? `thread_${currentCustomerId}` : null;
+  const defaultCustomerThreadId = !isAdmin && currentCustomerId ? `thread_${currentCustomerId}` : null;
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(defaultCustomerThreadId);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -78,7 +78,11 @@ export function useChat(params: {
   // Sync activeThreadId when the current customer changes (e.g., login, logout, switch between users)
   useEffect(() => {
     if (!isAdmin) {
-      setActiveThreadId(`thread_${currentCustomerId}`);
+      if (currentCustomerId) {
+        setActiveThreadId(`thread_${currentCustomerId}`);
+      } else {
+        setActiveThreadId(null);
+      }
       setMessages([]); // Clear previous messages immediately on customer switch
     } else {
       setActiveThreadId(null);
@@ -101,6 +105,12 @@ export function useChat(params: {
 
   // 1. Listen for Threads
   useEffect(() => {
+    if (!isAdmin && !currentCustomerId) {
+      setThreads([]);
+      setLoadingThreads(false);
+      return;
+    }
+
     setLoadingThreads(true);
     const threadsRef = collection(db, 'chat_threads');
 
@@ -179,7 +189,7 @@ export function useChat(params: {
         // Auto-select thread ID for admin and customer
         if (isAdmin && loadedThreads.length > 0 && !activeThreadId) {
           setActiveThreadId(loadedThreads[0].id);
-        } else if (!isAdmin) {
+        } else if (!isAdmin && currentCustomerId) {
           if (loadedThreads.length > 0) {
             setActiveThreadId(loadedThreads[0].id);
           } else if (!activeThreadId) {

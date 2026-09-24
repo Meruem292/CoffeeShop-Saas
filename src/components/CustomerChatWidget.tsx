@@ -28,7 +28,9 @@ import {
   ChevronLeft,
   Phone,
   Video,
-  Info
+  Info,
+  Lock,
+  LogIn
 } from 'lucide-react';
 import { ChatMessage, Product, Order } from '../types';
 
@@ -69,6 +71,9 @@ interface CustomerChatWidgetProps {
   orders?: Order[];
   onAddToCart?: (product: Product, quantity?: number) => void;
   currentUserId?: string;
+  isGuestOrLoggedIn?: boolean;
+  onOpenLogin?: () => void;
+  onStartGuestChat?: (name: string, email?: string) => void;
 }
 
 const EMOJI_LIST = ['👍', '❤️', '☕', '🔥', '🎉'];
@@ -146,7 +151,10 @@ export function CustomerChatWidget({
   products = [],
   orders = [],
   onAddToCart,
-  currentUserId = 'guest'
+  currentUserId = 'guest',
+  isGuestOrLoggedIn = true,
+  onOpenLogin,
+  onStartGuestChat
 }: CustomerChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -158,6 +166,18 @@ export function CustomerChatWidget({
   const [searchFilter, setSearchFilter] = useState('');
   const [sending, setSending] = useState(false);
   const [activeReactionMsgId, setActiveReactionMsgId] = useState<string | null>(null);
+
+  const [guestNameInput, setGuestNameInput] = useState('');
+  const [guestEmailInput, setGuestEmailInput] = useState('');
+  const [showGuestForm, setShowGuestForm] = useState(false);
+
+  const handleGuestSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guestNameInput.trim()) return;
+    if (onStartGuestChat) {
+      onStartGuestChat(guestNameInput.trim(), guestEmailInput.trim() || undefined);
+    }
+  };
 
   // Audio recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -463,8 +483,85 @@ export function CustomerChatWidget({
           </div>
 
           <div className="flex-1 flex min-h-0 overflow-hidden">
-            {/* Main Chat Stream Container */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {!isGuestOrLoggedIn ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-slate-50/50 dark:bg-[#0c1220]/50 overflow-y-auto">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center mb-4 border border-amber-500/20 shadow-inner">
+                  <Lock className="w-7 h-7 text-amber-500" />
+                </div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white mb-1">
+                  Private Support Chat
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 max-w-xs leading-relaxed">
+                  Connect privately with our store baristas. Log in or enter your name to start a private session.
+                </p>
+
+                {showGuestForm ? (
+                  <form onSubmit={handleGuestSubmit} className="w-full max-w-xs space-y-3">
+                    <div>
+                      <label className="block text-left text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                        Your Name <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Maria Clara"
+                        value={guestNameInput}
+                        onChange={(e) => setGuestNameInput(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-[#151c2e] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-left text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                        Email Address <span className="text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="email"
+                        placeholder="e.g. maria@gmail.com"
+                        value={guestEmailInput}
+                        onChange={(e) => setGuestEmailInput(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-white dark:bg-[#151c2e] border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 text-slate-900 dark:text-white font-medium"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={!guestNameInput.trim()}
+                      className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-extrabold rounded-xl text-xs shadow-md transition-all uppercase tracking-wider"
+                    >
+                      Start Private Chat
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowGuestForm(false)}
+                      className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold"
+                    >
+                      ← Back to options
+                    </button>
+                  </form>
+                ) : (
+                  <div className="w-full max-w-xs space-y-3">
+                    {onOpenLogin && (
+                      <button
+                        type="button"
+                        onClick={onOpenLogin}
+                        className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-extrabold rounded-xl text-xs shadow-md flex items-center justify-center gap-2 transition-all uppercase tracking-wider"
+                      >
+                        <LogIn className="w-4 h-4" />
+                        Log In to Account
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowGuestForm(true)}
+                      className="w-full py-3 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-800 dark:text-slate-200 font-bold rounded-xl text-xs transition-all border border-slate-200 dark:border-white/10"
+                    >
+                      Continue as Guest
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Main Chat Stream Container */
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
               {/* Internal search filter */}
               {messages.length > 5 && (
                 <div className="px-4 py-2 bg-slate-50 dark:bg-black/10 border-b border-black/5 flex items-center gap-2 text-xs shrink-0">
@@ -889,6 +986,7 @@ export function CustomerChatWidget({
                 </form>
               )}
             </div>
+            )}
 
             {/* Support info & Quick FAQ collapsible panel (Messenger Mobile Options context) */}
             {showOptionsPanel && (

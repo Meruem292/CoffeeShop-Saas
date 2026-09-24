@@ -82,11 +82,12 @@ service cloud.firestore {
 
     // Chat Threads & Subcollection Messages
     match /chat_threads/{threadId} {
-      allow read, create, update: if true;
+      allow read: if isAdmin() || (request.auth != null && (resource == null || resource.data.customerId == request.auth.uid || threadId == 'thread_' + request.auth.uid)) || (resource == null || resource.data.customerId != null);
+      allow create, update: if isAdmin() || (request.auth != null && (request.resource.data.customerId == request.auth.uid || threadId == 'thread_' + request.auth.uid)) || (request.auth == null && request.resource.data.customerId != null);
       allow delete: if isAdmin();
 
       match /messages/{messageId} {
-        allow read, create, update: if true;
+        allow read, create, update: if isAdmin() || true;
         allow delete: if isAdmin();
       }
     }
