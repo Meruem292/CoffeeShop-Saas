@@ -933,10 +933,6 @@ export function OrderingScreen({
 
   // Product Click Handler
   const handleProductClick = useCallback((product: Product) => {
-    if (shopSettings?.isClosed) {
-      toast.error('The shop is currently closed. Ordering is unavailable.');
-      return;
-    }
     if (isAccountSuspended) {
       toast.error(`Your account is suspended from ordering for another ${accountSuspensionTimeLeft || 'duration'}. Reason: ${activeCustomerProfile?.orderingDisabledReason || 'Spam prevention'}`);
       return;
@@ -946,7 +942,7 @@ export function OrderingScreen({
     const isBev = isProductBeverage(product);
     const hasAddons = productAddons.length > 0;
 
-    if (hasSizes || isBev || hasAddons || product.isCustomizable) {
+    if (hasSizes || isBev || hasAddons || product.isCustomizable || shopSettings?.isClosed) {
       setSelectedProductForConfig(product);
       setSelectedSizeConfig(hasSizes ? product.sizes![0] : null);
       setSelectedSugarConfig('100%');
@@ -1688,9 +1684,14 @@ export function OrderingScreen({
                                   </button>
                                   <button
                                     onClick={() => handleOrderCommunityMix(mix)}
-                                    className="px-2.5 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[9px] font-black uppercase transition-all shadow-sm active:scale-95"
+                                    disabled={!!shopSettings?.isClosed}
+                                    className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase transition-all shadow-sm ${
+                                      shopSettings?.isClosed
+                                        ? 'bg-black/10 dark:bg-white/10 text-slate-500 cursor-not-allowed'
+                                        : 'bg-amber-500 hover:bg-amber-400 text-slate-950 active:scale-95'
+                                    }`}
                                   >
-                                    + Add
+                                    {shopSettings?.isClosed ? 'Paused' : '+ Add'}
                                   </button>
                                 </div>
                               </div>
@@ -1813,6 +1814,7 @@ export function OrderingScreen({
                     cartCount={cart.filter(c => c.id === item.id).reduce((sum, item) => sum + item.quantity, 0)}
                     onClick={handleProductClick}
                     isMostPicked={mostPickedProductIds ? mostPickedProductIds.has(item.id) : false}
+                    isOrderingClosed={!!shopSettings?.isClosed}
                   />
                 ))}
               </div>
@@ -2549,16 +2551,20 @@ export function OrderingScreen({
   return (
     <div className={containerClasses[mode]}>
       {shopSettings?.isClosed ? (
-        <div className="bg-rose-500/15 border-b border-rose-500/30 px-6 py-2.5 flex items-center justify-between gap-4 text-rose-500 dark:text-rose-400 font-black text-xs uppercase tracking-wider shrink-0 z-30 animate-in fade-in">
-          <div className="flex items-center gap-3">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+        <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-slate-900/40 border-b border-amber-500/25 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 text-slate-800 dark:text-amber-200 text-xs shrink-0 z-30 backdrop-blur-md animate-in fade-in shadow-sm">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
             </span>
-            <span>STORE IS CURRENTLY CLOSED — Customer ordering is temporarily paused</span>
+            <div className="truncate text-xs">
+              <span className="font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">Ordering Paused</span>
+              <span className="mx-2 text-slate-400 opacity-50">•</span>
+              <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">Catalog is in Browse-Only mode. Explore roasts, sizes & flavors below.</span>
+            </div>
           </div>
-          <span className="bg-rose-500 text-slate-950 px-3 py-0.5 rounded-full text-[9px] font-black tracking-widest">
-            OFFLINE
+          <span className="bg-amber-500 text-slate-950 px-3 py-0.5 rounded-full text-[9px] font-black tracking-widest shrink-0 shadow-sm uppercase">
+            Browse Only
           </span>
         </div>
       ) : isAccountSuspended ? (
@@ -2740,12 +2746,22 @@ export function OrderingScreen({
                 })()}
               </div>
               <div className="p-5 sm:p-6 border-t border-black/10 dark:border-white/5 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md shrink-0">
-                <button
-                  onClick={handleConfigSubmit}
-                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black rounded-xl font-black text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[0_8px_30px_rgba(245,158,11,0.25)] active:scale-98 flex items-center justify-center gap-2"
-                >
-                  Add to Order - ₱{((selectedSizeConfig ? selectedSizeConfig.price : selectedProductForConfig.price) + selectedAddonsConfig.reduce((sum, a) => sum + a.price, 0)).toLocaleString()}
-                </button>
+                {shopSettings?.isClosed ? (
+                  <button
+                    disabled
+                    className="w-full py-3.5 bg-black/5 dark:bg-white/10 text-slate-500 dark:text-slate-400 rounded-xl font-black text-xs uppercase tracking-wider cursor-not-allowed flex items-center justify-center gap-2 border border-black/10 dark:border-white/10 shadow-sm"
+                  >
+                    <Coffee className="w-4 h-4 opacity-40 text-amber-500" />
+                    Ordering Paused — Browse Mode Only
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleConfigSubmit}
+                    className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black rounded-xl font-black text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[0_8px_30px_rgba(245,158,11,0.25)] active:scale-98 flex items-center justify-center gap-2"
+                  >
+                    Add to Order - ₱{((selectedSizeConfig ? selectedSizeConfig.price : selectedProductForConfig.price) + selectedAddonsConfig.reduce((sum, a) => sum + a.price, 0)).toLocaleString()}
+                  </button>
+                )}
               </div>
             </div>
           </div>

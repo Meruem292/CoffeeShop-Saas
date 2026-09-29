@@ -1,5 +1,5 @@
 import React from 'react';
-import { Flame, Plus } from 'lucide-react';
+import { Flame, Plus, Eye } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { SnowCap } from './SnowCap';
 import { Product } from '../types';
@@ -11,9 +11,10 @@ interface ProductCardProps {
   onClick: (item: Product) => void;
   isMostPicked?: boolean;
   isFavorite?: boolean;
+  isOrderingClosed?: boolean;
 }
 
-export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostPicked, isFavorite }: ProductCardProps) => {
+export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostPicked, isFavorite, isOrderingClosed }: ProductCardProps) => {
   const isAvailable = item.isActive !== false;
 
   return (
@@ -58,6 +59,11 @@ export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostP
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
           
           <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 z-10">
+            {isOrderingClosed && isAvailable && (
+              <div className="bg-amber-500/25 backdrop-blur-md text-amber-600 dark:text-amber-300 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border border-amber-500/40 flex items-center gap-1 shadow-sm">
+                <Eye className="w-2.5 h-2.5" /> Browse Only
+              </div>
+            )}
             {item.isCustomizable && isAvailable && (
               <div className="bg-white dark:bg-slate-950/60 backdrop-blur-md text-slate-900 dark:text-white text-[8px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border border-black/10 dark:border-white/10">
                 Customizable
@@ -89,7 +95,7 @@ export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostP
           
           {isAvailable && (
             <div className="absolute bottom-2.5 right-2.5 w-8 h-8 bg-black/10 dark:bg-white/10 backdrop-blur-md border border-white/15 text-slate-900 dark:text-white rounded-full flex items-center justify-center opacity-0 group-hover/card:opacity-100 translate-y-1 group-hover/card:translate-y-0 transition-all duration-300 hover:bg-amber-500 hover:text-slate-900 dark:hover:text-white hover:border-amber-500 z-20">
-              <Plus className="w-4 h-4" />
+              {isOrderingClosed ? <Eye className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             </div>
           )}
         </div>
@@ -119,10 +125,10 @@ export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostP
             </div>
             {isAvailable ? (
               <div className="w-7 h-7 rounded-xl bg-black/5 dark:bg-white/5 group-hover/card:bg-amber-500/20 group-hover/card:text-amber-400 border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-600 dark:text-slate-400 transition-colors duration-300">
-                <Plus className="w-3.5 h-3.5" />
+                {isOrderingClosed ? <Eye className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
               </div>
             ) : (
-              <div className="w-7 h-7 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/5 flex items-center justify-center text-slate-600">
+              <div className="w-7 h-7 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-600">
                 <span className="text-xs font-black">/</span>
               </div>
             )}

@@ -499,9 +499,9 @@ export function SplashScreen({
                 WE ARE
               </h1>
               <h1 className={`text-5xl sm:text-6xl lg:text-7xl font-black italic uppercase tracking-tighter leading-none ${
-                shopSettings?.isClosed ? 'text-rose-500 drop-shadow-[0_0_25px_rgba(244,63,94,0.4)]' : 'text-amber-500'
+                shopSettings?.isClosed ? 'text-amber-400 drop-shadow-[0_0_25px_rgba(245,158,11,0.3)]' : 'text-amber-500'
               }`}>
-                {shopSettings?.isClosed ? 'CLOSED' : 'OPEN!'}
+                {shopSettings?.isClosed ? 'RESTING' : 'OPEN!'}
               </h1>
             </div>
 
@@ -513,7 +513,7 @@ export function SplashScreen({
 
             <p className="text-sm sm:text-base font-bold text-slate-300 max-w-sm leading-relaxed mb-6">
               {shopSettings?.isClosed 
-                ? 'We are currently not taking new orders. Please check back soon or visit our counter!' 
+                ? 'Ordering is temporarily paused for prep & restock. Feel free to explore our craft roasts & menu items!' 
                 : 'Experience the finest coffee, crafted with passion and precision.'}
             </p>
           </div>
@@ -524,12 +524,20 @@ export function SplashScreen({
               <SnowCap />
               <div className="w-full md:w-1/2 flex flex-col gap-2">
                 {shopSettings?.isClosed ? (
-                  <div className="w-full bg-rose-500/10 border border-rose-500/30 text-rose-400 font-black text-sm uppercase tracking-widest px-6 py-4 rounded-2xl flex items-center justify-between shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => onStart()}
+                    className="w-full bg-slate-800/90 hover:bg-slate-700/90 text-white font-black text-base lg:text-lg uppercase tracking-widest px-6 py-4 rounded-2xl flex items-center justify-between shadow-xl border border-amber-500/30 active:scale-[0.98] transition-all group"
+                  >
                     <span className="flex items-center gap-3">
-                      <Coffee className="w-6 h-6 text-rose-500" /> STORE IS CLOSED
+                      <Coffee className="w-6 h-6 text-amber-400" />
+                      BROWSE MENU
                     </span>
-                    <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 rounded-md text-[10px]">PAUSED</span>
-                  </div>
+                    <span className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded-md text-[10px] font-black tracking-wider">VIEW ONLY</span>
+                      <ArrowRight className="w-5 h-5 text-slate-400 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                  </button>
                 ) : (
                   <button
                     type="button"
@@ -544,7 +552,7 @@ export function SplashScreen({
                   </button>
                 )}
                 <p className="text-[11px] font-bold text-slate-400 text-center md:text-left px-1">
-                  {shopSettings?.isClosed ? 'Orders are disabled while the shop is closed.' : "Place your order and we'll prepare it fresh."}
+                  {shopSettings?.isClosed ? 'Explore our menu in browse-only mode while ordering is paused.' : "Place your order and we'll prepare it fresh."}
                 </p>
               </div>
 
