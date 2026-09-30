@@ -1213,7 +1213,7 @@ export function OrderingScreen({
   };
 
   const containerClasses = {
-    pos: 'flex flex-1 h-full w-full overflow-hidden bg-transparent',
+    pos: 'flex flex-col flex-1 h-full w-full overflow-hidden bg-transparent relative',
     kiosk: 'flex flex-col flex-1 h-full w-full bg-transparent relative',
     mobile: 'flex flex-col flex-1 h-full w-full bg-transparent relative',
   };
@@ -2551,7 +2551,7 @@ export function OrderingScreen({
   return (
     <div className={containerClasses[mode]}>
       {shopSettings?.isClosed ? (
-        <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-slate-900/40 border-b border-amber-500/25 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 text-slate-800 dark:text-amber-200 text-xs shrink-0 z-30 backdrop-blur-md animate-in fade-in shadow-sm">
+        <div className="w-full bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-slate-900/40 border-b border-amber-500/25 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3 text-slate-800 dark:text-amber-200 text-xs shrink-0 z-30 backdrop-blur-md animate-in fade-in shadow-sm">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="relative flex h-2.5 w-2.5 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
@@ -2568,7 +2568,7 @@ export function OrderingScreen({
           </span>
         </div>
       ) : isAccountSuspended ? (
-        <div className="bg-rose-500/15 border-b border-rose-500/30 px-6 py-2.5 flex items-center justify-between gap-4 text-rose-400 font-black text-xs uppercase tracking-wider shrink-0 z-30 animate-in fade-in">
+        <div className="w-full bg-rose-500/15 border-b border-rose-500/30 px-6 py-2.5 flex items-center justify-between gap-4 text-rose-400 font-black text-xs uppercase tracking-wider shrink-0 z-30 animate-in fade-in">
           <div className="flex items-center gap-3">
             <ShieldOff className="w-4 h-4 text-rose-400 animate-pulse" />
             <span>ORDERING SUSPENDED — {accountSuspensionTimeLeft} remaining ({activeCustomerProfile?.orderingDisabledReason || 'Spam prevention'})</span>

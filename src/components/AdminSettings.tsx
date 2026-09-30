@@ -117,7 +117,7 @@ export function AdminSettings({
         receiptName: shopSettings.receiptName || '',
         receiptLogoUrl: shopSettings.receiptLogoUrl || '',
         themeColor: shopSettings.themeColor || '#4b2c20',
-        themeMode: shopSettings.themeMode || theme,
+        themeMode: shopSettings.themeMode || (theme === 'system' ? 'dark' : theme),
         notificationSoundUrl: shopSettings.notificationSoundUrl || '',
         notificationVolume: shopSettings.notificationVolume !== undefined ? shopSettings.notificationVolume : 1.0,
         gridColumns: shopSettings.gridColumns || 4,
