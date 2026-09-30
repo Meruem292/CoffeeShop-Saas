@@ -282,8 +282,7 @@ export default function App() {
   useBackButton(isStarted && !isAdmin, () => setIsStarted(false), 'app_started');
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('vite-ui-theme');
-    if (!savedTheme && shopSettings?.themeMode) {
+    if (shopSettings?.themeMode) {
       setTheme(shopSettings.themeMode);
     }
   }, [shopSettings?.themeMode, setTheme]);
@@ -1187,6 +1186,25 @@ export default function App() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      {isAdmin && (
+                        <button 
+                          type="button"
+                          onClick={async () => {
+                            const newMode = theme === 'dark' ? 'light' : 'dark';
+                            setTheme(newMode);
+                            try {
+                              await updateShopSettings({ themeMode: newMode });
+                              toast.success(`Store theme set to ${newMode.toUpperCase()} mode!`);
+                            } catch {
+                              toast.error('Failed to update store theme mode');
+                            }
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-amber-500 transition-all shrink-0"
+                          title={`Switch storewide theme to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+                        >
+                          {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+                        </button>
+                      )}
                       <button 
                         onClick={handleLogout}
                         className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-slate-600 dark:text-slate-400 hover:text-red-400 transition-all shrink-0"
@@ -1460,6 +1478,25 @@ export default function App() {
                           </span>
                         </div>
                       </div>
+                      {isAdmin && (
+                        <button 
+                          type="button"
+                          onClick={async () => {
+                            const newMode = theme === 'dark' ? 'light' : 'dark';
+                            setTheme(newMode);
+                            try {
+                              await updateShopSettings({ themeMode: newMode });
+                              toast.success(`Store theme set to ${newMode.toUpperCase()} mode!`);
+                            } catch {
+                              toast.error('Failed to update store theme mode');
+                            }
+                          }}
+                          className="w-full py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 text-slate-900 dark:text-white rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all"
+                        >
+                          {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+                          Switch Store to {theme === 'dark' ? 'Light' : 'Dark'} Mode
+                        </button>
+                      )}
                       <button 
                         onClick={() => {
                           handleLogout();

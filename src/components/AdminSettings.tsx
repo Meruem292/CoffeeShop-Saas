@@ -327,6 +327,36 @@ export function AdminSettings({
             </button>
           </div>
 
+          {/* Quick 1-click Dark/Light Mode Switcher */}
+          <button
+            type="button"
+            onClick={async () => {
+              const newMode = theme === 'dark' ? 'light' : 'dark';
+              setShopData(prev => ({ ...prev, themeMode: newMode }));
+              setTheme(newMode);
+              try {
+                await onUpdateShop({ themeMode: newMode });
+                toast.success(`Store theme set to ${newMode.toUpperCase()} mode!`);
+              } catch {
+                toast.error('Failed to update store theme mode');
+              }
+            }}
+            className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:py-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 hover:border-amber-500/50 text-slate-700 dark:text-slate-300 hover:text-amber-500 transition-all active:scale-95 shadow-sm shrink-0"
+            title={`Toggle storewide theme (currently ${theme === 'dark' ? 'Dark' : 'Light'})`}
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun className="w-4 h-4 text-amber-400" />
+                <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider hidden sm:inline">Dark</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-4 h-4 text-slate-700" />
+                <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider hidden sm:inline">Light</span>
+              </>
+            )}
+          </button>
+
           {/* Primary Save Button in Header - Always accessible, never overlaps components */}
           <button
             type="button"
@@ -641,8 +671,9 @@ export function AdminSettings({
                           setTheme(newMode);
                           try {
                             await onUpdateShop({ themeMode: newMode });
+                            toast.success(`Store theme set to ${newMode.toUpperCase()} mode!`);
                           } catch {
-                            // ignore background error
+                            toast.error('Failed to update store theme mode');
                           }
                         }}
                         className="w-full flex items-center justify-center gap-2.5 bg-white dark:bg-[#111115] border border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-xl sm:rounded-2xl px-3 py-2.5 sm:py-3 transition-all h-11 sm:h-12"

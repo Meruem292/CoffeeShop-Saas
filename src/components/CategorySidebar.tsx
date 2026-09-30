@@ -2,10 +2,9 @@ import React from 'react';
 import { 
   Layout, Coffee, IceCream, CupSoda, Croissant, Utensils, Leaf,
   GlassWater, Wine, Cookie, Cake, Pizza, Sandwich, Gift, Tag, Flame, Heart, Package,
-  FlaskConical, Sparkles, Sun, Moon
+  FlaskConical, Sparkles
 } from 'lucide-react';
 import { DynamicCategory, ShopSettings } from '../types';
-import { useTheme } from '../lib/ThemeProvider';
 
 interface CategorySidebarProps {
   categories: string[];
@@ -75,8 +74,6 @@ export const CategorySidebar = React.memo(({
   onSignInClick,
   isDesktopSidebarOpen = true
 }: CategorySidebarProps) => {
-  const { theme, setTheme } = useTheme();
-
   return (
     <div className={`flex flex-col py-6 md:py-8 h-full overflow-hidden shrink-0 z-20 transition-all ${
       mode === 'mobile' 
@@ -129,21 +126,6 @@ export const CategorySidebar = React.memo(({
             </button>
           );
         })}
-      </div>
-
-      {/* Quick Theme Toggle Button */}
-      <div className="pt-3 border-t border-black/10 dark:border-white/10 flex flex-col items-center gap-1.5 shrink-0 px-2">
-        <button
-          type="button"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-          className="w-10 h-10 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-amber-500 transition-all active:scale-95 shadow-sm"
-        >
-          {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400 animate-pulse" /> : <Moon className="w-5 h-5 text-slate-700" />}
-        </button>
-        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-          {theme === 'dark' ? 'DARK' : 'LIGHT'}
-        </span>
       </div>
     </div>
   );
