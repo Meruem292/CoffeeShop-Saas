@@ -14,6 +14,9 @@ import { playNotificationSound } from './lib/audio';
 import ShapeGrid from './components/ShapeGrid';
 import { Footer } from './components/Footer';
 import { SnowBackground } from './components/SnowBackground';
+import { HalloweenBackground } from './components/HalloweenBackground';
+import { HalloweenGarland } from './components/HalloweenGarland';
+import { HalloweenBats } from './components/HalloweenBats';
 
 // Direct component imports to ensure all pages load reliably without dynamic chunk 404 errors
 import { OrderingScreen } from './components/OrderingScreen';
@@ -279,10 +282,9 @@ export default function App() {
   useBackButton(isStarted && !isAdmin, () => setIsStarted(false), 'app_started');
 
   useEffect(() => {
-    if (shopSettings?.themeMode) {
+    const savedTheme = localStorage.getItem('vite-ui-theme');
+    if (!savedTheme && shopSettings?.themeMode) {
       setTheme(shopSettings.themeMode);
-    } else if (shopSettings) {
-      setTheme('dark');
     }
   }, [shopSettings?.themeMode, setTheme]);
 
@@ -716,34 +718,173 @@ export default function App() {
     { label: 'Twitter', link: 'https://twitter.com' }
   ], []);
 
+  // Read cached theme and settings from localStorage for instant loading screen styling on first load
+  const cachedTheme = React.useMemo(() => {
+    try {
+      return localStorage.getItem('astro_active_theme') as 'none' | 'christmas' | 'halloween' | null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const cachedBatSettings = React.useMemo(() => {
+    try {
+      const raw = localStorage.getItem('astro_bat_settings');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const currentActiveTheme = shopSettings?.activeTheme || cachedTheme || (shopSettings?.snowEnabled !== false ? 'christmas' : 'none');
+
+  // Synchronize active theme to localStorage so future reloads immediately render with the correct theme
+  React.useEffect(() => {
+    try {
+      if (shopSettings?.activeTheme) {
+        localStorage.setItem('astro_active_theme', shopSettings.activeTheme);
+      } else if (shopSettings?.snowEnabled === false) {
+        localStorage.setItem('astro_active_theme', 'none');
+      }
+      if (shopSettings?.batCount) {
+        localStorage.setItem('astro_bat_settings', JSON.stringify({
+          batCount: shopSettings.batCount,
+          batSize: shopSettings.batSize,
+          batGlowColor: shopSettings.batGlowColor,
+          batGlowIntensity: shopSettings.batGlowIntensity,
+          batSpeedMultiplier: shopSettings.batSpeedMultiplier,
+          batSpread: shopSettings.batSpread,
+        }));
+      }
+    } catch {}
+  }, [shopSettings]);
+
+  const effectiveBatCount = shopSettings?.batCount ?? cachedBatSettings?.batCount ?? 7;
+  const effectiveBatSize = shopSettings?.batSize ?? cachedBatSettings?.batSize ?? 1.0;
+  const effectiveBatGlowColor = shopSettings?.batGlowColor ?? cachedBatSettings?.batGlowColor ?? '#ffffff';
+  const effectiveBatGlowIntensity = shopSettings?.batGlowIntensity ?? cachedBatSettings?.batGlowIntensity ?? 1.0;
+  const effectiveBatSpeedMultiplier = shopSettings?.batSpeedMultiplier ?? cachedBatSettings?.batSpeedMultiplier ?? 1.0;
+  const effectiveBatSpread = shopSettings?.batSpread ?? cachedBatSettings?.batSpread ?? 1.0;
+
   if (authLoading || (user && dbLoading)) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-white font-bold overflow-hidden relative">
-        <SnowBackground 
-          enabled={shopSettings?.snowEnabled !== false}
-          speedMultiplier={shopSettings?.snowSpeedMultiplier ?? 1.0}
-          flakeCount={shopSettings?.snowFlakeCount ?? 50}
-        />
+        {currentActiveTheme === 'christmas' && (
+          <SnowBackground 
+            enabled={true}
+            speedMultiplier={shopSettings?.snowSpeedMultiplier ?? 1.0}
+            flakeCount={shopSettings?.snowFlakeCount ?? 50}
+          />
+        )}
+        {currentActiveTheme === 'halloween' && (
+          <>
+            <HalloweenBackground enabled={true} />
+            <HalloweenGarland enabled={true} />
+            <HalloweenBats 
+              enabled={true}
+              batCount={effectiveBatCount}
+              batSize={effectiveBatSize}
+              glowColor={effectiveBatGlowColor}
+              glowIntensity={effectiveBatGlowIntensity}
+              speedMultiplier={effectiveBatSpeedMultiplier}
+              roamRadius={effectiveBatSpread}
+            />
+          </>
+        )}
         <div className="absolute inset-0 pointer-events-none z-0">
           <ShapeGrid 
             speed={0.3} 
             squareSize={50}
             direction='diagonal'
-            borderColor='rgba(255, 255, 255, 0.03)'
-            hoverFillColor='rgba(245, 158, 11, 0.1)'
+            borderColor={
+              currentActiveTheme === 'halloween'
+                ? 'rgba(249, 115, 22, 0.08)'
+                : currentActiveTheme === 'christmas'
+                ? 'rgba(6, 182, 212, 0.08)'
+                : (theme === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.03)')
+            }
+            hoverFillColor={
+              currentActiveTheme === 'halloween'
+                ? 'rgba(249, 115, 22, 0.15)'
+                : currentActiveTheme === 'christmas'
+                ? 'rgba(6, 182, 212, 0.15)'
+                : 'rgba(245, 158, 11, 0.1)'
+            }
             shape='square'
             hoverTrailAmount={5}
           />
         </div>
+
+        {/* Ambient atmospheric glows specific to active theme */}
+        {currentActiveTheme === 'halloween' && (
+          <>
+            <div className="absolute top-[20%] left-[15%] w-[400px] h-[400px] bg-orange-600/15 rounded-full blur-[140px] pointer-events-none animate-pulse" />
+            <div className="absolute bottom-[20%] right-[15%] w-[450px] h-[450px] bg-purple-600/15 rounded-full blur-[160px] pointer-events-none animate-pulse delay-700" />
+          </>
+        )}
+        {currentActiveTheme === 'christmas' && (
+          <>
+            <div className="absolute top-[20%] left-[15%] w-[400px] h-[400px] bg-cyan-500/15 rounded-full blur-[140px] pointer-events-none animate-pulse" />
+            <div className="absolute bottom-[20%] right-[15%] w-[450px] h-[450px] bg-sky-400/15 rounded-full blur-[160px] pointer-events-none animate-pulse delay-700" />
+          </>
+        )}
+
         <div className="relative z-10 animate-in fade-in zoom-in duration-1000 flex flex-col items-center gap-6">
-          <div className="w-16 h-16 bg-amber-500/10 backdrop-blur-2xl border border-amber-500/30 rounded-2xl flex items-center justify-center shadow-[0_0_50px_rgba(245,158,11,0.2)] animate-pulse">
-            <Coffee className="w-8 h-8 text-amber-500" />
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <span className="uppercase tracking-[0.5em] text-[8px] font-black text-amber-500/50">Initialising Orbit</span>
-            <div className="w-24 h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-amber-500 animate-[loading_2s_infinite]" />
+          {/* THEMED EMBLEM */}
+          {currentActiveTheme === 'halloween' ? (
+            <div className="w-20 h-20 p-4 bg-orange-500/10 backdrop-blur-2xl border border-orange-500/40 rounded-3xl flex items-center justify-center shadow-[0_0_60px_rgba(249,115,22,0.35)] animate-pulse relative">
+              <span className="text-4xl select-none filter drop-shadow-[0_0_14px_rgba(249,115,22,0.9)]">🎃</span>
             </div>
+          ) : currentActiveTheme === 'christmas' ? (
+            <div className="w-20 h-20 p-4 bg-cyan-500/10 backdrop-blur-2xl border border-cyan-400/40 rounded-3xl flex items-center justify-center shadow-[0_0_60px_rgba(6,182,212,0.35)] animate-pulse relative">
+              <span className="text-4xl select-none filter drop-shadow-[0_0_14px_rgba(6,182,212,0.9)]">❄️</span>
+            </div>
+          ) : (
+            <div className="w-16 h-16 bg-amber-500/10 backdrop-blur-2xl border border-amber-500/30 rounded-2xl flex items-center justify-center shadow-[0_0_50px_rgba(245,158,11,0.2)] animate-pulse">
+              <Coffee className="w-8 h-8 text-amber-500" />
+            </div>
+          )}
+
+          {/* THEMED TITLE & LOADING BAR */}
+          <div className="flex flex-col items-center gap-2.5">
+            {currentActiveTheme === 'halloween' ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                  <span className="uppercase tracking-[0.4em] text-[10px] font-black text-orange-400">
+                    Summoning Spooky Brews...
+                  </span>
+                </div>
+                <div className="w-32 h-1.5 bg-orange-950/60 border border-orange-500/30 rounded-full overflow-hidden shadow-inner">
+                  <div className="h-full bg-gradient-to-r from-orange-600 via-amber-400 to-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)] animate-[loading_1.8s_infinite]" />
+                </div>
+                <span className="text-[8px] uppercase tracking-[0.25em] text-orange-500/60 font-mono font-bold">
+                  Halloween Edition • Initialising
+                </span>
+              </>
+            ) : currentActiveTheme === 'christmas' ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  <span className="uppercase tracking-[0.4em] text-[10px] font-black text-cyan-400">
+                    Brewing Winter Cheer...
+                  </span>
+                </div>
+                <div className="w-32 h-1.5 bg-slate-900/60 border border-cyan-400/30 rounded-full overflow-hidden shadow-inner">
+                  <div className="h-full bg-gradient-to-r from-cyan-500 via-sky-300 to-teal-400 shadow-[0_0_10px_rgba(6,182,212,0.8)] animate-[loading_1.8s_infinite]" />
+                </div>
+                <span className="text-[8px] uppercase tracking-[0.25em] text-cyan-400/60 font-mono font-bold">
+                  Holiday Season • Initialising
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="uppercase tracking-[0.5em] text-[8px] font-black text-amber-500/50">Initialising Orbit</span>
+                <div className="w-24 h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-500 animate-[loading_2s_infinite]" />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -752,11 +893,28 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-white font-sans selection:bg-amber-500/30 overflow-hidden relative">
-      <SnowBackground 
-        enabled={shopSettings?.snowEnabled !== false}
-        speedMultiplier={shopSettings?.snowSpeedMultiplier ?? 1.0}
-        flakeCount={shopSettings?.snowFlakeCount ?? 50}
-      />
+      {currentActiveTheme === 'christmas' && (
+        <SnowBackground 
+          enabled={true}
+          speedMultiplier={shopSettings?.snowSpeedMultiplier ?? 1.0}
+          flakeCount={shopSettings?.snowFlakeCount ?? 50}
+        />
+      )}
+      {currentActiveTheme === 'halloween' && (
+        <>
+          <HalloweenBackground enabled={true} />
+          <HalloweenGarland enabled={true} />
+          <HalloweenBats 
+            enabled={true}
+            batCount={shopSettings?.batCount}
+            batSize={shopSettings?.batSize}
+            glowColor={shopSettings?.batGlowColor}
+            glowIntensity={shopSettings?.batGlowIntensity}
+            speedMultiplier={shopSettings?.batSpeedMultiplier}
+            roamRadius={shopSettings?.batSpread}
+          />
+        </>
+      )}
       <style>
         {`
           .scrollbar-hide::-webkit-scrollbar {
@@ -1330,7 +1488,7 @@ export default function App() {
           )}
 
           <main className="flex-1 relative overflow-hidden flex flex-col">
-            <Suspense fallback={<AdminPageSkeleton />}>
+            <Suspense fallback={<AdminPageSkeleton theme={currentActiveTheme} />}>
           {!isStarted && (!isAdmin || isKioskModeActive) && (currentView === 'mobile' || currentView === 'kiosk') && (
             <SplashScreen 
               data={splashScreen} 
@@ -1462,7 +1620,7 @@ export default function App() {
                   )}
                   {currentView === 'cashier' && (
                     dbLoading ? (
-                      <AdminPageSkeleton />
+                      <AdminPageSkeleton theme={currentActiveTheme} />
                     ) : (
                       <CashierView 
                         orders={orders} 
@@ -1475,7 +1633,7 @@ export default function App() {
                     )
                   )}
                   {['reports', 'queue', 'inventory', 'admin-products', 'admin-vouchers', 'admin-customers', 'admin-yourmix', 'admin-reviews', 'admin-chat', 'customer-chat', 'settings', 'profile', 'order-history', 'rewards-store'].includes(currentView) && dbLoading ? (
-                    <AdminPageSkeleton />
+                    <AdminPageSkeleton theme={currentActiveTheme} />
                   ) : (
                     <>
                       {currentView === 'admin-chat' && (

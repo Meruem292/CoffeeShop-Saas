@@ -18,7 +18,7 @@ interface AdminSettingsProps {
   onNavigateToYourMix?: () => void;
 }
 
-type SettingsSection = 'store' | 'checkout' | 'splash';
+type SettingsSection = 'store' | 'themes' | 'checkout' | 'splash';
 
 export function AdminSettings({
   splashScreen,
@@ -76,9 +76,16 @@ export function AdminSettings({
     isClosed: false,
     yourMixEnabled: true,
     yourMixStatus: 'active',
+    activeTheme: 'christmas',
     snowEnabled: true,
     snowSpeedMultiplier: 1.0,
     snowFlakeCount: 50,
+    batCount: 7,
+    batSize: 1.0,
+    batGlowColor: '#ffffff',
+    batGlowIntensity: 1.0,
+    batSpeedMultiplier: 1.0,
+    batSpread: 1.0,
     footerContent: ''
   });
 
@@ -135,9 +142,16 @@ export function AdminSettings({
         isClosed: shopSettings.isClosed || false,
         yourMixEnabled: shopSettings.yourMixEnabled !== undefined ? shopSettings.yourMixEnabled : true,
         yourMixStatus: shopSettings.yourMixStatus || 'active',
+        activeTheme: shopSettings.activeTheme || (shopSettings.snowEnabled !== false ? 'christmas' : 'none'),
         snowEnabled: shopSettings.snowEnabled !== undefined ? shopSettings.snowEnabled : true,
         snowSpeedMultiplier: shopSettings.snowSpeedMultiplier !== undefined ? shopSettings.snowSpeedMultiplier : 1.0,
         snowFlakeCount: shopSettings.snowFlakeCount || 50,
+        batCount: shopSettings.batCount || 7,
+        batSize: shopSettings.batSize !== undefined ? shopSettings.batSize : 1.0,
+        batGlowColor: shopSettings.batGlowColor || '#ffffff',
+        batGlowIntensity: shopSettings.batGlowIntensity !== undefined ? shopSettings.batGlowIntensity : 1.0,
+        batSpeedMultiplier: shopSettings.batSpeedMultiplier !== undefined ? shopSettings.batSpeedMultiplier : 1.0,
+        batSpread: shopSettings.batSpread !== undefined ? shopSettings.batSpread : 1.0,
         footerContent: shopSettings.footerContent || ''
       });
     }
@@ -256,6 +270,7 @@ export function AdminSettings({
 
   const navigationTabs: { id: SettingsSection; label: string; icon: React.ElementType; badge?: string }[] = [
     { id: 'store', label: 'Store & Brand', icon: Store, badge: shopData.isClosed ? 'Paused' : 'Open' },
+    { id: 'themes', label: 'Seasonal Themes', icon: Palette, badge: (shopData.activeTheme || 'none').toUpperCase() },
     { id: 'checkout', label: 'Checkout & POS', icon: ScrollText },
     { id: 'splash', label: 'Splash & 3D', icon: Smartphone },
   ];
@@ -620,14 +635,19 @@ export function AdminSettings({
                       </label>
                       <button
                         type="button"
-                        onClick={() => {
-                          const newMode = (shopData.themeMode || theme) === 'dark' ? 'light' : 'dark';
-                          setShopData({ ...shopData, themeMode: newMode });
+                        onClick={async () => {
+                          const newMode = theme === 'dark' ? 'light' : 'dark';
+                          setShopData(prev => ({ ...prev, themeMode: newMode }));
                           setTheme(newMode);
+                          try {
+                            await onUpdateShop({ themeMode: newMode });
+                          } catch {
+                            // ignore background error
+                          }
                         }}
                         className="w-full flex items-center justify-center gap-2.5 bg-white dark:bg-[#111115] border border-black/10 dark:border-white/10 hover:border-amber-500/50 rounded-xl sm:rounded-2xl px-3 py-2.5 sm:py-3 transition-all h-11 sm:h-12"
                       >
-                        {(shopData.themeMode || theme) === 'dark' ? (
+                        {theme === 'dark' ? (
                           <>
                             <Sun className="w-4 h-4 text-amber-500" />
                             <span className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
@@ -691,6 +711,402 @@ export function AdminSettings({
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: SEASONAL THEMES & AMBIENT FX */}
+            {activeSection === 'themes' && (
+              <div className="space-y-5 sm:space-y-6 animate-in fade-in duration-300">
+                <div className="p-3.5 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 shadow-sm space-y-4 sm:space-y-5">
+                  <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-500 flex items-center justify-center shrink-0">
+                        <Palette className="w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                            Seasonal Themes & FX Management
+                          </h4>
+                          <span className="px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                            Active: {(shopData.activeTheme || 'none').toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          Select the active ambient seasonal theme across Kiosk, Mobile & POS viewports.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3 Theme Selector Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Default Theme Card */}
+                    <button
+                      type="button"
+                      onClick={() => setShopData({ ...shopData, activeTheme: 'none', snowEnabled: false })}
+                      className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 relative overflow-hidden group ${
+                        (shopData.activeTheme === 'none' || (!shopData.activeTheme && shopData.snowEnabled === false))
+                          ? 'bg-amber-500/10 border-amber-500 shadow-md ring-2 ring-amber-500/30'
+                          : 'bg-white/40 dark:bg-white/5 border-black/10 dark:border-white/10 hover:border-amber-500/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="w-9 h-9 rounded-xl bg-slate-500/20 text-slate-400 flex items-center justify-center font-black text-xs">
+                          🚫
+                        </div>
+                        {(shopData.activeTheme === 'none' || (!shopData.activeTheme && shopData.snowEnabled === false)) && (
+                          <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-amber-500 text-slate-950">Active</span>
+                        )}
+                      </div>
+                      <div>
+                        <h5 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white uppercase tracking-wider">
+                          Standard Theme
+                        </h5>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Clean, minimalist interface without seasonal overlays.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Christmas Theme Card */}
+                    <button
+                      type="button"
+                      onClick={() => setShopData({ ...shopData, activeTheme: 'christmas', snowEnabled: true })}
+                      className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 relative overflow-hidden group ${
+                        (shopData.activeTheme === 'christmas' || (!shopData.activeTheme && shopData.snowEnabled !== false))
+                          ? 'bg-cyan-500/10 border-cyan-500 shadow-md ring-2 ring-cyan-500/30'
+                          : 'bg-white/40 dark:bg-white/5 border-black/10 dark:border-white/10 hover:border-cyan-500/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="w-9 h-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-black text-xs">
+                          ❄️
+                        </div>
+                        {(shopData.activeTheme === 'christmas' || (!shopData.activeTheme && shopData.snowEnabled !== false)) && (
+                          <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-cyan-500 text-slate-950">Active</span>
+                        )}
+                      </div>
+                      <div>
+                        <h5 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white uppercase tracking-wider">
+                          Christmas Theme
+                        </h5>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Winter snowfall, drifting particles & snowy roof caps.
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Halloween Theme Card */}
+                    <button
+                      type="button"
+                      onClick={() => setShopData({ ...shopData, activeTheme: 'halloween', snowEnabled: false })}
+                      className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 relative overflow-hidden group ${
+                        shopData.activeTheme === 'halloween'
+                          ? 'bg-orange-500/10 border-orange-500 shadow-md ring-2 ring-orange-500/30'
+                          : 'bg-white/40 dark:bg-white/5 border-black/10 dark:border-white/10 hover:border-orange-500/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="w-9 h-9 rounded-xl bg-orange-500/20 text-orange-500 flex items-center justify-center font-black text-xs">
+                          🎃
+                        </div>
+                        {shopData.activeTheme === 'halloween' && (
+                          <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-orange-500 text-slate-950">Active</span>
+                        )}
+                      </div>
+                      <div>
+                        <h5 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white uppercase tracking-wider">
+                          Halloween Theme
+                        </h5>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Swinging pumpkin garland, glowing moon & 3D bats.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Theme Specific Extra Settings: Christmas Snow */}
+                  {(shopData.activeTheme === 'christmas' || (!shopData.activeTheme && shopData.snowEnabled !== false)) && (
+                    <div className="pt-3 border-t border-black/10 dark:border-white/10 space-y-4 animate-in fade-in">
+                      <div className="flex items-center justify-between text-xs text-cyan-400 font-bold bg-cyan-500/10 p-3 rounded-xl border border-cyan-500/20">
+                        <span className="flex items-center gap-2">
+                          <Snowflake className="w-4 h-4 text-cyan-400" /> Winter Snowfall Dynamics & Particle Density
+                        </span>
+                        <span className="px-2 py-0.5 bg-cyan-500 text-slate-950 text-[9px] font-black uppercase rounded-md">
+                          Snow Config
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Snow Flake Count / Quantity */}
+                        <div className="bg-white/40 dark:bg-white/5 p-3 sm:p-4 rounded-xl border border-black/10 dark:border-white/10 space-y-2">
+                          <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <span className="flex items-center gap-1.5">
+                              <Snowflake className="w-3.5 h-3.5 text-cyan-400" /> Snow Quantity / Density
+                            </span>
+                            <span className="text-cyan-500 font-mono font-black">{shopData.snowFlakeCount ?? 50} flakes</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="15"
+                            max="150"
+                            step="5"
+                            value={shopData.snowFlakeCount ?? 50}
+                            onChange={(e) =>
+                              setShopData({ ...shopData, snowFlakeCount: parseInt(e.target.value) })
+                            }
+                            className="w-full accent-cyan-400 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer py-1"
+                          />
+                          <div className="flex gap-1.5 flex-wrap pt-0.5">
+                            {[
+                              { label: 'Light', count: 25 },
+                              { label: 'Moderate', count: 50 },
+                              { label: 'Heavy', count: 90 },
+                              { label: 'Blizzard', count: 140 },
+                            ].map((preset) => (
+                              <button
+                                key={preset.label}
+                                type="button"
+                                onClick={() => setShopData({ ...shopData, snowFlakeCount: preset.count })}
+                                className={`px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wide border transition-all ${
+                                  (shopData.snowFlakeCount ?? 50) === preset.count
+                                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-extrabold shadow-sm'
+                                    : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300'
+                                }`}
+                              >
+                                {preset.label} ({preset.count})
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Flake Speed */}
+                        <div className="bg-white/40 dark:bg-white/5 p-3 sm:p-4 rounded-xl border border-black/10 dark:border-white/10 space-y-2">
+                          <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <span className="flex items-center gap-1.5">
+                              <Wind className="w-3.5 h-3.5 text-cyan-400" /> Flake Fall Speed
+                            </span>
+                            <span className="text-cyan-500 font-mono font-black">
+                              {(shopData.snowSpeedMultiplier ?? 1.0).toFixed(2)}x
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.05"
+                            max="3.0"
+                            step="0.05"
+                            value={shopData.snowSpeedMultiplier ?? 1.0}
+                            onChange={(e) =>
+                              setShopData({ ...shopData, snowSpeedMultiplier: parseFloat(e.target.value) })
+                            }
+                            className="w-full accent-cyan-400 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer py-1"
+                          />
+                          <div className="flex gap-1.5 flex-wrap pt-0.5">
+                            {[
+                              { name: '🧊 Ultra Slow', speed: 0.1 },
+                              { name: '❄️ Drift', speed: 0.4 },
+                              { name: '🌨️ Normal', speed: 1.0 },
+                              { name: '⚡ Blizzard', speed: 2.2 },
+                            ].map((preset) => (
+                              <button
+                                key={preset.name}
+                                type="button"
+                                onClick={() => setShopData({ ...shopData, snowSpeedMultiplier: preset.speed })}
+                                className={`px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wide border transition-all ${
+                                  Math.abs((shopData.snowSpeedMultiplier ?? 1.0) - preset.speed) < 0.05
+                                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-extrabold shadow-sm'
+                                    : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300'
+                                }`}
+                              >
+                                {preset.name}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Theme Specific Extra Settings: Halloween Bats FX */}
+                  {shopData.activeTheme === 'halloween' && (
+                    <div className="pt-3 border-t border-black/10 dark:border-white/10 space-y-4 animate-in fade-in">
+                      <div className="flex items-center justify-between text-xs text-orange-400 font-bold bg-orange-500/10 p-3 rounded-xl border border-orange-500/20">
+                        <span className="flex items-center gap-2">
+                          <span>🦇</span> 3D Roaming Bats, Pumpkin Garland & Spooky Moon FX
+                        </span>
+                        <span className="px-2 py-0.5 bg-orange-500 text-slate-950 text-[9px] font-black uppercase rounded-md">
+                          Bat Config
+                        </span>
+                      </div>
+
+                      {/* Bat Count & Bat Size */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Bat Count */}
+                        <div className="bg-white/40 dark:bg-white/5 p-3 sm:p-4 rounded-xl border border-black/10 dark:border-white/10 space-y-1.5">
+                          <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <span>Bat Flock Count</span>
+                            <span className="text-orange-500 font-mono font-black">{shopData.batCount ?? 7} bats</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="2"
+                            max="18"
+                            step="1"
+                            value={shopData.batCount ?? 7}
+                            onChange={(e) => setShopData({ ...shopData, batCount: parseInt(e.target.value) })}
+                            className="w-full accent-orange-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                            <span>2 (Few)</span>
+                            <span>8 (Standard)</span>
+                            <span>18 (Swarm)</span>
+                          </div>
+                        </div>
+
+                        {/* Bat Size */}
+                        <div className="bg-white/40 dark:bg-white/5 p-3 sm:p-4 rounded-xl border border-black/10 dark:border-white/10 space-y-1.5">
+                          <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <span>Bat Size / Wingspan</span>
+                            <span className="text-orange-500 font-mono font-black">{(shopData.batSize ?? 1.0).toFixed(2)}x</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.5"
+                            max="2.2"
+                            step="0.05"
+                            value={shopData.batSize ?? 1.0}
+                            onChange={(e) => setShopData({ ...shopData, batSize: parseFloat(e.target.value) })}
+                            className="w-full accent-orange-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                            <span>0.5x (Small)</span>
+                            <span>1.0x (Normal)</span>
+                            <span>2.2x (Giant)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bat Glow Color & Light Intensity */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Glow Color */}
+                        <div className="bg-white/40 dark:bg-white/5 p-3 sm:p-4 rounded-xl border border-black/10 dark:border-white/10 space-y-2">
+                          <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                            Bat Glow Light Color
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={shopData.batGlowColor || '#ffffff'}
+                              onChange={(e) => setShopData({ ...shopData, batGlowColor: e.target.value })}
+                              className="w-9 h-9 rounded-lg bg-black/10 dark:bg-white/10 border border-black/10 dark:border-white/10 cursor-pointer p-0.5 shrink-0"
+                            />
+                            <input
+                              type="text"
+                              value={shopData.batGlowColor || '#ffffff'}
+                              onChange={(e) => setShopData({ ...shopData, batGlowColor: e.target.value })}
+                              className="flex-1 px-3 py-1.5 bg-white dark:bg-[#111115] border border-black/10 dark:border-white/10 rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-white"
+                              placeholder="#ffffff"
+                            />
+                          </div>
+                          {/* Color presets */}
+                          <div className="flex gap-1.5 flex-wrap pt-1">
+                            {[
+                              { label: '⚪ White', color: '#ffffff' },
+                              { label: '🎃 Orange', color: '#f97316' },
+                              { label: '💜 Purple', color: '#a855f7' },
+                              { label: '💚 Green', color: '#22c55e' },
+                              { label: '⚡ Cyan', color: '#38bdf8' },
+                              { label: '🩸 Red', color: '#ef4444' },
+                            ].map((preset) => (
+                              <button
+                                key={preset.color}
+                                type="button"
+                                onClick={() => setShopData({ ...shopData, batGlowColor: preset.color })}
+                                className={`px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wide border transition-all ${
+                                  (shopData.batGlowColor || '#ffffff').toLowerCase() === preset.color.toLowerCase()
+                                    ? 'bg-orange-500 text-slate-950 border-orange-400 font-extrabold shadow-sm'
+                                    : 'bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-300'
+                                }`}
+                              >
+                                {preset.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Glow Light Intensity */}
+                        <div className="bg-white/40 dark:bg-white/5 p-3 sm:p-4 rounded-xl border border-black/10 dark:border-white/10 space-y-1.5">
+                          <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <span>Glow Light Intensity</span>
+                            <span className="text-orange-500 font-mono font-black">{(shopData.batGlowIntensity ?? 1.0).toFixed(2)}x</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.2"
+                            max="2.5"
+                            step="0.05"
+                            value={shopData.batGlowIntensity ?? 1.0}
+                            onChange={(e) => setShopData({ ...shopData, batGlowIntensity: parseFloat(e.target.value) })}
+                            className="w-full accent-orange-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                            <span>0.2x (Soft)</span>
+                            <span>1.0x (Balanced)</span>
+                            <span>2.5x (Vibrant Glow)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Flight Speed & Space Movement Roaming Area */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Space Movement (Roaming Spread) */}
+                        <div className="bg-white/40 dark:bg-white/5 p-3 sm:p-4 rounded-xl border border-black/10 dark:border-white/10 space-y-1.5">
+                          <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <span>Space Movement (Roaming Area)</span>
+                            <span className="text-orange-500 font-mono font-black">{(shopData.batSpread ?? 1.0).toFixed(2)}x</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.3"
+                            max="2.0"
+                            step="0.05"
+                            value={shopData.batSpread ?? 1.0}
+                            onChange={(e) => setShopData({ ...shopData, batSpread: parseFloat(e.target.value) })}
+                            className="w-full accent-orange-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                            <span>0.3x (Clustered)</span>
+                            <span>1.0x (Full Screen)</span>
+                            <span>2.0x (Wild Roam)</span>
+                          </div>
+                        </div>
+
+                        {/* Flight Speed Multiplier */}
+                        <div className="bg-white/40 dark:bg-white/5 p-3 sm:p-4 rounded-xl border border-black/10 dark:border-white/10 space-y-1.5">
+                          <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                            <span>Flight Speed Multiplier</span>
+                            <span className="text-orange-500 font-mono font-black">{(shopData.batSpeedMultiplier ?? 1.0).toFixed(2)}x</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.4"
+                            max="2.5"
+                            step="0.05"
+                            value={shopData.batSpeedMultiplier ?? 1.0}
+                            onChange={(e) => setShopData({ ...shopData, batSpeedMultiplier: parseFloat(e.target.value) })}
+                            className="w-full accent-orange-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer"
+                          />
+                          <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                            <span>0.4x (Slow Flap)</span>
+                            <span>1.0x (Normal)</span>
+                            <span>2.5x (Fast Dart)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1075,91 +1491,6 @@ export function AdminSettings({
                           <span>Manage Ingredients</span>
                         </button>
                       )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Winter Snowfall Background */}
-                <div className="p-3.5 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-slate-500/10 border border-cyan-500/30 shadow-sm space-y-3.5 sm:space-y-4">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center shrink-0">
-                        <Snowflake className="w-5 h-5 sm:w-6 sm:h-6" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                            Winter Snowfall FX
-                          </h4>
-                          <span className="px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30">
-                            Ambient
-                          </span>
-                        </div>
-                        <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                          Particle snowfall layer with customizable speed.
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setShopData({ ...shopData, snowEnabled: !(shopData.snowEnabled !== false) })}
-                      className={`px-3.5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shrink-0 self-start sm:self-center ${
-                        shopData.snowEnabled !== false
-                          ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                          : 'bg-black/10 dark:bg-white/10 text-slate-400'
-                      }`}
-                    >
-                      <Power className="w-3.5 h-3.5" />
-                      {shopData.snowEnabled !== false ? 'Active (ON)' : 'Disabled (OFF)'}
-                    </button>
-                  </div>
-
-                  {shopData.snowEnabled !== false && (
-                    <div className="pt-3 border-t border-black/10 dark:border-white/10 space-y-3">
-                      <div>
-                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                          <span className="flex items-center gap-1.5">
-                            <Wind className="w-3.5 h-3.5 text-cyan-400" /> Flake Speed
-                          </span>
-                          <span className="text-cyan-500 font-mono font-bold">
-                            {(shopData.snowSpeedMultiplier ?? 1.0).toFixed(2)}x
-                          </span>
-                        </div>
-                        <input
-                          type="range"
-                          min="0.05"
-                          max="3.0"
-                          step="0.05"
-                          value={shopData.snowSpeedMultiplier ?? 1.0}
-                          onChange={(e) =>
-                            setShopData({ ...shopData, snowSpeedMultiplier: parseFloat(e.target.value) })
-                          }
-                          className="w-full accent-cyan-400 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer py-1"
-                        />
-                      </div>
-
-                      <div className="flex gap-1.5 flex-wrap pt-0.5">
-                        {[
-                          { name: '🧊 Ultra Slow', speed: 0.1 },
-                          { name: '❄️ Drift', speed: 0.4 },
-                          { name: '🌨️ Normal', speed: 1.0 },
-                          { name: '⚡ Blizzard', speed: 2.2 },
-                        ].map((preset) => (
-                          <button
-                            key={preset.name}
-                            type="button"
-                            onClick={() => setShopData({ ...shopData, snowSpeedMultiplier: preset.speed })}
-                            className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
-                              Math.abs((shopData.snowSpeedMultiplier ?? 1.0) - preset.speed) < 0.05
-                                ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-sm'
-                                : 'bg-white/40 dark:bg-white/5 border-black/10 dark:border-white/10 text-slate-600 dark:text-slate-400'
-                            }`}
-                          >
-                            {preset.name}
-                          </button>
-                        ))}
-                      </div>
                     </div>
                   )}
                 </div>

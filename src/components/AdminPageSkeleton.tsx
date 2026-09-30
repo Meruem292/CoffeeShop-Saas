@@ -1,12 +1,28 @@
 import React from 'react';
 
-export function AdminPageSkeleton() {
+interface AdminPageSkeletonProps {
+  theme?: 'none' | 'christmas' | 'halloween';
+}
+
+export function AdminPageSkeleton({ theme = 'none' }: AdminPageSkeletonProps) {
+  const accentBg = theme === 'halloween' 
+    ? 'bg-orange-500/15' 
+    : theme === 'christmas' 
+    ? 'bg-cyan-500/15' 
+    : 'bg-amber-500/10';
+
+  const accentPill = theme === 'halloween' 
+    ? 'bg-orange-500/25 text-orange-400' 
+    : theme === 'christmas' 
+    ? 'bg-cyan-500/25 text-cyan-400' 
+    : 'bg-amber-500/20';
+
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6 animate-pulse">
       {/* Header Skeleton */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-[#0a0a0c] p-6 rounded-3xl border border-black/10 dark:border-white/10 shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 shrink-0" />
+          <div className={`w-12 h-12 rounded-2xl ${accentBg} shrink-0`} />
           <div className="space-y-2">
             <div className="h-6 w-48 bg-slate-200 dark:bg-white/10 rounded-lg" />
             <div className="h-3 w-32 bg-slate-200 dark:bg-white/5 rounded-md" />
@@ -14,7 +30,7 @@ export function AdminPageSkeleton() {
         </div>
         <div className="flex items-center gap-3">
           <div className="h-10 w-28 bg-slate-200 dark:bg-white/10 rounded-xl" />
-          <div className="h-10 w-32 bg-amber-500/20 rounded-xl" />
+          <div className={`h-10 w-32 ${accentPill} rounded-xl`} />
         </div>
       </div>
 

@@ -290,9 +290,16 @@ export interface ShopSettings {
   isClosed?: boolean;
   yourMixEnabled?: boolean;
   yourMixStatus?: 'active' | 'offline' | 'paused';
+  activeTheme?: 'none' | 'christmas' | 'halloween';
   snowEnabled?: boolean;
   snowSpeedMultiplier?: number;
   snowFlakeCount?: number;
+  batCount?: number;
+  batSize?: number;
+  batGlowColor?: string;
+  batGlowIntensity?: number;
+  batSpeedMultiplier?: number;
+  batSpread?: number;
 }
 
 export interface SplashScreen {

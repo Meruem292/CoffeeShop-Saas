@@ -2,6 +2,7 @@ import React from 'react';
 import { Flame, Plus, Eye } from 'lucide-react';
 import MagicBento from './MagicBento';
 import { SnowCap } from './SnowCap';
+import { PumpkinCap } from './PumpkinCap';
 import { Product } from '../types';
 
 interface ProductCardProps {
@@ -12,9 +13,10 @@ interface ProductCardProps {
   isMostPicked?: boolean;
   isFavorite?: boolean;
   isOrderingClosed?: boolean;
+  activeTheme?: 'none' | 'christmas' | 'halloween';
 }
 
-export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostPicked, isFavorite, isOrderingClosed }: ProductCardProps) => {
+export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostPicked, isFavorite, isOrderingClosed, activeTheme }: ProductCardProps) => {
   const isAvailable = item.isActive !== false;
 
   return (
@@ -47,8 +49,9 @@ export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostP
         }}
       >
         <div className={`w-full overflow-hidden bg-white/60 dark:bg-slate-950/40 relative transition-all duration-500 ${mode === 'mobile' ? 'aspect-[4/3] mb-1' : 'aspect-square mb-2'}`}>
-          {/* Organic Winter Snow Cap On Top Border */}
-          <SnowCap className="z-20" />
+          {/* Seasonal Theme Topper */}
+          {activeTheme === 'christmas' && <SnowCap className="z-20" />}
+          {activeTheme === 'halloween' && <PumpkinCap className="z-20" />}
 
           <img 
             src={item.image || undefined} 

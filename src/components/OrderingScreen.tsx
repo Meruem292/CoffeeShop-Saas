@@ -7,6 +7,7 @@ import MagicBento from './MagicBento';
 import { CategorySidebar } from './CategorySidebar';
 import { ProductCard } from './ProductCard';
 import { SnowCap } from './SnowCap';
+import { PumpkinCap } from './PumpkinCap';
 import { YourMixStudio } from './YourMixStudio';
 import { CreativesMarketModal } from './CreativesMarketModal';
 import { useAuth } from '../lib/AuthContext';
@@ -134,6 +135,7 @@ export function OrderingScreen({
     return uniqueList;
   }, [categoriesData, menu, shopSettings?.yourMixEnabled]);
 
+  const activeTheme = shopSettings?.activeTheme || (shopSettings?.snowEnabled !== false ? 'christmas' : 'none');
   const [activeCategory, setActiveCategory] = useState<string>(categories[0] || '');
   const [activeSubCategory, setActiveSubCategory] = useState<string>('All');
 
@@ -1469,7 +1471,8 @@ export function OrderingScreen({
             {/* Customer Favorites Section (Mobile Only when logged in) */}
             {mode === 'mobile' && user && customerFavorites.length > 0 && (
               <div className="mb-3 sm:mb-6 p-2.5 sm:p-4 bg-rose-500/5 dark:bg-rose-500/5 rounded-2xl sm:rounded-3xl border border-rose-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 flex flex-col justify-between relative overflow-hidden">
-                <SnowCap variant="banner" />
+                {activeTheme === 'christmas' && <SnowCap variant="banner" />}
+                {activeTheme === 'halloween' && <PumpkinCap variant="banner" />}
                 <div className="flex items-center justify-between mb-1 sm:mb-1.5">
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 fill-rose-500 animate-pulse shrink-0" />
@@ -1494,7 +1497,8 @@ export function OrderingScreen({
                         onClick={() => product.isActive !== false && handleProductClick(product)}
                         className="shrink-0 w-48 sm:w-64 h-[84px] sm:h-[145px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-rose-500/30 p-2 sm:p-2.5 flex gap-2 sm:gap-3 items-center cursor-pointer hover:border-rose-500 hover:shadow-md transition-all relative group overflow-hidden"
                       >
-                        <SnowCap variant="compact" />
+                        {activeTheme === 'christmas' && <SnowCap variant="compact" />}
+                        {activeTheme === 'halloween' && <PumpkinCap variant="compact" />}
                         <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
                           <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-rose-500 text-white text-[7px] sm:text-[8px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-full shadow">
@@ -1530,7 +1534,8 @@ export function OrderingScreen({
             {/* Overall Best Sellers Continuous Rotating Marquee Section (Non-Your MIX categories) */}
             {((mode === 'kiosk' || mode === 'pos') || (mode === 'mobile' && overallBestSellers.length > 0)) && overallBestSellers.length > 0 && activeCategory !== 'Your MIX' && (
               <div className="mb-3 sm:mb-6 p-2.5 sm:p-4 bg-amber-500/5 dark:bg-amber-500/5 rounded-2xl sm:rounded-3xl border border-amber-500/20 shadow-sm animate-in fade-in slide-in-from-top-4 relative overflow-hidden">
-                <SnowCap variant="banner" />
+                {activeTheme === 'christmas' && <SnowCap variant="banner" />}
+                {activeTheme === 'halloween' && <PumpkinCap variant="banner" />}
                 <div className="flex items-center justify-between mb-1.5 sm:mb-2">
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 fill-amber-500 animate-pulse shrink-0" />
@@ -1564,7 +1569,8 @@ export function OrderingScreen({
                             onClick={() => product.isActive !== false && handleProductClick(product)}
                             className="shrink-0 w-52 sm:w-64 h-[84px] sm:h-[96px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-amber-500/30 p-2 sm:p-2.5 flex gap-2.5 sm:gap-3 items-center cursor-pointer hover:border-amber-500 hover:shadow-lg hover:scale-[1.02] transition-all relative group select-none shadow-sm overflow-hidden"
                           >
-                            <SnowCap variant="compact" />
+                            {activeTheme === 'christmas' && <SnowCap variant="compact" />}
+                            {activeTheme === 'halloween' && <PumpkinCap variant="compact" />}
                             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
                               <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                               <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-amber-500 text-slate-950 text-[7px] sm:text-[8px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-full shadow">
@@ -1602,7 +1608,8 @@ export function OrderingScreen({
             {/* Discover your new Favorites Section - Replaces Best Seller in YOUR MIX category */}
             {activeCategory === 'Your MIX' && shopSettings?.yourMixEnabled !== false && !localSearchQuery && (
               <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-purple-500/10 rounded-2xl sm:rounded-3xl border border-amber-500/25 shadow-sm animate-in fade-in slide-in-from-top-4 relative overflow-hidden">
-                <SnowCap variant="banner" />
+                {activeTheme === 'christmas' && <SnowCap variant="banner" />}
+                {activeTheme === 'halloween' && <PumpkinCap variant="banner" />}
                 <div className="flex items-center justify-between mb-2 sm:mb-2.5">
                   <div className="flex items-center gap-1.5 sm:gap-2">
                     <Crown className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-amber-400" />
@@ -1815,6 +1822,7 @@ export function OrderingScreen({
                     onClick={handleProductClick}
                     isMostPicked={mostPickedProductIds ? mostPickedProductIds.has(item.id) : false}
                     isOrderingClosed={!!shopSettings?.isClosed}
+                    activeTheme={activeTheme}
                   />
                 ))}
               </div>
