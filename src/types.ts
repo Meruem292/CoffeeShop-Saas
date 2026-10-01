@@ -291,6 +291,27 @@ export interface ShopSettings {
   yourMixEnabled?: boolean;
   yourMixStatus?: 'active' | 'offline' | 'paused';
   activeTheme?: 'none' | 'christmas' | 'halloween';
+  orderNotificationVolume?: number;
+  orderNotificationMuted?: boolean;
+  chatNotificationVolume?: number;
+  chatNotificationMuted?: boolean;
+  ambientSoundVolume?: number;
+  ambientSoundEnabled?: boolean;
+  ambientSoundMuted?: boolean;
+  startOrderingSoundVolume?: number;
+  startOrderingSoundMuted?: boolean;
+  addToCartSoundVolume?: number;
+  addToCartSoundMuted?: boolean;
+  startOverSoundVolume?: number;
+  startOverSoundMuted?: boolean;
+  confirmOrderSoundVolume?: number;
+  confirmOrderSoundMuted?: boolean;
+  themeSounds?: {
+    none?: ThemeSoundConfig;
+    christmas?: ThemeSoundConfig;
+    halloween?: ThemeSoundConfig;
+    [key: string]: ThemeSoundConfig | undefined;
+  };
   snowEnabled?: boolean;
   snowSpeedMultiplier?: number;
   snowFlakeCount?: number;
@@ -300,6 +321,16 @@ export interface ShopSettings {
   batGlowIntensity?: number;
   batSpeedMultiplier?: number;
   batSpread?: number;
+}
+
+export interface ThemeSoundConfig {
+  orderSoundUrl?: string;
+  chatSoundUrl?: string;
+  ambientSoundUrl?: string;
+  startOrderingSoundUrl?: string;
+  startOverSoundUrl?: string;
+  addToCartSoundUrl?: string;
+  confirmOrderSoundUrl?: string;
 }
 
 export interface SplashScreen {

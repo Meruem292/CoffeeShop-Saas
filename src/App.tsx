@@ -10,7 +10,7 @@ import { useAuth } from './lib/AuthContext';
 import { useTheme } from './lib/ThemeProvider';
 import { useToast } from './lib/ToastContext';
 import { useBackButton } from './lib/useBackButton';
-import { playNotificationSound } from './lib/audio';
+import { playThemeOrderSound } from './lib/audio';
 import ShapeGrid from './components/ShapeGrid';
 import { Footer } from './components/Footer';
 import { SnowBackground } from './components/SnowBackground';
@@ -38,6 +38,7 @@ import { CustomerChatWidget } from './components/CustomerChatWidget';
 import { CustomerChatPage } from './components/CustomerChatPage';
 import { AdminPageSkeleton } from './components/AdminPageSkeleton';
 import { KioskMemberModal } from './components/KioskMemberModal';
+import { AmbientAudioWidget } from './components/AmbientAudioWidget';
 
 export default function App() {
   const { toast } = useToast();
@@ -194,6 +195,23 @@ export default function App() {
     deleteReview
   } = useFirebase(user?.uid, isAdmin);
 
+  // Read cached theme and settings from localStorage for instant loading screen styling on first load
+  const cachedTheme = useMemo(() => {
+    try {
+      return localStorage.getItem('astro_active_theme') as 'none' | 'christmas' | 'halloween' | null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const currentActiveTheme: 'none' | 'christmas' | 'halloween' = shopSettings?.activeTheme || cachedTheme || (shopSettings?.snowEnabled !== false ? 'christmas' : 'none');
+  const activeOrderSoundUrl = shopSettings?.themeSounds?.[currentActiveTheme]?.orderSoundUrl || shopSettings?.notificationSoundUrl;
+  const activeChatSoundUrl = shopSettings?.themeSounds?.[currentActiveTheme]?.chatSoundUrl;
+  const orderNotificationVolume = shopSettings?.orderNotificationVolume ?? shopSettings?.notificationVolume ?? 1;
+  const orderNotificationMuted = shopSettings?.orderNotificationMuted ?? false;
+  const chatNotificationVolume = shopSettings?.chatNotificationVolume ?? 1;
+  const chatNotificationMuted = shopSettings?.chatNotificationMuted ?? false;
+
   const {
     threads: chatThreads,
     messages: chatMessages,
@@ -214,6 +232,10 @@ export default function App() {
     customerName: userProfile?.displayName || user?.displayName || guestChatUser?.name || 'Customer',
     customerEmail: userProfile?.email || user?.email || guestChatUser?.email || undefined,
     customerPhoto: userProfile?.photoURL || user?.photoURL || undefined,
+    theme: currentActiveTheme,
+    chatSoundUrl: activeChatSoundUrl,
+    chatVolume: chatNotificationVolume,
+    chatMuted: chatNotificationMuted,
     onNewMessageNotification: ({ senderName, text, role }) => {
       if (role === 'admin') {
         toast.info(`💬 Live Chat from ${senderName}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}"`, 6000);
@@ -602,7 +624,12 @@ export default function App() {
           }
         }
         if (hasNew) {
-           playNotificationSound(shopSettings?.notificationSoundUrl, shopSettings?.notificationVolume);
+           playThemeOrderSound({
+             theme: currentActiveTheme,
+             customUrl: activeOrderSoundUrl,
+             volume: orderNotificationVolume,
+             muted: orderNotificationMuted
+           });
         }
       }
 
@@ -623,7 +650,7 @@ export default function App() {
       prevOrderIds.current = currentIds;
       prevOrderStatuses.current = currentStatuses;
     }
-  }, [orders, isAdmin, shopSettings?.speakCustomerName, shopSettings?.notificationSoundUrl, shopSettings?.notificationVolume]);
+  }, [orders, isAdmin, shopSettings?.speakCustomerName, currentActiveTheme, activeOrderSoundUrl, orderNotificationVolume, orderNotificationMuted]);
 
   useEffect(() => {
     if (user) {
@@ -631,12 +658,17 @@ export default function App() {
         const prevStatus = prevUserOrderStatuses.current.get(order.id || '');
         if (prevStatus && prevStatus !== 'ready' && order.status === 'ready') {
           toast.success(`Your order ${order.id?.slice(-4)} is ready!`);
-          playNotificationSound(shopSettings?.notificationSoundUrl, shopSettings?.notificationVolume);
+          playThemeOrderSound({
+            theme: currentActiveTheme,
+            customUrl: activeOrderSoundUrl,
+            volume: orderNotificationVolume,
+            muted: orderNotificationMuted
+          });
         }
         prevUserOrderStatuses.current.set(order.id || '', order.status);
       });
     }
-  }, [userOrders, user, shopSettings?.notificationSoundUrl, shopSettings?.notificationVolume]);
+  }, [userOrders, user, currentActiveTheme, activeOrderSoundUrl, orderNotificationVolume, orderNotificationMuted]);
 
   const handlePlaceOrder = async (orderData: Omit<Order, 'id' | 'createdAt'>) => {
     const initialStatus: OrderStatus = orderData.status || 'unpaid';
@@ -717,15 +749,6 @@ export default function App() {
     { label: 'Twitter', link: 'https://twitter.com' }
   ], []);
 
-  // Read cached theme and settings from localStorage for instant loading screen styling on first load
-  const cachedTheme = React.useMemo(() => {
-    try {
-      return localStorage.getItem('astro_active_theme') as 'none' | 'christmas' | 'halloween' | null;
-    } catch {
-      return null;
-    }
-  }, []);
-
   const cachedBatSettings = React.useMemo(() => {
     try {
       const raw = localStorage.getItem('astro_bat_settings');
@@ -734,8 +757,6 @@ export default function App() {
       return null;
     }
   }, []);
-
-  const currentActiveTheme = shopSettings?.activeTheme || cachedTheme || (shopSettings?.snowEnabled !== false ? 'christmas' : 'none');
 
   // Synchronize active theme to localStorage so future reloads immediately render with the correct theme
   React.useEffect(() => {
@@ -1696,6 +1717,7 @@ export default function App() {
                       {currentView === 'queue' && (
                         <KitchenQueue 
                           orders={orders} 
+                          shopSettings={shopSettings}
                           onUpdateStatus={updateOrderStatus} 
                           onDeleteOrder={deleteOrder}
                           onVoidOrder={voidOrder}
@@ -2007,6 +2029,10 @@ export default function App() {
             onStartGuestChat={handleStartGuestChat}
           />
         )}
+        <AmbientAudioWidget
+          shopSettings={shopSettings}
+          hidden={['kitchen', 'reports', 'inventory', 'cashier'].includes(currentView)}
+        />
         <Footer shopSettings={shopSettings} />
       </div>
     </div>

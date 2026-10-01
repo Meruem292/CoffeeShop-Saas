@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { ChatThread, ChatMessage } from '../types';
-import { playNotificationSound, playChatNotificationSound } from './audio';
+import { playThemeChatSound } from './audio';
 
 enum OperationType {
   CREATE = 'create',
@@ -60,9 +60,25 @@ export function useChat(params: {
   customerName?: string;
   customerEmail?: string;
   customerPhoto?: string;
+  theme?: string;
+  chatSoundUrl?: string;
+  chatVolume?: number;
+  chatMuted?: boolean;
   onNewMessageNotification?: (info: { senderName: string; text: string; threadId: string; role: 'admin' | 'customer' }) => void;
 }) {
-  const { userId, isAdmin, guestId, customerName, customerEmail, customerPhoto, onNewMessageNotification } = params;
+  const {
+    userId,
+    isAdmin,
+    guestId,
+    customerName,
+    customerEmail,
+    customerPhoto,
+    theme,
+    chatSoundUrl,
+    chatVolume = 1,
+    chatMuted = false,
+    onNewMessageNotification,
+  } = params;
 
   // Determine actual customer identifier
   const currentCustomerId = userId || guestId || null;
@@ -149,7 +165,14 @@ export function useChat(params: {
         if (isAdmin) {
           if (!isInitialLoadAdmin.current) {
             if (currentUnreadAdmin > prevUnreadAdminTotal.current || (currentUnreadAdmin > 0 && latestTime > prevLatestMessageAtRef.current)) {
-              try { playChatNotificationSound(); } catch (e) {}
+              try {
+                playThemeChatSound({
+                  theme,
+                  customUrl: chatSoundUrl,
+                  volume: chatVolume,
+                  muted: chatMuted
+                });
+              } catch (e) {}
               if (latestThreadWithActivity && onNewMessageNotification) {
                 onNewMessageNotification({
                   senderName: latestThreadWithActivity.customerName || 'Customer',
@@ -166,7 +189,14 @@ export function useChat(params: {
           // Check for new incoming messages for Customer
           if (!isInitialLoadCustomer.current) {
             if (currentUnreadCustomer > prevUnreadCustomerTotal.current || (currentUnreadCustomer > 0 && latestTime > prevLatestMessageAtRef.current)) {
-              try { playChatNotificationSound(); } catch (e) {}
+              try {
+                playThemeChatSound({
+                  theme,
+                  customUrl: chatSoundUrl,
+                  volume: chatVolume,
+                  muted: chatMuted
+                });
+              } catch (e) {}
               if (myThread && onNewMessageNotification) {
                 onNewMessageNotification({
                   senderName: 'Live Support',

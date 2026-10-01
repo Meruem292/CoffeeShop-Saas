@@ -8,6 +8,7 @@ import { HalloweenBackground } from './HalloweenBackground';
 import { HalloweenGarland } from './HalloweenGarland';
 import { HalloweenBats } from './HalloweenBats';
 import { useToast } from '../lib/ToastContext';
+import { playStartOrderingSound } from '../lib/audio';
 
 declare module 'react' {
   namespace JSX {
@@ -74,6 +75,15 @@ export function SplashScreen({
   }, [approvedReviews.length, currentReviewIndex]);
 
   const currentReview = approvedReviews[currentReviewIndex];
+
+  const handleStartWithSound = (customer?: UserProfile) => {
+    try {
+      playStartOrderingSound(shopSettings);
+    } catch (e) {
+      console.error(e);
+    }
+    onStart(customer);
+  };
 
   React.useEffect(() => {
     if (!data || !data.isActive) {
@@ -232,7 +242,7 @@ export function SplashScreen({
                     <button
                       key={`splash-best-${product.id}-${index}`}
                       type="button"
-                      onClick={() => onStart()}
+                      onClick={() => handleStartWithSound()}
                       className="shrink-0 h-[48px] bg-white dark:bg-[#161D2E] hover:bg-amber-50 dark:hover:bg-[#1f293d] border border-amber-500/30 hover:border-amber-500 rounded-xl px-2.5 py-1.5 flex items-center gap-2.5 transition-all text-left group shadow-sm active:scale-95"
                     >
                       <div className="w-8 h-8 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900 shrink-0 border border-slate-200 dark:border-white/10 relative">
@@ -452,7 +462,7 @@ export function SplashScreen({
                 </p>
                 <button 
                   type="button"
-                  onClick={() => onStart()}
+                  onClick={() => handleStartWithSound()}
                   className="w-full mt-1 py-2.5 px-4 rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95"
                 >
                   <Coffee className="w-4 h-4 text-amber-500" />
@@ -552,7 +562,7 @@ export function SplashScreen({
                 {shopSettings?.isClosed ? (
                   <button
                     type="button"
-                    onClick={() => onStart()}
+                    onClick={() => handleStartWithSound()}
                     className="w-full bg-slate-200 hover:bg-slate-300 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 text-slate-900 dark:text-white font-black text-base lg:text-lg uppercase tracking-widest px-6 py-4 rounded-2xl flex items-center justify-between shadow-xl border border-amber-500/30 active:scale-[0.98] transition-all group"
                   >
                     <span className="flex items-center gap-3">
@@ -567,7 +577,7 @@ export function SplashScreen({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => onStart()}
+                    onClick={() => handleStartWithSound()}
                     className="w-full bg-gradient-to-r from-orange-600 via-amber-500 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-slate-950 font-black text-base lg:text-lg uppercase tracking-widest px-6 py-4 rounded-2xl flex items-center justify-between shadow-xl shadow-amber-500/20 active:scale-[0.98] transition-all group"
                   >
                     <span className="flex items-center gap-3">
@@ -577,6 +587,7 @@ export function SplashScreen({
                     <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1 transition-transform" />
                   </button>
                 )}
+
                 <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 text-center md:text-left px-1">
                   {shopSettings?.isClosed ? 'Explore our menu in browse-only mode while ordering is paused.' : "Place your order and we'll prepare it fresh."}
                 </p>

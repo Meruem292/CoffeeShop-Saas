@@ -16,6 +16,7 @@ import { useToast } from '../lib/ToastContext';
 import { useBackButton } from '../lib/useBackButton';
 import { QRScannerModal } from './QRScannerModal';
 import { OrderStatusModal } from './OrderStatusModal';
+import { playAddToCartSound, playStartOverSound, playConfirmOrderSound } from '../lib/audio';
 
 interface OrderingScreenProps {
   mode: 'pos' | 'kiosk' | 'mobile';
@@ -833,6 +834,11 @@ export function OrderingScreen({
   useBackButton(showStartOverWarningModal, () => setShowStartOverWarningModal(false), 'ord_start_over');
 
   const executeStartOver = useCallback(() => {
+    try {
+      playStartOverSound(shopSettings);
+    } catch (e) {
+      console.error(e);
+    }
     setCart([]);
     setAppliedVoucher(null);
     setSelectedFreeProduct(null);
@@ -845,7 +851,7 @@ export function OrderingScreen({
       onSwitchCustomer();
     }
     toast.info('Session reset. Returning to welcome screen.');
-  }, [onSwitchCustomer, toast]);
+  }, [onSwitchCustomer, toast, shopSettings]);
 
   const handleStartOverClick = useCallback(() => {
     if (scannedAccountProfile || userProfile || accountId || cart.length > 0) {
@@ -931,7 +937,13 @@ export function OrderingScreen({
     } else {
       toast.success(`${product.name} added to cart`);
     }
-  }, [toast, shopSettings?.isClosed, isAccountSuspended, accountSuspensionTimeLeft, activeCustomerProfile?.orderingDisabledReason]);
+
+    try {
+      playAddToCartSound(shopSettings);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [toast, shopSettings, isAccountSuspended, accountSuspensionTimeLeft, activeCustomerProfile?.orderingDisabledReason]);
 
   // Product Click Handler
   const handleProductClick = useCallback((product: Product) => {
@@ -1177,6 +1189,12 @@ export function OrderingScreen({
       : (activeCustomerProfile || (mode === 'mobile' ? userProfile : null));
     const targetCustomerId = targetCustomer?.uid || (mode === 'mobile' ? user?.uid : undefined);
     const targetCustomerName = customerName.trim() || targetCustomer?.displayName || 'Customer';
+
+    try {
+      playConfirmOrderSound(shopSettings);
+    } catch (e) {
+      console.error(e);
+    }
 
     onPlaceOrder({
       items: cart,

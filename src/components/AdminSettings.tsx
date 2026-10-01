@@ -5,10 +5,14 @@ import {
   Upload, Sun, Moon, ScrollText, QrCode, Trash2, Lock, Store,
   Power, Download, Maximize2, X, FlaskConical, Sliders, RefreshCw,
   Box, RotateCw, Compass, Snowflake, Wind, Check, AlertCircle,
-  Smartphone, Volume2, ShieldCheck, Sparkles, Layers, Monitor, SlidersHorizontal
+  Smartphone, Volume2, VolumeX, ShieldCheck, Sparkles, Layers, Monitor, SlidersHorizontal,
+  Play, Square, Music, Bell, MessageSquare, RotateCcw, ChevronRight, Loader2, ExternalLink,
+  ShoppingBag, CheckCircle2
 } from 'lucide-react';
 import { useTheme } from '../lib/ThemeProvider';
 import { useToast } from '../lib/ToastContext';
+import { previewThemeSound, subscribeAmbientState, stopAmbientLoop } from '../lib/audio';
+import { uploadAudioFile, uploadImageFile } from '../lib/firebaseStorage';
 
 interface AdminSettingsProps {
   splashScreen: SplashScreen | null;
@@ -61,6 +65,22 @@ export function AdminSettings({
     themeMode: 'dark',
     notificationSoundUrl: '',
     notificationVolume: 1.0,
+    orderNotificationVolume: 1.0,
+    orderNotificationMuted: false,
+    chatNotificationVolume: 1.0,
+    chatNotificationMuted: false,
+    ambientSoundVolume: 0.35,
+    ambientSoundEnabled: true,
+    ambientSoundMuted: false,
+    startOrderingSoundVolume: 0.8,
+    startOrderingSoundMuted: false,
+    addToCartSoundVolume: 0.8,
+    addToCartSoundMuted: false,
+    startOverSoundVolume: 0.8,
+    startOverSoundMuted: false,
+    confirmOrderSoundVolume: 0.85,
+    confirmOrderSoundMuted: false,
+    themeSounds: {},
     gridColumns: 4,
     mobileGridColumns: 2,
     address: '',
@@ -90,8 +110,19 @@ export function AdminSettings({
   });
 
   const [saving, setSaving] = useState(false);
+  const [uploadingAudio, setUploadingAudio] = useState<string | null>(null);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [previewTab, setPreviewTab] = useState<'brand' | 'splash'>('brand');
+  const [soundThemeTab, setSoundThemeTab] = useState<'none' | 'christmas' | 'halloween'>('none');
+  const [isAmbientTesting, setIsAmbientTesting] = useState(false);
+
+  // Subscribe to ambient playback state to reflect live play/stop in preview buttons
+  useEffect(() => {
+    const unsub = subscribeAmbientState((playing) => {
+      setIsAmbientTesting(playing);
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (splashScreen) {
@@ -116,6 +147,8 @@ export function AdminSettings({
 
   useEffect(() => {
     if (shopSettings) {
+      const currentTheme = shopSettings.activeTheme || (shopSettings.snowEnabled !== false ? 'christmas' : 'none');
+      setSoundThemeTab(currentTheme);
       setShopData({
         name: shopSettings.name || '',
         initials: shopSettings.initials || '',
@@ -127,6 +160,22 @@ export function AdminSettings({
         themeMode: shopSettings.themeMode || (theme === 'system' ? 'dark' : theme),
         notificationSoundUrl: shopSettings.notificationSoundUrl || '',
         notificationVolume: shopSettings.notificationVolume !== undefined ? shopSettings.notificationVolume : 1.0,
+        orderNotificationVolume: shopSettings.orderNotificationVolume !== undefined ? shopSettings.orderNotificationVolume : (shopSettings.notificationVolume ?? 1.0),
+        orderNotificationMuted: shopSettings.orderNotificationMuted || false,
+        chatNotificationVolume: shopSettings.chatNotificationVolume !== undefined ? shopSettings.chatNotificationVolume : 1.0,
+        chatNotificationMuted: shopSettings.chatNotificationMuted || false,
+        ambientSoundVolume: shopSettings.ambientSoundVolume !== undefined ? shopSettings.ambientSoundVolume : 0.35,
+        ambientSoundEnabled: shopSettings.ambientSoundEnabled !== undefined ? shopSettings.ambientSoundEnabled : true,
+        ambientSoundMuted: shopSettings.ambientSoundMuted || false,
+        startOrderingSoundVolume: shopSettings.startOrderingSoundVolume !== undefined ? shopSettings.startOrderingSoundVolume : 0.8,
+        startOrderingSoundMuted: shopSettings.startOrderingSoundMuted || false,
+        addToCartSoundVolume: shopSettings.addToCartSoundVolume !== undefined ? shopSettings.addToCartSoundVolume : 0.8,
+        addToCartSoundMuted: shopSettings.addToCartSoundMuted || false,
+        startOverSoundVolume: shopSettings.startOverSoundVolume !== undefined ? shopSettings.startOverSoundVolume : 0.8,
+        startOverSoundMuted: shopSettings.startOverSoundMuted || false,
+        confirmOrderSoundVolume: shopSettings.confirmOrderSoundVolume !== undefined ? shopSettings.confirmOrderSoundVolume : 0.85,
+        confirmOrderSoundMuted: shopSettings.confirmOrderSoundMuted || false,
+        themeSounds: shopSettings.themeSounds || {},
         gridColumns: shopSettings.gridColumns || 4,
         mobileGridColumns: shopSettings.mobileGridColumns || 2,
         address: shopSettings.address || '',
@@ -142,7 +191,7 @@ export function AdminSettings({
         isClosed: shopSettings.isClosed || false,
         yourMixEnabled: shopSettings.yourMixEnabled !== undefined ? shopSettings.yourMixEnabled : true,
         yourMixStatus: shopSettings.yourMixStatus || 'active',
-        activeTheme: shopSettings.activeTheme || (shopSettings.snowEnabled !== false ? 'christmas' : 'none'),
+        activeTheme: currentTheme,
         snowEnabled: shopSettings.snowEnabled !== undefined ? shopSettings.snowEnabled : true,
         snowSpeedMultiplier: shopSettings.snowSpeedMultiplier !== undefined ? shopSettings.snowSpeedMultiplier : 1.0,
         snowFlakeCount: shopSettings.snowFlakeCount || 50,
@@ -177,66 +226,164 @@ export function AdminSettings({
     toast.success('GCash QR Code image downloaded!');
   };
 
-  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.warning('QR Code image must be less than 2MB');
-      return;
+    try {
+      toast.info('Uploading QR code...');
+      const downloadUrl = await uploadImageFile(file, 'store_qr');
+      setShopData(prev => ({ ...prev, qrCodeUrl: downloadUrl }));
+      toast.success('QR Code uploaded!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload QR code');
+    } finally {
+      e.target.value = '';
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setShopData(prev => ({ ...prev, qrCodeUrl: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
   };
 
-  const handleGcashQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleGcashQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.warning('GCash QR Code image must be less than 2MB');
-      return;
+    try {
+      toast.info('Uploading GCash QR code...');
+      const downloadUrl = await uploadImageFile(file, 'gcash_qr');
+      setShopData(prev => ({ ...prev, gcashQrUrl: downloadUrl }));
+      toast.success('GCash QR Code uploaded!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload GCash QR code');
+    } finally {
+      e.target.value = '';
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setShopData(prev => ({ ...prev, gcashQrUrl: reader.result as string }));
-    };
-    reader.readAsDataURL(file);
   };
 
-  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast.warning('Audio file is too large. Please select a file under 2MB.');
+    if (file.size > 10 * 1024 * 1024) {
+      toast.warning('Audio file is too large. Please select a file under 10MB.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64String = event.target?.result as string;
-      if (base64String) {
-        setShopData(prev => ({ ...prev, notificationSoundUrl: base64String }));
+    setUploadingAudio('legacy-notification');
+    try {
+      toast.info('Uploading notification sound...');
+      const fileUrl = await uploadAudioFile(file, 'notification_sounds');
+      setShopData(prev => ({ ...prev, notificationSoundUrl: fileUrl }));
+      toast.success('Notification sound uploaded!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload notification sound');
+    } finally {
+      setUploadingAudio(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleThemeAudioUpload = async (
+    themeKey: 'none' | 'christmas' | 'halloween',
+    soundType: 'order' | 'chat' | 'ambient' | 'startOrdering' | 'startOver' | 'addToCart' | 'confirmOrder',
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.warning('Audio file is too large. Please select a file under 10MB.');
+      return;
+    }
+    const uploadKey = `${themeKey}-${soundType}`;
+    setUploadingAudio(uploadKey);
+    try {
+      toast.info(`Uploading custom ${themeKey} ${soundType} sound...`);
+      const fileUrl = await uploadAudioFile(file, `theme_audio/${themeKey}`);
+      setShopData((prev) => {
+        const existingThemes = prev.themeSounds || {};
+        const currentThemeObj = existingThemes[themeKey] || {};
+        const fieldKey =
+          soundType === 'order'
+            ? 'orderSoundUrl'
+            : soundType === 'chat'
+            ? 'chatSoundUrl'
+            : soundType === 'ambient'
+            ? 'ambientSoundUrl'
+            : soundType === 'startOrdering'
+            ? 'startOrderingSoundUrl'
+            : soundType === 'startOver'
+            ? 'startOverSoundUrl'
+            : soundType === 'addToCart'
+            ? 'addToCartSoundUrl'
+            : 'confirmOrderSoundUrl';
+        const updatedThemeObj = {
+          ...currentThemeObj,
+          [fieldKey]: fileUrl,
+        };
+        return {
+          ...prev,
+          themeSounds: {
+            ...existingThemes,
+            [themeKey]: updatedThemeObj,
+          },
+          ...(themeKey === prev.activeTheme && soundType === 'order' ? { notificationSoundUrl: fileUrl } : {}),
+        };
+      });
+      toast.success(`Custom ${themeKey} ${soundType} sound uploaded!`);
+    } catch (err: any) {
+      console.error('Audio upload error:', err);
+      toast.error(err.message || 'Failed to upload audio file. Please try again.');
+    } finally {
+      setUploadingAudio(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleResetThemeAudio = (
+    themeKey: 'none' | 'christmas' | 'halloween',
+    soundType: 'order' | 'chat' | 'ambient' | 'startOrdering' | 'startOver' | 'addToCart' | 'confirmOrder'
+  ) => {
+    setShopData((prev) => {
+      const existingThemes = prev.themeSounds || {};
+      const currentThemeObj = { ...(existingThemes[themeKey] || {}) };
+      if (soundType === 'order') {
+        delete currentThemeObj.orderSoundUrl;
+      } else if (soundType === 'chat') {
+        delete currentThemeObj.chatSoundUrl;
+      } else if (soundType === 'ambient') {
+        delete currentThemeObj.ambientSoundUrl;
+      } else if (soundType === 'startOrdering') {
+        delete currentThemeObj.startOrderingSoundUrl;
+      } else if (soundType === 'startOver') {
+        delete currentThemeObj.startOverSoundUrl;
+      } else if (soundType === 'addToCart') {
+        delete currentThemeObj.addToCartSoundUrl;
+      } else if (soundType === 'confirmOrder') {
+        delete currentThemeObj.confirmOrderSoundUrl;
       }
-    };
-    reader.readAsDataURL(file);
+      return {
+        ...prev,
+        themeSounds: {
+          ...existingThemes,
+          [themeKey]: currentThemeObj,
+        },
+        ...(themeKey === prev.activeTheme && soundType === 'order' ? { notificationSoundUrl: '' } : {}),
+      };
+    });
+    toast.info(`Reset ${themeKey} ${soundType} sound to built-in theme preset.`);
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'receiptLogoUrl' = 'logoUrl') => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'receiptLogoUrl' = 'logoUrl') => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 1.5 * 1024 * 1024) {
-      toast.warning('Image size is too large. Please select an image under 1.5MB.');
+    if (file.size > 5 * 1024 * 1024) {
+      toast.warning('Image size is too large. Please select an image under 5MB.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64String = event.target?.result as string;
-      if (base64String) {
-        setShopData(prev => ({ ...prev, [field]: base64String }));
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      toast.info('Uploading image...');
+      const downloadUrl = await uploadImageFile(file, 'store_branding');
+      setShopData(prev => ({ ...prev, [field]: downloadUrl }));
+      toast.success('Image uploaded successfully!');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload image');
+    } finally {
+      e.target.value = '';
+    }
   };
 
   // Instant toggle for Store Operating Status
@@ -254,19 +401,58 @@ export function AdminSettings({
     }
   };
 
+  /**
+   * Sanitizes shopData payload to strictly prevent Firestore 1MB document limit violations.
+   * Strips any oversized legacy base64 data URLs (> 200KB) that may have been previously saved in local state.
+   */
+  const sanitizeShopData = (data: Partial<ShopSettings>): Partial<ShopSettings> => {
+    const sanitized = { ...data };
+    
+    // Clean oversized legacy base64 in notificationSoundUrl
+    if (sanitized.notificationSoundUrl && typeof sanitized.notificationSoundUrl === 'string' && sanitized.notificationSoundUrl.startsWith('data:') && sanitized.notificationSoundUrl.length > 200000) {
+      console.warn('Stripping oversized legacy base64 notificationSoundUrl from Firestore payload');
+      sanitized.notificationSoundUrl = '';
+    }
+
+    // Clean oversized legacy base64 in themeSounds
+    if (sanitized.themeSounds && typeof sanitized.themeSounds === 'object') {
+      const cleanThemeSounds: Record<string, any> = {};
+      for (const [tKey, tVal] of Object.entries(sanitized.themeSounds)) {
+        if (tVal && typeof tVal === 'object') {
+          const cleanObj: Record<string, any> = { ...tVal };
+          (['orderSoundUrl', 'chatSoundUrl', 'ambientSoundUrl', 'startOrderingSoundUrl', 'startOverSoundUrl', 'addToCartSoundUrl', 'confirmOrderSoundUrl'] as const).forEach((field) => {
+            if (cleanObj[field] && typeof cleanObj[field] === 'string' && cleanObj[field].startsWith('data:') && cleanObj[field].length > 200000) {
+              console.warn(`Stripping oversized legacy base64 ${tKey}.${field} from Firestore payload`);
+              delete cleanObj[field];
+            }
+          });
+          cleanThemeSounds[tKey] = cleanObj;
+        }
+      }
+      sanitized.themeSounds = cleanThemeSounds;
+    }
+
+    return sanitized;
+  };
+
+
   const handleSaveAll = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setSaving(true);
     try {
-      await onUpdateShop(shopData);
+      const cleanedShopData = sanitizeShopData(shopData);
+      await onUpdateShop(cleanedShopData);
       await onUpdateSplash(splashData);
+      setShopData(cleanedShopData);
       toast.success('Settings saved successfully!');
-    } catch {
-      toast.error('Failed to save settings. Please try again.');
+    } catch (err: any) {
+      console.error('Failed to save settings:', err);
+      toast.error(err.message || 'Failed to save settings. Please try again.');
     } finally {
       setSaving(false);
     }
   };
+
 
   const navigationTabs: { id: SettingsSection; label: string; icon: React.ElementType; badge?: string }[] = [
     { id: 'store', label: 'Store & Brand', icon: Store, badge: shopData.isClosed ? 'Paused' : 'Open' },
@@ -749,6 +935,7 @@ export function AdminSettings({
             {/* TAB: SEASONAL THEMES & AMBIENT FX */}
             {activeSection === 'themes' && (
               <div className="space-y-5 sm:space-y-6 animate-in fade-in duration-300">
+                {/* 1. Theme Selection & Visual FX Card */}
                 <div className="p-3.5 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 shadow-sm space-y-4 sm:space-y-5">
                   <div className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3">
                     <div className="flex items-center gap-3">
@@ -758,7 +945,7 @@ export function AdminSettings({
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                            Seasonal Themes & FX Management
+                            Seasonal Themes & Visual FX
                           </h4>
                           <span className="px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                             Active: {(shopData.activeTheme || 'none').toUpperCase()}
@@ -776,7 +963,10 @@ export function AdminSettings({
                     {/* Default Theme Card */}
                     <button
                       type="button"
-                      onClick={() => setShopData({ ...shopData, activeTheme: 'none', snowEnabled: false })}
+                      onClick={() => {
+                        setShopData({ ...shopData, activeTheme: 'none', snowEnabled: false });
+                        setSoundThemeTab('none');
+                      }}
                       className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 relative overflow-hidden group ${
                         (shopData.activeTheme === 'none' || (!shopData.activeTheme && shopData.snowEnabled === false))
                           ? 'bg-amber-500/10 border-amber-500 shadow-md ring-2 ring-amber-500/30'
@@ -804,7 +994,10 @@ export function AdminSettings({
                     {/* Christmas Theme Card */}
                     <button
                       type="button"
-                      onClick={() => setShopData({ ...shopData, activeTheme: 'christmas', snowEnabled: true })}
+                      onClick={() => {
+                        setShopData({ ...shopData, activeTheme: 'christmas', snowEnabled: true });
+                        setSoundThemeTab('christmas');
+                      }}
                       className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 relative overflow-hidden group ${
                         (shopData.activeTheme === 'christmas' || (!shopData.activeTheme && shopData.snowEnabled !== false))
                           ? 'bg-cyan-500/10 border-cyan-500 shadow-md ring-2 ring-cyan-500/30'
@@ -832,7 +1025,10 @@ export function AdminSettings({
                     {/* Halloween Theme Card */}
                     <button
                       type="button"
-                      onClick={() => setShopData({ ...shopData, activeTheme: 'halloween', snowEnabled: false })}
+                      onClick={() => {
+                        setShopData({ ...shopData, activeTheme: 'halloween', snowEnabled: false });
+                        setSoundThemeTab('halloween');
+                      }}
                       className={`p-4 rounded-2xl border text-left transition-all flex flex-col justify-between gap-3 relative overflow-hidden group ${
                         shopData.activeTheme === 'halloween'
                           ? 'bg-orange-500/10 border-orange-500 shadow-md ring-2 ring-orange-500/30'
@@ -1139,6 +1335,1448 @@ export function AdminSettings({
                     </div>
                   )}
                 </div>
+
+                {/* 2. Theme Sound FX & Custom Audio Card */}
+                <div className="p-3.5 sm:p-5 md:p-6 rounded-2xl sm:rounded-3xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 shadow-sm space-y-5">
+                  {/* Studio Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-black/10 dark:border-white/10 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-500 flex items-center justify-center shrink-0">
+                        <Volume2 className="w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                            Theme Sound FX & Audio Customizer
+                          </h4>
+                          <span className="px-2 py-0.5 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                            Editing Theme: {soundThemeTab.toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          Configure acoustic motifs or upload custom audio files for each theme.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Quick Theme Selector Sub-Tabs */}
+                    <div className="flex bg-black/5 dark:bg-white/5 p-1 rounded-xl border border-black/10 dark:border-white/10 gap-1 shrink-0 w-fit">
+                      {[
+                        { id: 'none', label: 'Standard', emoji: '☕' },
+                        { id: 'christmas', label: 'Christmas', emoji: '🎄' },
+                        { id: 'halloween', label: 'Halloween', emoji: '🎃' },
+                      ].map((th) => (
+                        <button
+                          key={th.id}
+                          type="button"
+                          onClick={() => setSoundThemeTab(th.id as any)}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                            soundThemeTab === th.id
+                              ? 'bg-amber-500 text-slate-950 shadow-sm font-black'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                        >
+                          <span>{th.emoji}</span>
+                          <span>{th.label}</span>
+                          {shopData.activeTheme === th.id && (
+                            <span className={`w-1.5 h-1.5 rounded-full ${soundThemeTab === th.id ? 'bg-black' : 'bg-amber-500'} animate-pulse`} />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Master Volume & Output Controls Console */}
+                  <div className="bg-white/40 dark:bg-[#111115]/60 p-4 sm:p-5 rounded-2xl border border-black/10 dark:border-white/10 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sliders className="w-4 h-4 text-amber-500" />
+                        <h5 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                          Master Volume & Sound Level Controls
+                        </h5>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">
+                        7 Sound Triggers
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
+                      {/* 1. Order Notification Volume */}
+                      <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/10 dark:border-white/10 space-y-2">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span className="flex items-center gap-1.5 font-black uppercase text-[10px] tracking-wider text-amber-500">
+                            <Bell className="w-3.5 h-3.5" /> Order Alerts
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-black text-amber-500 text-xs">
+                              {shopData.orderNotificationMuted ? 'MUTED' : `${Math.round((shopData.orderNotificationVolume ?? 1) * 100)}%`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShopData({ ...shopData, orderNotificationMuted: !shopData.orderNotificationMuted })}
+                              className={`p-1 rounded-md border text-xs transition-all ${
+                                shopData.orderNotificationMuted
+                                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                  : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-amber-500'
+                              }`}
+                              title={shopData.orderNotificationMuted ? "Unmute Order Sounds" : "Mute Order Sounds"}
+                            >
+                              {shopData.orderNotificationMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          disabled={shopData.orderNotificationMuted}
+                          value={shopData.orderNotificationVolume ?? 1}
+                          onChange={(e) => {
+                            const vol = parseFloat(e.target.value);
+                            setShopData({ ...shopData, orderNotificationVolume: vol, notificationVolume: vol });
+                          }}
+                          className={`w-full accent-amber-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.orderNotificationMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                          <span>0%</span>
+                          <span>50%</span>
+                          <span>100%</span>
+                        </div>
+                      </div>
+
+                      {/* 2. Chat Notification Volume */}
+                      <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/10 dark:border-white/10 space-y-2">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span className="flex items-center gap-1.5 font-black uppercase text-[10px] tracking-wider text-blue-400">
+                            <MessageSquare className="w-3.5 h-3.5" /> Live Chat Alerts
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-black text-blue-400 text-xs">
+                              {shopData.chatNotificationMuted ? 'MUTED' : `${Math.round((shopData.chatNotificationVolume ?? 1) * 100)}%`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShopData({ ...shopData, chatNotificationMuted: !shopData.chatNotificationMuted })}
+                              className={`p-1 rounded-md border text-xs transition-all ${
+                                shopData.chatNotificationMuted
+                                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                  : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-blue-400'
+                              }`}
+                              title={shopData.chatNotificationMuted ? "Unmute Chat Sounds" : "Mute Chat Sounds"}
+                            >
+                              {shopData.chatNotificationMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          disabled={shopData.chatNotificationMuted}
+                          value={shopData.chatNotificationVolume ?? 1}
+                          onChange={(e) => {
+                            const vol = parseFloat(e.target.value);
+                            setShopData({ ...shopData, chatNotificationVolume: vol });
+                          }}
+                          className={`w-full accent-blue-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.chatNotificationMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                          <span>0%</span>
+                          <span>50%</span>
+                          <span>100%</span>
+                        </div>
+                      </div>
+
+                      {/* 3. Theme Ambient Loop Volume */}
+                      <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/10 dark:border-white/10 space-y-2">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span className="flex items-center gap-1.5 font-black uppercase text-[10px] tracking-wider text-emerald-400">
+                            <Music className="w-3.5 h-3.5" /> Ambient Loop Music
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-black text-emerald-400 text-xs">
+                              {shopData.ambientSoundMuted ? 'MUTED' : `${Math.round((shopData.ambientSoundVolume ?? 0.35) * 100)}%`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShopData({ ...shopData, ambientSoundMuted: !shopData.ambientSoundMuted })}
+                              className={`p-1 rounded-md border text-xs transition-all ${
+                                shopData.ambientSoundMuted
+                                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                  : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-emerald-400'
+                              }`}
+                              title={shopData.ambientSoundMuted ? "Unmute Ambient Music" : "Mute Ambient Music"}
+                            >
+                              {shopData.ambientSoundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          disabled={shopData.ambientSoundMuted}
+                          value={shopData.ambientSoundVolume ?? 0.35}
+                          onChange={(e) => {
+                            const vol = parseFloat(e.target.value);
+                            setShopData({ ...shopData, ambientSoundVolume: vol });
+                          }}
+                          className={`w-full accent-emerald-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.ambientSoundMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                          <span>0%</span>
+                          <span>35%</span>
+                          <span>100%</span>
+                        </div>
+                      </div>
+
+                      {/* 4. Start Ordering Sound Volume */}
+                      <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/10 dark:border-white/10 space-y-2">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span className="flex items-center gap-1.5 font-black uppercase text-[10px] tracking-wider text-pink-500">
+                            <Sparkles className="w-3.5 h-3.5" /> Start Ordering
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-black text-pink-500 text-xs">
+                              {shopData.startOrderingSoundMuted ? 'MUTED' : `${Math.round((shopData.startOrderingSoundVolume ?? 0.8) * 100)}%`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShopData({ ...shopData, startOrderingSoundMuted: !shopData.startOrderingSoundMuted })}
+                              className={`p-1 rounded-md border text-xs transition-all ${
+                                shopData.startOrderingSoundMuted
+                                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                  : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-pink-500'
+                              }`}
+                              title={shopData.startOrderingSoundMuted ? "Unmute Start Ordering Sound" : "Mute Start Ordering Sound"}
+                            >
+                              {shopData.startOrderingSoundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          disabled={shopData.startOrderingSoundMuted}
+                          value={shopData.startOrderingSoundVolume ?? 0.8}
+                          onChange={(e) => {
+                            const vol = parseFloat(e.target.value);
+                            setShopData({ ...shopData, startOrderingSoundVolume: vol });
+                          }}
+                          className={`w-full accent-pink-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.startOrderingSoundMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                          <span>0%</span>
+                          <span>80%</span>
+                          <span>100%</span>
+                        </div>
+                      </div>
+
+                      {/* 5. Add to Cart Sound Volume */}
+                      <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/10 dark:border-white/10 space-y-2">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span className="flex items-center gap-1.5 font-black uppercase text-[10px] tracking-wider text-cyan-500">
+                            <ShoppingBag className="w-3.5 h-3.5" /> Add to Cart
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-black text-cyan-500 text-xs">
+                              {shopData.addToCartSoundMuted ? 'MUTED' : `${Math.round((shopData.addToCartSoundVolume ?? 0.8) * 100)}%`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShopData({ ...shopData, addToCartSoundMuted: !shopData.addToCartSoundMuted })}
+                              className={`p-1 rounded-md border text-xs transition-all ${
+                                shopData.addToCartSoundMuted
+                                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                  : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-cyan-500'
+                              }`}
+                              title={shopData.addToCartSoundMuted ? "Unmute Add to Cart Sound" : "Mute Add to Cart Sound"}
+                            >
+                              {shopData.addToCartSoundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          disabled={shopData.addToCartSoundMuted}
+                          value={shopData.addToCartSoundVolume ?? 0.8}
+                          onChange={(e) => {
+                            const vol = parseFloat(e.target.value);
+                            setShopData({ ...shopData, addToCartSoundVolume: vol });
+                          }}
+                          className={`w-full accent-cyan-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.addToCartSoundMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                          <span>0%</span>
+                          <span>80%</span>
+                          <span>100%</span>
+                        </div>
+                      </div>
+
+                      {/* 6. Start Over Sound Volume */}
+                      <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/10 dark:border-white/10 space-y-2">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span className="flex items-center gap-1.5 font-black uppercase text-[10px] tracking-wider text-orange-500">
+                            <RotateCcw className="w-3.5 h-3.5" /> Start Over
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-black text-orange-500 text-xs">
+                              {shopData.startOverSoundMuted ? 'MUTED' : `${Math.round((shopData.startOverSoundVolume ?? 0.8) * 100)}%`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShopData({ ...shopData, startOverSoundMuted: !shopData.startOverSoundMuted })}
+                              className={`p-1 rounded-md border text-xs transition-all ${
+                                shopData.startOverSoundMuted
+                                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                  : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-orange-500'
+                              }`}
+                              title={shopData.startOverSoundMuted ? "Unmute Start Over Sound" : "Mute Start Over Sound"}
+                            >
+                              {shopData.startOverSoundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          disabled={shopData.startOverSoundMuted}
+                          value={shopData.startOverSoundVolume ?? 0.8}
+                          onChange={(e) => {
+                            const vol = parseFloat(e.target.value);
+                            setShopData({ ...shopData, startOverSoundVolume: vol });
+                          }}
+                          className={`w-full accent-orange-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.startOverSoundMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                          <span>0%</span>
+                          <span>80%</span>
+                          <span>100%</span>
+                        </div>
+                      </div>
+
+                      {/* 7. Confirm Order Sound Volume */}
+                      <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/10 dark:border-white/10 space-y-2">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span className="flex items-center gap-1.5 font-black uppercase text-[10px] tracking-wider text-purple-400">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Confirm Order
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-black text-purple-400 text-xs">
+                              {shopData.confirmOrderSoundMuted ? 'MUTED' : `${Math.round((shopData.confirmOrderSoundVolume ?? 0.85) * 100)}%`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShopData({ ...shopData, confirmOrderSoundMuted: !shopData.confirmOrderSoundMuted })}
+                              className={`p-1 rounded-md border text-xs transition-all ${
+                                shopData.confirmOrderSoundMuted
+                                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                  : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-purple-400'
+                              }`}
+                              title={shopData.confirmOrderSoundMuted ? "Unmute Confirm Order Sound" : "Mute Confirm Order Sound"}
+                            >
+                              {shopData.confirmOrderSoundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.05"
+                          disabled={shopData.confirmOrderSoundMuted}
+                          value={shopData.confirmOrderSoundVolume ?? 0.85}
+                          onChange={(e) => {
+                            const vol = parseFloat(e.target.value);
+                            setShopData({ ...shopData, confirmOrderSoundVolume: vol });
+                          }}
+                          className={`w-full accent-purple-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.confirmOrderSoundMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                        />
+                        <div className="flex justify-between text-[9px] text-slate-400 font-bold">
+                          <span>0%</span>
+                          <span>85%</span>
+                          <span>100%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sound Pack Cards for Selected Theme */}
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-emerald-500/10 p-3.5 sm:p-4 rounded-2xl border border-black/10 dark:border-white/10 shadow-sm">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-500 border border-amber-500/30 flex items-center justify-center shrink-0">
+                          <Music className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h5 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                            Audio Tracks for {soundThemeTab === 'none' ? 'Standard Theme (☕)' : soundThemeTab === 'christmas' ? 'Christmas Theme (🎄)' : 'Halloween Theme (🎃)'}
+                          </h5>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                            Upload custom MP3/WAV audio tracks or download free royalty-free sounds from Pixabay.
+                          </p>
+                        </div>
+                      </div>
+
+                      <a
+                        href={
+                          soundThemeTab === 'halloween'
+                            ? 'https://pixabay.com/sound-effects/search/halloween/'
+                            : soundThemeTab === 'christmas'
+                            ? 'https://pixabay.com/sound-effects/search/christmas/'
+                            : 'https://pixabay.com/sound-effects/search/coffee/'
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-600 dark:text-purple-300 border border-purple-500/30 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all shrink-0 hover:scale-[1.02] active:scale-95 shadow-sm"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Find {soundThemeTab === 'halloween' ? 'Halloween' : soundThemeTab === 'christmas' ? 'Christmas' : 'Cafe'} SFX (Pixabay)</span>
+                        <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                      </a>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                      {/* 1. Order Received Notification Sound */}
+                      {(() => {
+                        const currentCustomUrl = shopData.themeSounds?.[soundThemeTab]?.orderSoundUrl || (soundThemeTab === shopData.activeTheme ? shopData.notificationSoundUrl : undefined);
+                        const hasCustom = !!currentCustomUrl;
+                        
+                        const themePresetsDesc: Record<string, { title: string; desc: string }> = {
+                          none: { title: 'Standard Cafe Chime', desc: 'Warm dual-tone sine & triangle bell motif (D5 -> A5 & D6 overtone)' },
+                          christmas: { title: 'Festive Jingle Glockenspiel', desc: 'Bright 4-note Jingle Bells melody (E5 -> G#5 -> B5 -> E6 bell sparkle)' },
+                          halloween: { title: 'Spooky Music-Box Motif', desc: 'Haunting minor motif (D5 -> F5 -> A5 -> C#6) with detuned chorus' },
+                        };
+
+                        return (
+                          <div className="p-4 sm:p-5 rounded-2xl bg-white/40 dark:bg-[#111115]/60 border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4 shadow-sm">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/20 text-amber-500 flex items-center justify-center font-bold text-xs">
+                                    <Bell className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <h6 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                      Order Received Chime
+                                    </h6>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase">
+                                      POS, Kitchen & Kiosk Alert
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {hasCustom ? (
+                                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Custom Audio
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Theme Preset
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/5 dark:border-white/5">
+                                <div className="text-[11px] font-black text-slate-800 dark:text-slate-200">
+                                  {hasCustom ? 'Uploaded Custom Audio Track' : themePresetsDesc[soundThemeTab]?.title}
+                                </div>
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                                  {hasCustom ? 'Plays your custom uploaded audio file upon incoming order.' : themePresetsDesc[soundThemeTab]?.desc}
+                                </div>
+                              </div>
+
+                              {/* Card-Level Volume Slider */}
+                              <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/5 dark:border-white/5 space-y-1.5">
+                                <div className="flex items-center justify-between text-[10px] font-bold">
+                                  <span className="text-slate-500 dark:text-slate-400">Card Volume</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono font-black text-amber-500">
+                                      {shopData.orderNotificationMuted ? 'MUTED' : `${Math.round((shopData.orderNotificationVolume ?? 1) * 100)}%`}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShopData({ ...shopData, orderNotificationMuted: !shopData.orderNotificationMuted })}
+                                      className={`p-1 rounded-md border text-xs transition-all ${
+                                        shopData.orderNotificationMuted
+                                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                          : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-amber-500'
+                                      }`}
+                                      title={shopData.orderNotificationMuted ? "Unmute" : "Mute"}
+                                    >
+                                      {shopData.orderNotificationMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                                    </button>
+                                  </div>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="1"
+                                  step="0.05"
+                                  disabled={shopData.orderNotificationMuted}
+                                  value={shopData.orderNotificationVolume ?? 1}
+                                  onChange={(e) => {
+                                    const vol = parseFloat(e.target.value);
+                                    setShopData({ ...shopData, orderNotificationVolume: vol, notificationVolume: vol });
+                                  }}
+                                  className={`w-full accent-amber-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.orderNotificationMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    previewThemeSound(
+                                      soundThemeTab,
+                                      'order',
+                                      currentCustomUrl,
+                                      shopData.orderNotificationVolume ?? 1
+                                    );
+                                  }}
+                                  className="flex-1 py-2.5 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95"
+                                >
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                  <span>Test Order Sound</span>
+                                </button>
+
+                                {hasCustom && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResetThemeAudio(soundThemeTab, 'order')}
+                                    className="py-2.5 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border border-red-500/20 transition-all"
+                                    title="Reset to Theme Preset"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Reset</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className={`w-full py-2 px-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 rounded-xl transition-all flex items-center justify-center gap-2 text-[10px] font-bold text-slate-700 dark:text-slate-300 ${uploadingAudio === `${soundThemeTab}-order` ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+                                  {uploadingAudio === `${soundThemeTab}-order` ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 text-amber-500 animate-spin shrink-0" />
+                                      <span>Uploading Audio to Storage...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                      <span>{hasCustom ? 'Replace Custom Audio (.mp3, .wav)' : 'Upload Custom Order Audio (.mp3, .wav)'}</span>
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="audio/*"
+                                    disabled={uploadingAudio === `${soundThemeTab}-order`}
+                                    onChange={(e) => handleThemeAudioUpload(soundThemeTab, 'order', e)}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 2. Chat Notification Sound */}
+                      {(() => {
+                        const currentCustomUrl = shopData.themeSounds?.[soundThemeTab]?.chatSoundUrl;
+                        const hasCustom = !!currentCustomUrl;
+                        
+                        const themePresetsDesc: Record<string, { title: string; desc: string }> = {
+                          none: { title: 'Standard Ding-Dong', desc: 'Crispy two-step dual ding-dong pop (A5 -> D6)' },
+                          christmas: { title: 'Santa Sleigh Bells Jingle', desc: 'Festive double bell chime (B5 & E6) with high shimmer' },
+                          halloween: { title: 'Eerie Minor Music Pluck', desc: 'Spooky plink motif (G#5 -> E5) with hollow music-box decay' },
+                        };
+
+                        return (
+                          <div className="p-4 sm:p-5 rounded-2xl bg-white/40 dark:bg-[#111115]/60 border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4 shadow-sm">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-lg bg-blue-500/15 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs">
+                                    <MessageSquare className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <h6 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                      Live Chat Alert
+                                    </h6>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase">
+                                      Customer & Admin Incoming Chat
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {hasCustom ? (
+                                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Custom Audio
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-md bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Theme Preset
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/5 dark:border-white/5">
+                                <div className="text-[11px] font-black text-slate-800 dark:text-slate-200">
+                                  {hasCustom ? 'Uploaded Custom Audio Track' : themePresetsDesc[soundThemeTab]?.title}
+                                </div>
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                                  {hasCustom ? 'Plays your custom uploaded audio file upon incoming message.' : themePresetsDesc[soundThemeTab]?.desc}
+                                </div>
+                              </div>
+
+                              {/* Card-Level Volume Slider */}
+                              <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/5 dark:border-white/5 space-y-1.5">
+                                <div className="flex items-center justify-between text-[10px] font-bold">
+                                  <span className="text-slate-500 dark:text-slate-400">Card Volume</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono font-black text-blue-400">
+                                      {shopData.chatNotificationMuted ? 'MUTED' : `${Math.round((shopData.chatNotificationVolume ?? 1) * 100)}%`}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShopData({ ...shopData, chatNotificationMuted: !shopData.chatNotificationMuted })}
+                                      className={`p-1 rounded-md border text-xs transition-all ${
+                                        shopData.chatNotificationMuted
+                                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                          : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-blue-400'
+                                      }`}
+                                      title={shopData.chatNotificationMuted ? "Unmute" : "Mute"}
+                                    >
+                                      {shopData.chatNotificationMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                                    </button>
+                                  </div>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="1"
+                                  step="0.05"
+                                  disabled={shopData.chatNotificationMuted}
+                                  value={shopData.chatNotificationVolume ?? 1}
+                                  onChange={(e) => {
+                                    const vol = parseFloat(e.target.value);
+                                    setShopData({ ...shopData, chatNotificationVolume: vol });
+                                  }}
+                                  className={`w-full accent-blue-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.chatNotificationMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    previewThemeSound(
+                                      soundThemeTab,
+                                      'chat',
+                                      currentCustomUrl,
+                                      shopData.chatNotificationVolume ?? 1
+                                    );
+                                  }}
+                                  className="flex-1 py-2.5 px-3 bg-blue-500 hover:bg-blue-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95"
+                                >
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                  <span>Test Chat Sound</span>
+                                </button>
+
+                                {hasCustom && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResetThemeAudio(soundThemeTab, 'chat')}
+                                    className="py-2.5 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border border-red-500/20 transition-all"
+                                    title="Reset to Theme Preset"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Reset</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className={`w-full py-2 px-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 rounded-xl transition-all flex items-center justify-center gap-2 text-[10px] font-bold text-slate-700 dark:text-slate-300 ${uploadingAudio === `${soundThemeTab}-chat` ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+                                  {uploadingAudio === `${soundThemeTab}-chat` ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin shrink-0" />
+                                      <span>Uploading Audio to Storage...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                      <span>{hasCustom ? 'Replace Custom Audio (.mp3, .wav)' : 'Upload Custom Chat Audio (.mp3, .wav)'}</span>
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="audio/*"
+                                    disabled={uploadingAudio === `${soundThemeTab}-chat`}
+                                    onChange={(e) => handleThemeAudioUpload(soundThemeTab, 'chat', e)}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 3. Theme Background Ambient Loop Sound */}
+                      {(() => {
+                        const currentCustomUrl = shopData.themeSounds?.[soundThemeTab]?.ambientSoundUrl;
+                        const hasCustom = !!currentCustomUrl;
+                        
+                        const themePresetsDesc: Record<string, { title: string; desc: string }> = {
+                          none: { title: 'Cozy Cafe Lo-Fi Ambience', desc: 'Warm rain texture, subtle vinyl crackle & major-9th chord pad' },
+                          christmas: { title: 'Winter Snowfall & Sparkles', desc: 'Cold breeze atmospheric wind & gentle glockenspiel bell sparkles' },
+                          halloween: { title: 'Spooky Wind Drone & Echoes', desc: 'Deep resonant sub drone, eerie whistle & haunting music box harmonics' },
+                        };
+
+                        return (
+                          <div className="p-4 sm:p-5 rounded-2xl bg-white/40 dark:bg-[#111115]/60 border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4 shadow-sm">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+                                    <Music className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <h6 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                      Background Ambient Loop
+                                    </h6>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase">
+                                      Kiosk & Customer Mobile
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {hasCustom ? (
+                                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Custom Audio
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Theme Preset
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/5 dark:border-white/5">
+                                <div className="text-[11px] font-black text-slate-800 dark:text-slate-200">
+                                  {hasCustom ? 'Uploaded Custom Loop Track' : themePresetsDesc[soundThemeTab]?.title}
+                                </div>
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                                  {hasCustom ? 'Continuously loops your uploaded background ambient sound.' : themePresetsDesc[soundThemeTab]?.desc}
+                                </div>
+                              </div>
+
+                              {/* Card-Level Volume Slider */}
+                              <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/5 dark:border-white/5 space-y-1.5">
+                                <div className="flex items-center justify-between text-[10px] font-bold">
+                                  <span className="text-slate-500 dark:text-slate-400">Card Volume</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono font-black text-emerald-400">
+                                      {shopData.ambientSoundMuted ? 'MUTED' : `${Math.round((shopData.ambientSoundVolume ?? 0.35) * 100)}%`}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShopData({ ...shopData, ambientSoundMuted: !shopData.ambientSoundMuted })}
+                                      className={`p-1 rounded-md border text-xs transition-all ${
+                                        shopData.ambientSoundMuted
+                                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                          : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-emerald-400'
+                                      }`}
+                                      title={shopData.ambientSoundMuted ? "Unmute" : "Mute"}
+                                    >
+                                      {shopData.ambientSoundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                                    </button>
+                                  </div>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="1"
+                                  step="0.05"
+                                  disabled={shopData.ambientSoundMuted}
+                                  value={shopData.ambientSoundVolume ?? 0.35}
+                                  onChange={(e) => {
+                                    const vol = parseFloat(e.target.value);
+                                    setShopData({ ...shopData, ambientSoundVolume: vol });
+                                  }}
+                                  className={`w-full accent-emerald-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.ambientSoundMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    previewThemeSound(
+                                      soundThemeTab,
+                                      'ambient',
+                                      currentCustomUrl,
+                                      shopData.ambientSoundVolume ?? 0.35
+                                    );
+                                  }}
+                                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 ${
+                                    isAmbientTesting
+                                      ? 'bg-rose-500 hover:bg-rose-400 text-white animate-pulse'
+                                      : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
+                                  }`}
+                                >
+                                  {isAmbientTesting ? (
+                                    <>
+                                      <Square className="w-3.5 h-3.5 fill-current" />
+                                      <span>Stop Ambient Loop</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Play className="w-3.5 h-3.5 fill-current" />
+                                      <span>Test Ambient Loop</span>
+                                    </>
+                                  )}
+                                </button>
+
+                                {hasCustom && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResetThemeAudio(soundThemeTab, 'ambient')}
+                                    className="py-2.5 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border border-red-500/20 transition-all"
+                                    title="Reset to Theme Preset"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Reset</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className={`w-full py-2 px-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 rounded-xl transition-all flex items-center justify-center gap-2 text-[10px] font-bold text-slate-700 dark:text-slate-300 ${uploadingAudio === `${soundThemeTab}-ambient` ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+                                  {uploadingAudio === `${soundThemeTab}-ambient` ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 text-emerald-400 animate-spin shrink-0" />
+                                      <span>Uploading Audio to Storage...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                      <span>{hasCustom ? 'Replace Custom Audio (.mp3, .wav)' : 'Upload Custom Loop Audio (.mp3, .wav)'}</span>
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="audio/*"
+                                    disabled={uploadingAudio === `${soundThemeTab}-ambient`}
+                                    onChange={(e) => handleThemeAudioUpload(soundThemeTab, 'ambient', e)}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 4. Start Ordering Sound */}
+                      {(() => {
+                        const currentCustomUrl = shopData.themeSounds?.[soundThemeTab]?.startOrderingSoundUrl;
+                        const hasCustom = !!currentCustomUrl;
+                        
+                        const themePresetsDesc: Record<string, { title: string; desc: string }> = {
+                          none: { title: 'Cafe Welcome Sparkle', desc: 'Inviting rising major triad chime (C5 -> E5 -> G5) welcoming guests.' },
+                          christmas: { title: 'Festive Holiday Fanfare', desc: 'Joyful glockenspiel arpeggio (C5 -> G5 -> C6) with winter chime.' },
+                          halloween: { title: 'Mystical Cauldron Spark', desc: 'Eerie resonant minor chime (E5 -> G5 -> B5) with spooky shimmer.' },
+                        };
+
+                        return (
+                          <div className="p-4 sm:p-5 rounded-2xl bg-white/40 dark:bg-[#111115]/60 border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4 shadow-sm">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-lg bg-pink-500/15 border border-pink-500/20 text-pink-500 flex items-center justify-center font-bold text-xs">
+                                    <Sparkles className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <h6 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                      Start Ordering
+                                    </h6>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase">
+                                      Splash & Menu Entrance
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {hasCustom ? (
+                                  <span className="px-2 py-0.5 rounded-md bg-pink-500/15 text-pink-600 dark:text-pink-400 border border-pink-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Custom Audio
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-md bg-pink-500/15 text-pink-600 dark:text-pink-400 border border-pink-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Theme Preset
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/5 dark:border-white/5">
+                                <div className="text-[11px] font-black text-slate-800 dark:text-slate-200">
+                                  {hasCustom ? 'Uploaded Custom Audio Track' : themePresetsDesc[soundThemeTab]?.title}
+                                </div>
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                                  {hasCustom ? 'Plays your custom uploaded audio file when clicking start ordering.' : themePresetsDesc[soundThemeTab]?.desc}
+                                </div>
+                              </div>
+
+                              {/* Card-Level Volume Slider */}
+                              <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/5 dark:border-white/5 space-y-1.5">
+                                <div className="flex items-center justify-between text-[10px] font-bold">
+                                  <span className="text-slate-500 dark:text-slate-400">Card Volume</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono font-black text-pink-500">
+                                      {shopData.startOrderingSoundMuted ? 'MUTED' : `${Math.round((shopData.startOrderingSoundVolume ?? 0.8) * 100)}%`}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShopData({ ...shopData, startOrderingSoundMuted: !shopData.startOrderingSoundMuted })}
+                                      className={`p-1 rounded-md border text-xs transition-all ${
+                                        shopData.startOrderingSoundMuted
+                                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                          : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-pink-500'
+                                      }`}
+                                      title={shopData.startOrderingSoundMuted ? "Unmute" : "Mute"}
+                                    >
+                                      {shopData.startOrderingSoundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                                    </button>
+                                  </div>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="1"
+                                  step="0.05"
+                                  disabled={shopData.startOrderingSoundMuted}
+                                  value={shopData.startOrderingSoundVolume ?? 0.8}
+                                  onChange={(e) => {
+                                    const vol = parseFloat(e.target.value);
+                                    setShopData({ ...shopData, startOrderingSoundVolume: vol });
+                                  }}
+                                  className={`w-full accent-pink-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.startOrderingSoundMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    previewThemeSound(
+                                      soundThemeTab,
+                                      'startOrdering',
+                                      currentCustomUrl,
+                                      shopData.startOrderingSoundVolume ?? 0.8
+                                    );
+                                  }}
+                                  className="flex-1 py-2.5 px-3 bg-pink-500 hover:bg-pink-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95"
+                                >
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                  <span>Test Start Sound</span>
+                                </button>
+
+                                {hasCustom && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResetThemeAudio(soundThemeTab, 'startOrdering')}
+                                    className="py-2.5 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border border-red-500/20 transition-all"
+                                    title="Reset to Theme Preset"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Reset</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className={`w-full py-2 px-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 rounded-xl transition-all flex items-center justify-center gap-2 text-[10px] font-bold text-slate-700 dark:text-slate-300 ${uploadingAudio === `${soundThemeTab}-startOrdering` ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+                                  {uploadingAudio === `${soundThemeTab}-startOrdering` ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 text-pink-400 animate-spin shrink-0" />
+                                      <span>Uploading Audio to Storage...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                                      <span>{hasCustom ? 'Replace Custom Audio (.mp3, .wav)' : 'Upload Custom Audio (.mp3, .wav)'}</span>
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="audio/*"
+                                    disabled={uploadingAudio === `${soundThemeTab}-startOrdering`}
+                                    onChange={(e) => handleThemeAudioUpload(soundThemeTab, 'startOrdering', e)}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 5. Add to Cart Sound */}
+                      {(() => {
+                        const currentCustomUrl = shopData.themeSounds?.[soundThemeTab]?.addToCartSoundUrl;
+                        const hasCustom = !!currentCustomUrl;
+                        
+                        const themePresetsDesc: Record<string, { title: string; desc: string }> = {
+                          none: { title: 'Satisfying Wooden Pop', desc: 'Snappy dual-frequency pop chime (440Hz -> 880Hz) on item select.' },
+                          christmas: { title: 'Sleigh Jingle Tap', desc: 'Crisp high jingle bell chime (F#5 -> A5) for winter shopping cart.' },
+                          halloween: { title: 'Trick-or-Treat Drop', desc: 'Hollow potion-drop drip sound with subtle resonant pitch slide.' },
+                        };
+
+                        return (
+                          <div className="p-4 sm:p-5 rounded-2xl bg-white/40 dark:bg-[#111115]/60 border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4 shadow-sm">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-lg bg-cyan-500/15 border border-cyan-500/20 text-cyan-500 flex items-center justify-center font-bold text-xs">
+                                    <ShoppingBag className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <h6 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                      Add to Cart
+                                    </h6>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase">
+                                      Menu & Custom Studio
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {hasCustom ? (
+                                  <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Custom Audio
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Theme Preset
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/5 dark:border-white/5">
+                                <div className="text-[11px] font-black text-slate-800 dark:text-slate-200">
+                                  {hasCustom ? 'Uploaded Custom Audio Track' : themePresetsDesc[soundThemeTab]?.title}
+                                </div>
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                                  {hasCustom ? 'Plays your custom uploaded audio file when adding items to cart.' : themePresetsDesc[soundThemeTab]?.desc}
+                                </div>
+                              </div>
+
+                              {/* Card-Level Volume Slider */}
+                              <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/5 dark:border-white/5 space-y-1.5">
+                                <div className="flex items-center justify-between text-[10px] font-bold">
+                                  <span className="text-slate-500 dark:text-slate-400">Card Volume</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono font-black text-cyan-500">
+                                      {shopData.addToCartSoundMuted ? 'MUTED' : `${Math.round((shopData.addToCartSoundVolume ?? 0.8) * 100)}%`}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShopData({ ...shopData, addToCartSoundMuted: !shopData.addToCartSoundMuted })}
+                                      className={`p-1 rounded-md border text-xs transition-all ${
+                                        shopData.addToCartSoundMuted
+                                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                          : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-cyan-500'
+                                      }`}
+                                      title={shopData.addToCartSoundMuted ? "Unmute" : "Mute"}
+                                    >
+                                      {shopData.addToCartSoundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                                    </button>
+                                  </div>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="1"
+                                  step="0.05"
+                                  disabled={shopData.addToCartSoundMuted}
+                                  value={shopData.addToCartSoundVolume ?? 0.8}
+                                  onChange={(e) => {
+                                    const vol = parseFloat(e.target.value);
+                                    setShopData({ ...shopData, addToCartSoundVolume: vol });
+                                  }}
+                                  className={`w-full accent-cyan-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.addToCartSoundMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    previewThemeSound(
+                                      soundThemeTab,
+                                      'addToCart',
+                                      currentCustomUrl,
+                                      shopData.addToCartSoundVolume ?? 0.8
+                                    );
+                                  }}
+                                  className="flex-1 py-2.5 px-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95"
+                                >
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                  <span>Test Add Sound</span>
+                                </button>
+
+                                {hasCustom && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResetThemeAudio(soundThemeTab, 'addToCart')}
+                                    className="py-2.5 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border border-red-500/20 transition-all"
+                                    title="Reset to Theme Preset"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Reset</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className={`w-full py-2 px-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 rounded-xl transition-all flex items-center justify-center gap-2 text-[10px] font-bold text-slate-700 dark:text-slate-300 ${uploadingAudio === `${soundThemeTab}-addToCart` ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+                                  {uploadingAudio === `${soundThemeTab}-addToCart` ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 text-cyan-400 animate-spin shrink-0" />
+                                      <span>Uploading Audio to Storage...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                                      <span>{hasCustom ? 'Replace Custom Audio (.mp3, .wav)' : 'Upload Custom Audio (.mp3, .wav)'}</span>
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="audio/*"
+                                    disabled={uploadingAudio === `${soundThemeTab}-addToCart`}
+                                    onChange={(e) => handleThemeAudioUpload(soundThemeTab, 'addToCart', e)}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 6. Start Over Sound */}
+                      {(() => {
+                        const currentCustomUrl = shopData.themeSounds?.[soundThemeTab]?.startOverSoundUrl;
+                        const hasCustom = !!currentCustomUrl;
+                        
+                        const themePresetsDesc: Record<string, { title: string; desc: string }> = {
+                          none: { title: 'Gentle Sweep Reset', desc: 'Soft downward-resolving chord (G5 -> E5 -> C5) clearing active choices.' },
+                          christmas: { title: 'Winter Wind Reset', desc: 'Descending icy crystal glissando across holiday glass bells.' },
+                          halloween: { title: 'Phantom Evaporation', desc: 'Mystical descending minor sweep with eerie atmospheric fade.' },
+                        };
+
+                        return (
+                          <div className="p-4 sm:p-5 rounded-2xl bg-white/40 dark:bg-[#111115]/60 border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4 shadow-sm">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-lg bg-orange-500/15 border border-orange-500/20 text-orange-500 flex items-center justify-center font-bold text-xs">
+                                    <RotateCcw className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <h6 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                      Start Over
+                                    </h6>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase">
+                                      Clear Cart & Session Reset
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {hasCustom ? (
+                                  <span className="px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Custom Audio
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Theme Preset
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/5 dark:border-white/5">
+                                <div className="text-[11px] font-black text-slate-800 dark:text-slate-200">
+                                  {hasCustom ? 'Uploaded Custom Audio Track' : themePresetsDesc[soundThemeTab]?.title}
+                                </div>
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                                  {hasCustom ? 'Plays your custom uploaded audio file when resetting the order.' : themePresetsDesc[soundThemeTab]?.desc}
+                                </div>
+                              </div>
+
+                              {/* Card-Level Volume Slider */}
+                              <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/5 dark:border-white/5 space-y-1.5">
+                                <div className="flex items-center justify-between text-[10px] font-bold">
+                                  <span className="text-slate-500 dark:text-slate-400">Card Volume</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono font-black text-orange-500">
+                                      {shopData.startOverSoundMuted ? 'MUTED' : `${Math.round((shopData.startOverSoundVolume ?? 0.8) * 100)}%`}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShopData({ ...shopData, startOverSoundMuted: !shopData.startOverSoundMuted })}
+                                      className={`p-1 rounded-md border text-xs transition-all ${
+                                        shopData.startOverSoundMuted
+                                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                          : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-orange-500'
+                                      }`}
+                                      title={shopData.startOverSoundMuted ? "Unmute" : "Mute"}
+                                    >
+                                      {shopData.startOverSoundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                                    </button>
+                                  </div>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="1"
+                                  step="0.05"
+                                  disabled={shopData.startOverSoundMuted}
+                                  value={shopData.startOverSoundVolume ?? 0.8}
+                                  onChange={(e) => {
+                                    const vol = parseFloat(e.target.value);
+                                    setShopData({ ...shopData, startOverSoundVolume: vol });
+                                  }}
+                                  className={`w-full accent-orange-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.startOverSoundMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    previewThemeSound(
+                                      soundThemeTab,
+                                      'startOver',
+                                      currentCustomUrl,
+                                      shopData.startOverSoundVolume ?? 0.8
+                                    );
+                                  }}
+                                  className="flex-1 py-2.5 px-3 bg-orange-500 hover:bg-orange-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95"
+                                >
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                  <span>Test Reset Sound</span>
+                                </button>
+
+                                {hasCustom && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResetThemeAudio(soundThemeTab, 'startOver')}
+                                    className="py-2.5 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border border-red-500/20 transition-all"
+                                    title="Reset to Theme Preset"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Reset</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className={`w-full py-2 px-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 rounded-xl transition-all flex items-center justify-center gap-2 text-[10px] font-bold text-slate-700 dark:text-slate-300 ${uploadingAudio === `${soundThemeTab}-startOver` ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+                                  {uploadingAudio === `${soundThemeTab}-startOver` ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 text-orange-400 animate-spin shrink-0" />
+                                      <span>Uploading Audio to Storage...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                                      <span>{hasCustom ? 'Replace Custom Audio (.mp3, .wav)' : 'Upload Custom Audio (.mp3, .wav)'}</span>
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="audio/*"
+                                    disabled={uploadingAudio === `${soundThemeTab}-startOver`}
+                                    onChange={(e) => handleThemeAudioUpload(soundThemeTab, 'startOver', e)}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 7. Confirm Order Sound */}
+                      {(() => {
+                        const currentCustomUrl = shopData.themeSounds?.[soundThemeTab]?.confirmOrderSoundUrl;
+                        const hasCustom = !!currentCustomUrl;
+                        
+                        const themePresetsDesc: Record<string, { title: string; desc: string }> = {
+                          none: { title: 'Celebratory Cafe Chime', desc: 'Bright 4-note ascending fanfare (C5 -> E5 -> G5 -> C6) on checkout.' },
+                          christmas: { title: 'Holiday Cheer Bells', desc: 'Festive celebratory bell cascade with joyful high crystal overtone.' },
+                          halloween: { title: 'Cauldron Brew Complete', desc: 'Triumphant gothic chord strike with rich magical harmonic resonance.' },
+                        };
+
+                        return (
+                          <div className="p-4 sm:p-5 rounded-2xl bg-white/40 dark:bg-[#111115]/60 border border-black/10 dark:border-white/10 flex flex-col justify-between gap-4 shadow-sm">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-lg bg-purple-500/15 border border-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                    <h6 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                                      Confirm Order
+                                    </h6>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase">
+                                      Checkout & Payment Submit
+                                    </span>
+                                  </div>
+                                </div>
+
+                                {hasCustom ? (
+                                  <span className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Custom Audio
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20 text-[9px] font-black uppercase tracking-wider">
+                                    Theme Preset
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="bg-black/5 dark:bg-white/5 p-3 rounded-xl border border-black/5 dark:border-white/5">
+                                <div className="text-[11px] font-black text-slate-800 dark:text-slate-200">
+                                  {hasCustom ? 'Uploaded Custom Audio Track' : themePresetsDesc[soundThemeTab]?.title}
+                                </div>
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
+                                  {hasCustom ? 'Plays your custom uploaded audio file when order is confirmed.' : themePresetsDesc[soundThemeTab]?.desc}
+                                </div>
+                              </div>
+
+                              {/* Card-Level Volume Slider */}
+                              <div className="bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/5 dark:border-white/5 space-y-1.5">
+                                <div className="flex items-center justify-between text-[10px] font-bold">
+                                  <span className="text-slate-500 dark:text-slate-400">Card Volume</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono font-black text-purple-400">
+                                      {shopData.confirmOrderSoundMuted ? 'MUTED' : `${Math.round((shopData.confirmOrderSoundVolume ?? 0.85) * 100)}%`}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setShopData({ ...shopData, confirmOrderSoundMuted: !shopData.confirmOrderSoundMuted })}
+                                      className={`p-1 rounded-md border text-xs transition-all ${
+                                        shopData.confirmOrderSoundMuted
+                                          ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                                          : 'bg-black/10 dark:bg-white/10 text-slate-600 dark:text-slate-300 border-black/10 dark:border-white/10 hover:text-purple-400'
+                                      }`}
+                                      title={shopData.confirmOrderSoundMuted ? "Unmute" : "Mute"}
+                                    >
+                                      {shopData.confirmOrderSoundMuted ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                                    </button>
+                                  </div>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="1"
+                                  step="0.05"
+                                  disabled={shopData.confirmOrderSoundMuted}
+                                  value={shopData.confirmOrderSoundVolume ?? 0.85}
+                                  onChange={(e) => {
+                                    const vol = parseFloat(e.target.value);
+                                    setShopData({ ...shopData, confirmOrderSoundVolume: vol });
+                                  }}
+                                  className={`w-full accent-purple-500 bg-black/10 dark:bg-white/10 rounded-lg h-1.5 cursor-pointer ${shopData.confirmOrderSoundMuted ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-black/5 dark:border-white/5">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    previewThemeSound(
+                                      soundThemeTab,
+                                      'confirmOrder',
+                                      currentCustomUrl,
+                                      shopData.confirmOrderSoundVolume ?? 0.85
+                                    );
+                                  }}
+                                  className="flex-1 py-2.5 px-3 bg-purple-500 hover:bg-purple-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95"
+                                >
+                                  <Play className="w-3.5 h-3.5 fill-current" />
+                                  <span>Test Fanfare</span>
+                                </button>
+
+                                {hasCustom && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResetThemeAudio(soundThemeTab, 'confirmOrder')}
+                                    className="py-2.5 px-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 border border-red-500/20 transition-all"
+                                    title="Reset to Theme Preset"
+                                  >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>Reset</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className={`w-full py-2 px-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 rounded-xl transition-all flex items-center justify-center gap-2 text-[10px] font-bold text-slate-700 dark:text-slate-300 ${uploadingAudio === `${soundThemeTab}-confirmOrder` ? 'opacity-60 cursor-wait' : 'cursor-pointer'}`}>
+                                  {uploadingAudio === `${soundThemeTab}-confirmOrder` ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 text-purple-400 animate-spin shrink-0" />
+                                      <span>Uploading Audio to Storage...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                      <span>{hasCustom ? 'Replace Custom Audio (.mp3, .wav)' : 'Upload Custom Audio (.mp3, .wav)'}</span>
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="audio/*"
+                                    disabled={uploadingAudio === `${soundThemeTab}-confirmOrder`}
+                                    onChange={(e) => handleThemeAudioUpload(soundThemeTab, 'confirmOrder', e)}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1397,34 +3035,72 @@ export function AdminSettings({
                     </div>
                   </div>
 
-                  {/* Notification Audio & Volume */}
-                  <div className="pt-2 border-t border-black/10 dark:border-white/10 space-y-2.5">
-                    <div className="flex items-center gap-2">
-                      <Volume2 className="w-4 h-4 text-amber-500" />
-                      <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
-                        POS Notification Audio
-                      </h4>
+                  {/* Notification Audio & Sound Studio Quick Access */}
+                  <div className="pt-3 border-t border-black/10 dark:border-white/10 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Volume2 className="w-4 h-4 text-amber-500" />
+                        <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+                          POS Notification Audio & Alerts
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveSection('audio')}
+                        className="text-[10px] font-black text-amber-500 hover:text-amber-400 uppercase tracking-wider flex items-center gap-1 w-fit"
+                      >
+                        <span>Open Full Sound Studio</span>
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div>
-                        <label className="w-full px-3 py-2.5 bg-white dark:bg-[#111115] hover:bg-black/5 dark:hover:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl sm:rounded-2xl cursor-pointer transition-all flex items-center justify-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
-                          <Upload className="w-4 h-4 text-amber-500 shrink-0" />
-                          <span>Upload Notification Audio</span>
-                          <input type="file" accept="audio/*" onChange={handleAudioUpload} className="hidden" />
-                        </label>
-                        {shopData.notificationSoundUrl && (
-                          <span className="text-[10px] text-emerald-500 font-bold uppercase mt-1 block ml-1">
-                            ✓ Custom audio loaded
+                      {/* Order Sound Live Test & Upload */}
+                      <div className="bg-white dark:bg-[#111115] p-3 rounded-xl sm:rounded-2xl border border-black/10 dark:border-white/10 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                            Active Theme Audio
                           </span>
-                        )}
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-amber-500/15 text-amber-500">
+                            {(shopData.activeTheme || 'none').toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const activeTh = shopData.activeTheme || 'none';
+                              const customUrl = shopData.themeSounds?.[activeTh]?.orderSoundUrl || shopData.notificationSoundUrl;
+                              previewThemeSound(activeTh, 'order', customUrl, shopData.orderNotificationVolume ?? 1);
+                            }}
+                            className="flex-1 py-2 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                            <span>Test Order Chime</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const activeTh = shopData.activeTheme || 'none';
+                              const customUrl = shopData.themeSounds?.[activeTh]?.chatSoundUrl;
+                              previewThemeSound(activeTh, 'chat', customUrl, shopData.chatNotificationVolume ?? 1);
+                            }}
+                            className="flex-1 py-2 px-3 bg-blue-500 hover:bg-blue-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+                          >
+                            <Play className="w-3.5 h-3.5 fill-current" />
+                            <span>Test Chat Chime</span>
+                          </button>
+                        </div>
                       </div>
 
-                      <div>
-                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                          <span>Chime Volume</span>
-                          <span className="text-amber-500 font-mono">
-                            {Math.round((shopData.notificationVolume || 1) * 100)}%
+                      {/* Order Volume Slider */}
+                      <div className="bg-white dark:bg-[#111115] p-3 rounded-xl sm:rounded-2xl border border-black/10 dark:border-white/10 space-y-2">
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+                          <span className="text-[11px] font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                            Order Alert Volume
+                          </span>
+                          <span className="text-amber-500 font-mono font-black text-xs">
+                            {shopData.orderNotificationMuted ? 'MUTED' : `${Math.round((shopData.orderNotificationVolume ?? 1) * 100)}%`}
                           </span>
                         </div>
                         <input
@@ -1432,10 +3108,12 @@ export function AdminSettings({
                           min="0"
                           max="1"
                           step="0.05"
-                          value={shopData.notificationVolume || 1}
-                          onChange={(e) =>
-                            setShopData({ ...shopData, notificationVolume: parseFloat(e.target.value) })
-                          }
+                          disabled={shopData.orderNotificationMuted}
+                          value={shopData.orderNotificationVolume ?? 1}
+                          onChange={(e) => {
+                            const vol = parseFloat(e.target.value);
+                            setShopData({ ...shopData, orderNotificationVolume: vol, notificationVolume: vol });
+                          }}
                           className="w-full accent-amber-500 bg-black/10 dark:bg-white/10 rounded-lg h-2 cursor-pointer py-1"
                         />
                       </div>

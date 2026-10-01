@@ -35,3 +35,50 @@ export const uploadProductImage = async (file: File): Promise<string> => {
   }
 };
 
+/**
+ * Uploads an audio track to Firebase Storage under 'theme_audio/' path.
+ * Returns the download URL (lightweight ~100 character link).
+ * Prevents exceeding Firestore's strict 1MB single document size limit.
+ */
+export const uploadAudioFile = async (file: File, folder: string = 'theme_audio'): Promise<string> => {
+  try {
+    const fileExt = file.name.split('.').pop() || 'mp3';
+    const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+    const storageRef = ref(storage, `${folder}/${cleanFileName}`);
+
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
+    return downloadURL;
+  } catch (err: any) {
+    console.warn('Firebase Storage upload error for audio, checking fallback options:', err);
+    // If Storage fails and file is small enough (< 200KB), allow base64 fallback to protect Firestore 1MB document limit
+    if (file.size <= 200 * 1024) {
+      return await readFileAsDataURL(file);
+    }
+    throw new Error('Audio file is too large for database storage without Firebase Storage enabled. Please upload a file under 200KB or check Firebase Storage permissions.');
+  }
+};
+
+/**
+ * Uploads an image (logo, QR, splash) to Firebase Storage under a designated folder.
+ * Returns the CDN download URL.
+ */
+export const uploadImageFile = async (file: File, folder: string = 'settings'): Promise<string> => {
+  try {
+    const fileExt = file.name.split('.').pop() || 'png';
+    const cleanFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+    const storageRef = ref(storage, `${folder}/${cleanFileName}`);
+
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+
+    return downloadURL;
+  } catch (err: any) {
+    console.warn(`Firebase Storage upload error for ${folder} image, falling back to data URL:`, err);
+    if (file.size <= 300 * 1024) {
+      return await readFileAsDataURL(file);
+    }
+    throw new Error('Image file is too large for database storage without Firebase Storage enabled. Please upload an image under 300KB.');
+  }
+};

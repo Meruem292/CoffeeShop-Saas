@@ -1,18 +1,20 @@
 import React, { useEffect, useRef } from 'react';
-import { Order, OrderStatus, CartItem } from '../types';
+import { Order, OrderStatus, CartItem, ShopSettings } from '../types';
 import { Clock, CheckCircle, ChefHat, Smartphone, MonitorSmartphone, Tablet, Trash2, List, LayoutGrid, ChevronUp, ChevronDown, FlaskConical } from 'lucide-react';
 import { ConfirmationModal } from './ConfirmationModal';
 import { VoidModal } from './VoidModal';
 import { BaristaRecipeGuideModal } from './BaristaRecipeGuideModal';
+import { playThemeOrderSound } from '../lib/audio';
 
 interface KitchenQueueProps {
   orders: Order[];
+  shopSettings?: ShopSettings | null;
   onUpdateStatus: (orderId: string, newStatus: OrderStatus) => Promise<void>;
   onDeleteOrder: (id: string) => Promise<void>;
   onVoidOrder: (id: string, reason: string) => Promise<void>;
 }
 
-export function KitchenQueue({ orders = [], onUpdateStatus, onDeleteOrder, onVoidOrder }: KitchenQueueProps) {
+export function KitchenQueue({ orders = [], shopSettings, onUpdateStatus, onDeleteOrder, onVoidOrder }: KitchenQueueProps) {
   const [orderToCancel, setOrderToCancel] = React.useState<Order | null>(null);
   const [orderToVoid, setOrderToVoid] = React.useState<Order | null>(null);
   const [viewMode, setViewMode] = React.useState<'grid' | 'table'>('table');
@@ -27,20 +29,20 @@ export function KitchenQueue({ orders = [], onUpdateStatus, onDeleteOrder, onVoi
 
   useEffect(() => {
     if (activeOrders.length > prevOrderCountRef.current) {
-      // Play sound
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      oscillator.type = 'sine';
-      oscillator.frequency.value = 880; // A5
-      gainNode.gain.value = 0.1;
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.1);
+      const activeTheme = shopSettings?.activeTheme || (shopSettings?.snowEnabled !== false ? 'christmas' : 'none');
+      const customUrl = shopSettings?.themeSounds?.[activeTheme]?.orderSoundUrl || shopSettings?.notificationSoundUrl;
+      const volume = shopSettings?.orderNotificationVolume ?? shopSettings?.notificationVolume ?? 1;
+      const muted = shopSettings?.orderNotificationMuted ?? false;
+
+      playThemeOrderSound({
+        theme: activeTheme,
+        customUrl,
+        volume,
+        muted
+      });
     }
     prevOrderCountRef.current = activeOrders.length;
-  }, [activeOrders.length]);
+  }, [activeOrders.length, shopSettings]);
 
   const getStatusColor = (status: OrderStatus) => {
     switch (status) {
@@ -247,22 +249,22 @@ export function KitchenQueue({ orders = [], onUpdateStatus, onDeleteOrder, onVoi
                                       ))}
                                     </div>
                                     {item.mixtureGuide && (
-  <div className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/10 dark:border-white/5 italic">
-    <div className="flex items-center justify-between mb-1.5 not-italic">
-      <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 flex items-center gap-1">
-        <FlaskConical className="w-3 h-3 text-amber-500" /> Your MIX Formula
-      </span>
-      <button
-        onClick={() => setRecipeGuideItem({ item, orderId: order.id, customerName: order.customerName })}
-        className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 hover:bg-amber-400 transition-colors shadow-sm not-italic"
-      >
-        <FlaskConical className="w-3 h-3" />
-        <span>Open Barista Guide</span>
-      </button>
-    </div>
-    <div className="whitespace-pre-wrap">{item.mixtureGuide}</div>
-  </div>
-)}
+                                      <div className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/10 dark:border-white/5 italic">
+                                        <div className="flex items-center justify-between mb-1.5 not-italic">
+                                          <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 flex items-center gap-1">
+                                            <FlaskConical className="w-3 h-3 text-amber-500" /> Your MIX Formula
+                                          </span>
+                                          <button
+                                            onClick={() => setRecipeGuideItem({ item, orderId: order.id, customerName: order.customerName })}
+                                            className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 hover:bg-amber-400 transition-colors shadow-sm not-italic"
+                                          >
+                                            <FlaskConical className="w-3 h-3" />
+                                            <span>Open Barista Guide</span>
+                                          </button>
+                                        </div>
+                                        <div className="whitespace-pre-wrap">{item.mixtureGuide}</div>
+                                      </div>
+                                    )}
                                     {item.notes && (
                                       <div className="mt-2 text-xs font-bold text-red-500/80 bg-red-500/10 p-2.5 rounded-xl border border-red-500/20 italic">
                                         <span className="block text-[9px] font-black uppercase tracking-widest text-red-500/50 not-italic mb-1">Customer Note</span>
@@ -391,22 +393,22 @@ export function KitchenQueue({ orders = [], onUpdateStatus, onDeleteOrder, onVoi
                               ))}
                             </div>
                             {item.mixtureGuide && (
-  <div className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/10 dark:border-white/5 italic">
-    <div className="flex items-center justify-between mb-1.5 not-italic">
-      <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 flex items-center gap-1">
-        <FlaskConical className="w-3 h-3 text-amber-500" /> Your MIX Formula
-      </span>
-      <button
-        onClick={() => setRecipeGuideItem({ item, orderId: order.id, customerName: order.customerName })}
-        className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 hover:bg-amber-400 transition-colors shadow-sm not-italic"
-      >
-        <FlaskConical className="w-3 h-3" />
-        <span>Open Barista Guide</span>
-      </button>
-    </div>
-    <div className="whitespace-pre-wrap">{item.mixtureGuide}</div>
-  </div>
-)}
+                              <div className="mt-2 text-xs font-bold text-slate-600 dark:text-slate-400 bg-black/5 dark:bg-white/5 p-2.5 rounded-xl border border-black/10 dark:border-white/5 italic">
+                                <div className="flex items-center justify-between mb-1.5 not-italic">
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 flex items-center gap-1">
+                                    <FlaskConical className="w-3 h-3 text-amber-500" /> Your MIX Formula
+                                  </span>
+                                  <button
+                                    onClick={() => setRecipeGuideItem({ item, orderId: order.id, customerName: order.customerName })}
+                                    className="px-2.5 py-1 rounded-lg bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 hover:bg-amber-400 transition-colors shadow-sm not-italic"
+                                  >
+                                    <FlaskConical className="w-3 h-3" />
+                                    <span>Open Barista Guide</span>
+                                  </button>
+                                </div>
+                                <div className="whitespace-pre-wrap">{item.mixtureGuide}</div>
+                              </div>
+                            )}
                             {item.notes && (
                               <div className="mt-2 text-xs font-bold text-red-500/80 bg-red-500/10 p-2.5 rounded-xl border border-red-500/20 italic">
                                 <span className="block text-[9px] font-black uppercase tracking-widest text-red-500/50 not-italic mb-1">Customer Note</span>
