@@ -75,11 +75,19 @@ export const CategorySidebar = React.memo(({
   isDesktopSidebarOpen = true
 }: CategorySidebarProps) => {
   return (
-    <div className={`flex flex-col py-6 md:py-8 h-full overflow-hidden shrink-0 z-20 transition-all ${
-      mode === 'mobile' 
-        ? 'w-[76px] md:w-24 bg-white dark:bg-slate-950/20 backdrop-blur-3xl border-r border-black/10 dark:border-white/5' 
-        : 'w-24 md:w-28 lg:w-32 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-r border-black/10 dark:border-white/5'
-    }`}>
+    <div 
+      className={`flex flex-col py-3 md:py-6 h-full overflow-hidden shrink-0 z-20 transition-all select-none ${
+        mode === 'mobile' 
+          ? 'w-[72px] sm:w-20 md:w-24 bg-white/95 dark:bg-[#0c111e]/95 border-r border-black/10 dark:border-white/5' 
+          : 'w-24 md:w-28 lg:w-32 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-r border-black/10 dark:border-white/5'
+      }`}
+      style={{
+        transform: 'translate3d(0, 0, 0)',
+        WebkitTransform: 'translate3d(0, 0, 0)',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden'
+      }}
+    >
       {mode !== 'mobile' && (
         <div className="flex flex-col items-center gap-1.5 mb-6 opacity-90 animate-in fade-in slide-in-from-top-4 duration-700 w-full px-2 text-center shrink-0">
           <div className="w-12 h-12 rounded-[1.25rem] border border-black/10 dark:border-white/10 flex items-center justify-center bg-black/5 dark:bg-white/5 shadow-inner overflow-hidden">
@@ -96,30 +104,37 @@ export const CategorySidebar = React.memo(({
       )}
 
       {/* Category items list */}
-      <div className={`flex-1 overflow-y-auto scrollbar-hide flex flex-col gap-2 px-2 pb-4 transition-all duration-300 ${
-        user && !isDesktopSidebarOpen ? 'lg:pt-14' : ''
-      }`}>
+      <div 
+        data-scroll-container
+        className={`flex-1 overflow-y-auto scrollbar-hide flex flex-col gap-1.5 px-1 sm:px-2 pb-32 transition-all duration-300 ${
+          user && !isDesktopSidebarOpen ? 'lg:pt-14' : ''
+        }`}
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehaviorY: 'contain'
+        }}
+      >
         {categories.map((cat, idx) => {
           const isActive = activeCategory === cat;
           return (
             <button
               key={`${cat}-${idx}`}
+              type="button"
               onClick={() => setActiveCategory(cat)}
-              className="flex flex-col items-center py-2 px-1 rounded-2xl transition-all relative group animate-in fade-in slide-in-from-left-4 duration-500 shrink-0"
-              style={{ animationDelay: `${idx * 40}ms` }}
+              className="flex flex-col items-center py-2 px-1 rounded-2xl transition-all relative group shrink-0 active:scale-[0.92]"
             >
               {isActive && (
-                <div className="absolute inset-y-2 left-0 w-1 bg-amber-500 rounded-r-full shadow-[2px_0_8px_rgba(245,158,11,0.5)]" />
+                <div className="absolute inset-y-2 left-0 w-1 bg-amber-500 rounded-r-full shadow-[2px_0_8px_rgba(245,158,11,0.6)]" />
               )}
-              <div className={`p-3 rounded-2xl transition-all relative z-10 ${
+              <div className={`p-2.5 sm:p-3 rounded-2xl transition-all relative z-10 ${
                 isActive 
-                  ? 'bg-amber-500 text-slate-900 dark:text-white shadow-[0_8px_20px_rgba(245,158,11,0.35)] scale-105' 
+                  ? 'bg-amber-500 text-slate-950 shadow-[0_4px_15px_rgba(245,158,11,0.35)] scale-105' 
                   : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
               }`}>
                 {getCategoryIcon(cat, categoriesData)}
               </div>
-              <span className={`text-[9px] mt-2.5 font-bold leading-none relative z-10 uppercase tracking-wider text-center truncate w-full ${
-                isActive ? 'text-amber-400' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-200'
+              <span className={`text-[8.5px] sm:text-[9px] mt-1.5 font-black leading-tight relative z-10 uppercase tracking-wider text-center truncate w-full px-0.5 ${
+                isActive ? 'text-amber-500 font-black' : 'text-slate-500 dark:text-slate-400 group-hover:text-slate-200'
               }`}>
                 {cat.split(' ')[0]}
               </span>

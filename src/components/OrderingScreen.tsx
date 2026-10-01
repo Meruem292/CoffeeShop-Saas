@@ -1304,7 +1304,18 @@ export function OrderingScreen({
           </div>
         )}
 
-        <div className={`flex-1 overflow-y-auto p-4 sm:p-6 md:p-10 lg:p-12 ${mode === 'mobile' ? 'scrollbar-hide pb-32' : 'pb-24'}`}>
+        <div 
+          data-scroll-container
+          className={`flex-1 overflow-y-auto ${mode === 'mobile' ? 'p-2.5 sm:p-4 pb-36 scrollbar-hide' : 'p-4 sm:p-6 md:p-10 lg:p-12 pb-24'}`}
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehaviorY: 'contain',
+            transform: 'translate3d(0, 0, 0)',
+            WebkitTransform: 'translate3d(0, 0, 0)',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden'
+          }}
+        >
           <div className="w-full max-w-[1600px] mx-auto">
             {/* Account Suspension Banner */}
             {isAccountSuspended && (
@@ -1336,7 +1347,7 @@ export function OrderingScreen({
               </div>
             )}
 
-            <header className={`${mode === 'mobile' ? 'mb-4 flex items-center justify-between px-1' : 'mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6'}`}>
+            <header className={`${mode === 'mobile' ? 'mb-3 flex items-center justify-between px-1' : 'mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6'}`}>
               <div className={`${mode === 'mobile' ? 'flex items-center gap-2' : 'flex flex-col'}`}>
                 {mode === 'mobile' ? (
                   <>
@@ -1372,7 +1383,7 @@ export function OrderingScreen({
               {mode === 'mobile' && user && activeUserOrders.length > 0 && (
                 <button
                   onClick={() => setShowOrderStatusModal(true)}
-                  className="px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-slate-900 transition-all rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 shadow-sm"
+                  className="px-3 py-1 bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-slate-950 transition-all rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 active:scale-95 shadow-sm"
                 >
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
                   <span>Track Order (#{activeUserOrders[0].id?.slice(-4)})</span>
@@ -1435,8 +1446,8 @@ export function OrderingScreen({
                            onClick={() => setGridColumns(cols as 4 | 5 | 6)}
                            className={`w-9 h-9 rounded-lg flex items-center justify-center text-[11px] font-black transition-all ${
                              gridColumns === cols
-                               ? 'bg-amber-500 text-slate-900 dark:text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105'
-                               : 'text-slate-600 dark:text-slate-400 hover:text-foreground hover:bg-white'
+                                ? 'bg-amber-500 text-slate-900 dark:text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-105'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-foreground hover:bg-white'
                            }`}
                         >
                           {cols}
@@ -1449,20 +1460,20 @@ export function OrderingScreen({
             </header>
 
             {/* Product Search and Sort Controls Row */}
-            <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-2.5 sm:gap-4 items-center justify-between">
               <div className="relative w-full sm:max-w-xs">
                 <input
                   type="text"
                   placeholder="Search products..."
                   value={localSearchQuery}
                   onChange={(e) => setLocalSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 bg-white/40 dark:bg-slate-900/40 border border-black/10 dark:border-white/5 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500/20 transition-all placeholder:text-slate-500 backdrop-blur-xl"
+                  className="w-full pl-9 pr-8 py-2 sm:py-2.5 bg-white/70 dark:bg-slate-900/70 border border-black/10 dark:border-white/10 rounded-2xl text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500/40 transition-all placeholder:text-slate-500"
                 />
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 {localSearchQuery && (
                   <button 
                     onClick={() => setLocalSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-1"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -1513,17 +1524,17 @@ export function OrderingScreen({
                       <div
                         key={`fav-${product.id}`}
                         onClick={() => product.isActive !== false && handleProductClick(product)}
-                        className="shrink-0 w-48 sm:w-64 h-[84px] sm:h-[145px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-rose-500/30 p-2 sm:p-2.5 flex gap-2 sm:gap-3 items-center cursor-pointer hover:border-rose-500 hover:shadow-md transition-all relative group overflow-hidden"
+                        className="shrink-0 w-48 sm:w-64 h-[84px] sm:h-[145px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-rose-500/30 p-2 sm:p-2.5 flex gap-2 sm:gap-3 items-center cursor-pointer hover:border-rose-500 hover:shadow-md transition-all relative group overflow-hidden active:scale-[0.98]"
                       >
                         {activeTheme === 'christmas' && <SnowCap variant="compact" />}
                         {activeTheme === 'halloween' && <PumpkinCap variant="compact" />}
                         <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
-                          <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <img src={product.image || undefined} alt={product.name} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-rose-500 text-white text-[7px] sm:text-[8px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-full shadow">
                             ❤️ {count}x
                           </div>
                           {cartCount > 0 && (
-                            <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 bg-amber-500 text-slate-900 text-[8px] sm:text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-white">
+                            <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 bg-amber-500 text-slate-950 text-[8px] sm:text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-white">
                               {cartCount}
                             </div>
                           )}
@@ -1537,7 +1548,7 @@ export function OrderingScreen({
                           </div>
                           <div className="flex items-center justify-between mt-auto pt-0.5">
                             <span className="text-[11px] sm:text-xs font-black text-amber-500 italic">₱{product.price}</span>
-                            <button className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-md sm:rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-colors">
+                            <button className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-md sm:rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-colors active:scale-95">
                               + Add
                             </button>
                           </div>
@@ -1570,7 +1581,9 @@ export function OrderingScreen({
                   </div>
                 </div>
 
-                <div className="relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)] py-0.5">
+                <div className="relative w-full overflow-hidden py-0.5">
+                  <div className="pointer-events-none absolute left-0 inset-y-0 w-4 sm:w-6 bg-gradient-to-r from-white dark:from-[#0d121f] to-transparent z-10" />
+                  <div className="pointer-events-none absolute right-0 inset-y-0 w-4 sm:w-6 bg-gradient-to-l from-white dark:from-[#0d121f] to-transparent z-10" />
                   <div className="flex gap-2.5 sm:gap-3.5 w-max animate-marquee hover:[animation-play-state:paused] py-0.5">
                     {(() => {
                       const base = overallBestSellers.slice(0, 10);
@@ -1585,17 +1598,17 @@ export function OrderingScreen({
                           <div
                             key={`best-marquee-${product.id}-${index}`}
                             onClick={() => product.isActive !== false && handleProductClick(product)}
-                            className="shrink-0 w-52 sm:w-64 h-[84px] sm:h-[96px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-amber-500/30 p-2 sm:p-2.5 flex gap-2.5 sm:gap-3 items-center cursor-pointer hover:border-amber-500 hover:shadow-lg hover:scale-[1.02] transition-all relative group select-none shadow-sm overflow-hidden"
+                            className="shrink-0 w-52 sm:w-64 h-[84px] sm:h-[96px] bg-white dark:bg-[#0d121f] rounded-xl sm:rounded-2xl border border-amber-500/30 p-2 sm:p-2.5 flex gap-2.5 sm:gap-3 items-center cursor-pointer hover:border-amber-500 hover:shadow-lg hover:scale-[1.02] transition-all relative group select-none shadow-sm overflow-hidden active:scale-[0.98]"
                           >
                             {activeTheme === 'christmas' && <SnowCap variant="compact" />}
                             {activeTheme === 'halloween' && <PumpkinCap variant="compact" />}
                             <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900 relative shrink-0">
-                              <img src={product.image || undefined} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                              <img src={product.image || undefined} alt={product.name} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                               <div className="absolute top-0.5 left-0.5 sm:top-1 sm:left-1 bg-amber-500 text-slate-950 text-[7px] sm:text-[8px] font-black px-1 sm:px-1.5 py-0.2 sm:py-0.5 rounded-full shadow">
                                 🔥 {count} sold
                               </div>
                               {cartCount > 0 && (
-                                <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 bg-amber-500 text-slate-900 text-[8px] sm:text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-white">
+                                <div className="absolute bottom-0.5 right-0.5 sm:bottom-1 sm:right-1 bg-amber-500 text-slate-950 text-[8px] sm:text-[9px] font-black w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center border border-white">
                                   {cartCount}
                                 </div>
                               )}
@@ -1609,7 +1622,7 @@ export function OrderingScreen({
                               </div>
                               <div className="flex items-center justify-between mt-auto pt-0.5">
                                 <span className="text-[11px] sm:text-xs font-black text-amber-500 italic">₱{product.price}</span>
-                                <button className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-amber-500/10 group-hover:bg-amber-500 text-amber-600 group-hover:text-slate-950 rounded-md sm:rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-colors">
+                                <button className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-amber-500/10 group-hover:bg-amber-500 text-amber-600 group-hover:text-slate-950 rounded-md sm:rounded-lg text-[8px] sm:text-[9px] font-black uppercase tracking-wider transition-colors active:scale-95">
                                   + Add
                                 </button>
                               </div>
@@ -1650,7 +1663,9 @@ export function OrderingScreen({
                 </div>
 
                 {communityMixes && communityMixes.length > 0 ? (
-                  <div className="relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)] py-0.5">
+                  <div className="relative w-full overflow-hidden py-0.5">
+                    <div className="pointer-events-none absolute left-0 inset-y-0 w-4 sm:w-6 bg-gradient-to-r from-white dark:from-[#0d121f] to-transparent z-10" />
+                    <div className="pointer-events-none absolute right-0 inset-y-0 w-4 sm:w-6 bg-gradient-to-l from-white dark:from-[#0d121f] to-transparent z-10" />
                     <div className="flex gap-2.5 sm:gap-3.5 w-max animate-marquee hover:[animation-play-state:paused] py-0.5">
                       {(() => {
                         const base = communityMixes.slice(0, 10);
@@ -1663,7 +1678,7 @@ export function OrderingScreen({
                           return (
                             <div
                               key={`fav-mix-${mix.id}-${index}`}
-                              className="shrink-0 w-60 sm:w-72 h-[100px] sm:h-[110px] bg-white dark:bg-[#0d121f] rounded-2xl border border-amber-500/30 p-2.5 sm:p-3 flex flex-col justify-between hover:border-amber-500 hover:shadow-lg transition-all relative group select-none shadow-sm overflow-hidden"
+                              className="shrink-0 w-60 sm:w-72 h-[100px] sm:h-[110px] bg-white dark:bg-[#0d121f] rounded-2xl border border-amber-500/30 p-2.5 sm:p-3 flex flex-col justify-between hover:border-amber-500 hover:shadow-lg transition-all relative group select-none shadow-sm overflow-hidden active:scale-[0.98]"
                             >
                               <div className="absolute top-0 left-0 right-0 h-1.5 flex overflow-hidden">
                                 {mix.recipeItems.map((it, itIdx) => (
@@ -1702,7 +1717,7 @@ export function OrderingScreen({
                                 <div className="flex items-center gap-1.5">
                                   <button
                                     onClick={() => handleRemixCommunityMix(mix)}
-                                    className="px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-[9px] font-bold uppercase transition-all"
+                                    className="px-2 py-0.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 text-[9px] font-bold uppercase transition-all active:scale-95"
                                     title="Remix formula in Mix Lab"
                                   >
                                     Remix
@@ -2618,33 +2633,35 @@ export function OrderingScreen({
           {cart.length > 0 && !isMobileCartOpen && !isPosCartDrawerOpen && (
             <button
               onClick={() => mode === 'pos' ? setIsPosCartDrawerOpen(true) : setIsMobileCartOpen(true)}
-              className="fixed bottom-8 right-8 z-[60] bg-white dark:bg-slate-900 text-black dark:text-white p-5 rounded-[2.5rem] shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] flex items-center gap-4 group transition-all active:scale-95 animate-in fade-in zoom-in-95 duration-500 border border-black/10 dark:border-white/10"
+              className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] right-4 sm:right-8 z-[60] bg-slate-900 dark:bg-white text-white dark:text-slate-950 px-4 py-3.5 sm:p-5 rounded-full sm:rounded-[2.5rem] shadow-[0_15px_35px_-5px_rgba(0,0,0,0.4)] flex items-center gap-3.5 group transition-all active:scale-[0.94] animate-in fade-in zoom-in-95 duration-300 border border-white/10 dark:border-black/10"
             >
               <div className="relative">
-                <ShoppingBag className="w-7 h-7" />
-                <span className="absolute -top-3 -right-3 bg-amber-600 text-slate-900 dark:text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-black shadow-lg">
+                <ShoppingBag className="w-5 h-5 sm:w-7 sm:h-7" />
+                <span className="absolute -top-2.5 -right-2.5 bg-amber-500 text-slate-950 text-[9px] sm:text-[10px] font-black w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center border-2 border-slate-900 dark:border-white shadow-md">
                   {cart.reduce((a, b) => a + b.quantity, 0)}
                 </span>
               </div>
-              <div className="flex flex-col items-start pr-2">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] leading-none mb-1 opacity-50">Fuel Check</span>
-                <span className="font-black text-lg italic leading-none">₱{total.toLocaleString()}</span>
+              <div className="flex flex-col items-start pr-1">
+                <span className="text-[8.5px] sm:text-[10px] font-black uppercase tracking-widest leading-none mb-0.5 opacity-60">View Cart</span>
+                <span className="font-black text-sm sm:text-lg italic leading-none text-amber-400 dark:text-amber-600">₱{total.toLocaleString()}</span>
               </div>
             </button>
           )}
 
           {(isMobileCartOpen || isPosCartDrawerOpen) && (
               <div
-                className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6 bg-slate-300 dark:bg-black/60 backdrop-blur-md transition-all animate-in fade-in duration-300"
+                className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm transition-all animate-in fade-in duration-200"
                 onClick={() => {
                   setIsMobileCartOpen(false);
                   setIsPosCartDrawerOpen(false);
                 }}
               >
                 <div 
-                  className={`bg-black/90 w-full max-w-xl mx-auto my-auto h-[90vh] md:max-h-[85vh] rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,1)] border border-black/10 dark:border-white/10 flex flex-col animate-in zoom-in-95 duration-300`}
+                  className={`bg-white dark:bg-[#0b1329] w-full max-w-xl mx-auto my-0 sm:my-auto h-[88vh] max-h-[88vh] sm:h-[90vh] sm:max-h-[85vh] rounded-t-[2.25rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border border-black/10 dark:border-white/10 flex flex-col animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-300`}
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {/* Mobile Grab Handle */}
+                  <div className="w-12 h-1 bg-slate-300 dark:bg-white/20 rounded-full mx-auto my-2 sm:hidden shrink-0" />
                   <div className="flex-1 flex flex-col min-h-0">
                     {renderCart()}
                   </div>
@@ -2665,34 +2682,39 @@ export function OrderingScreen({
         {/* Customization Modal */}
         {selectedProductForConfig && (
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md"
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm transition-all animate-in fade-in duration-200"
+            onClick={() => setSelectedProductForConfig(null)}
           >
             <div
-              className="bg-white dark:bg-[#0b1329] w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] border border-black/10 dark:border-white/10 flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-300"
+              className="bg-white dark:bg-[#0b1329] w-full max-w-lg rounded-t-[2.25rem] sm:rounded-[2.5rem] overflow-hidden shadow-2xl border border-black/10 dark:border-white/10 flex flex-col max-h-[88vh] sm:max-h-[92vh] animate-in slide-in-from-bottom-6 sm:zoom-in-95 duration-300"
+              onClick={(e) => e.stopPropagation()}
             >
+              {/* Mobile Grab Handle */}
+              <div className="w-12 h-1 bg-slate-300 dark:bg-white/20 rounded-full mx-auto my-2 sm:hidden shrink-0" />
+
               {/* Compact Header with Inline Thumbnail and Close Button */}
-              <div className="p-5 pb-4 sm:p-6 sm:pb-4 border-b border-black/10 dark:border-white/5 flex items-start gap-4 relative shrink-0">
+              <div className="p-4 sm:p-6 sm:pb-4 border-b border-black/10 dark:border-white/5 flex items-start gap-3.5 sm:gap-4 relative shrink-0">
                 {selectedProductForConfig.image && (
                   <img 
                     src={selectedProductForConfig.image} 
                     alt={selectedProductForConfig.name} 
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-black/10 dark:border-white/10 shrink-0 shadow-sm" 
+                    className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl object-cover border border-black/10 dark:border-white/10 shrink-0 shadow-sm" 
                   />
                 )}
                 <div className="flex-1 min-w-0 pr-8">
-                  <div className="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">{selectedProductForConfig.category}</div>
-                  <h3 className="text-xl sm:text-2xl font-display font-black text-slate-900 dark:text-white leading-tight mb-1 truncate">{selectedProductForConfig.name}</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-[11px] sm:text-xs leading-normal font-normal line-clamp-2">{selectedProductForConfig.description}</p>
+                  <div className="text-[8.5px] sm:text-[9px] font-black text-amber-500 uppercase tracking-widest mb-0.5 sm:mb-1">{selectedProductForConfig.category}</div>
+                  <h3 className="text-lg sm:text-2xl font-display font-black text-slate-900 dark:text-white leading-tight mb-0.5 sm:mb-1 truncate">{selectedProductForConfig.name}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-[10px] sm:text-xs leading-normal font-normal line-clamp-2">{selectedProductForConfig.description}</p>
                 </div>
                 <button 
                   onClick={() => setSelectedProductForConfig(null)}
-                  className="absolute top-5 right-5 w-8 h-8 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-all active:scale-90 z-20"
+                  className="absolute top-4 sm:top-5 right-4 sm:right-5 w-8 h-8 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-full flex items-center justify-center text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-black/10 dark:hover:bg-white/10 transition-all active:scale-90 z-20"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="p-5 sm:p-6 pt-4 sm:pt-4 flex-1 overflow-y-auto scrollbar-hide space-y-4">
+              <div className="p-4 sm:p-6 pt-3 sm:pt-4 flex-1 overflow-y-auto scrollbar-hide space-y-4 pb-safe">
                 {selectedProductForConfig.sizes && selectedProductForConfig.sizes.length > 0 && (
                   <div className="space-y-2">
                     <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Size / Variant</label>
@@ -2702,8 +2724,9 @@ export function OrderingScreen({
                         return (
                           <button
                             key={size.name}
+                            type="button"
                             onClick={() => setSelectedSizeConfig(size)}
-                            className={`flex items-center justify-between px-3 py-2 border rounded-xl transition-all duration-200 active:scale-98 ${isSelected ? 'border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white shadow-sm' : 'border-black/10 dark:border-white/5 bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
+                            className={`flex items-center justify-between px-3 py-2.5 border rounded-xl transition-all duration-150 active:scale-95 ${isSelected ? 'border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white shadow-sm' : 'border-black/10 dark:border-white/5 bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                           >
                             <span className="font-bold uppercase text-[11px] tracking-wider truncate">{size.name}</span>
                             <span className="font-bold text-amber-500 text-[11px] shrink-0">₱{size.price.toLocaleString()}</span>
@@ -2717,7 +2740,7 @@ export function OrderingScreen({
                 {isProductBeverage(selectedProductForConfig) && (
                   <div className="space-y-2">
                     <label className="block text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Sugar Level</label>
-                    <div className="grid grid-cols-5 bg-black/5 dark:bg-white/5 p-0.5 rounded-xl border border-black/10 dark:border-white/5 gap-1">
+                    <div className="grid grid-cols-5 bg-black/5 dark:bg-white/5 p-1 rounded-xl border border-black/10 dark:border-white/5 gap-1">
                       {(['0%', '25%', '50%', '75%', '100%'] as SugarLevel[]).map((level) => {
                         const isSelected = selectedSugarConfig === level;
                         return (
@@ -2725,7 +2748,7 @@ export function OrderingScreen({
                             key={level}
                             type="button"
                             onClick={() => setSelectedSugarConfig(level)}
-                            className={`py-1.5 rounded-lg text-[10px] font-black transition-all ${isSelected ? 'bg-amber-500 text-black shadow-md shadow-amber-500/10' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                            className={`py-2 rounded-lg text-[10px] font-black transition-all active:scale-95 ${isSelected ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                           >
                             {level}
                           </button>
@@ -2754,15 +2777,15 @@ export function OrderingScreen({
                               key={addon.id}
                               type="button"
                               onClick={() => toggleAddon(addon)}
-                              className={`flex items-center justify-between px-3 py-2 border rounded-xl transition-all duration-200 active:scale-98 ${isSelected ? 'border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white' : 'border-black/10 dark:border-white/5 bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
+                              className={`flex items-center justify-between px-3 py-2.5 border rounded-xl transition-all duration-150 active:scale-95 ${isSelected ? 'border-amber-500 bg-amber-500/10 text-slate-900 dark:text-white' : 'border-black/10 dark:border-white/5 bg-black/5 dark:bg-white/5 text-slate-700 dark:text-slate-300 hover:border-white/10 hover:bg-black/10 dark:hover:bg-white/10'}`}
                             >
                               <div className="flex items-center gap-2 min-w-0">
-                                <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all shrink-0 ${isSelected ? 'border-amber-500 bg-amber-500 text-black' : 'border-black/10 dark:border-white/10 bg-transparent'}`}>
+                                <div className={`w-4 h-4 rounded flex items-center justify-center border transition-all shrink-0 ${isSelected ? 'border-amber-500 bg-amber-500 text-slate-950' : 'border-black/10 dark:border-white/10 bg-transparent'}`}>
                                   {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                                 </div>
-                                <span className="font-bold text-[11px] uppercase tracking-wider text-left truncate">{addon.name}</span>
+                                <span className="font-bold text-[10.5px] uppercase tracking-wider text-left truncate">{addon.name}</span>
                               </div>
-                              <span className="font-bold text-amber-500 text-[11px] shrink-0">+₱{addon.price.toLocaleString()}</span>
+                              <span className="font-bold text-amber-500 text-[10.5px] shrink-0">+₱{addon.price.toLocaleString()}</span>
                             </button>
                           );
                         })}
@@ -2771,11 +2794,11 @@ export function OrderingScreen({
                   );
                 })()}
               </div>
-              <div className="p-5 sm:p-6 border-t border-black/10 dark:border-white/5 bg-white/95 dark:bg-[#0b1329]/95 backdrop-blur-md shrink-0">
+              <div className="p-4 sm:p-6 border-t border-black/10 dark:border-white/5 bg-white dark:bg-[#0b1329] shrink-0 pb-safe">
                 {shopSettings?.isClosed ? (
                   <button
                     disabled
-                    className="w-full py-3.5 bg-black/5 dark:bg-white/10 text-slate-500 dark:text-slate-400 rounded-xl font-black text-xs uppercase tracking-wider cursor-not-allowed flex items-center justify-center gap-2 border border-black/10 dark:border-white/10 shadow-sm"
+                    className="w-full py-3.5 bg-black/5 dark:bg-white/10 text-slate-500 dark:text-slate-400 rounded-2xl font-black text-xs uppercase tracking-wider cursor-not-allowed flex items-center justify-center gap-2 border border-black/10 dark:border-white/10 shadow-sm"
                   >
                     <Coffee className="w-4 h-4 opacity-40 text-amber-500" />
                     Ordering Paused — Browse Mode Only
@@ -2783,7 +2806,7 @@ export function OrderingScreen({
                 ) : (
                   <button
                     onClick={handleConfigSubmit}
-                    className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black rounded-xl font-black text-[11px] uppercase tracking-wider transition-all duration-200 shadow-[0_8px_30px_rgba(245,158,11,0.25)] active:scale-98 flex items-center justify-center gap-2"
+                    className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 shadow-[0_8px_25px_rgba(245,158,11,0.3)] active:scale-95 flex items-center justify-center gap-2 border border-amber-400/30"
                   >
                     Add to Order - ₱{((selectedSizeConfig ? selectedSizeConfig.price : selectedProductForConfig.price) + selectedAddonsConfig.reduce((sum, a) => sum + a.price, 0)).toLocaleString()}
                   </button>

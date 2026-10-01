@@ -974,7 +974,7 @@ export default function App() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-amber-500/5 rounded-full blur-[150px] animate-pulse delay-1000" />
       </div>
 
-      <div className="flex-1 flex min-h-screen overflow-hidden relative z-10 w-full">
+      <div className="flex-1 flex min-h-screen min-h-[100dvh] h-[100dvh] overflow-hidden relative z-10 w-full">
         {isKioskModeActive && isAdmin && (isStarted || !splashScreen?.isActive) && (
           <div className="absolute top-4 right-4 z-[300]">
             <button
@@ -1250,7 +1250,7 @@ export default function App() {
         )}
 
         {/* Main Content Workspace Panel */}
-        <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-20 min-w-0">
+        <div className="flex-1 flex flex-col h-full h-[100dvh] overflow-hidden relative z-20 min-w-0">
           
           {/* Desktop Extract / Open Sidebar Burger Button (Shown when sidebar is collapsed) */}
           {user && !isDesktopSidebarOpen && !isKioskModeActive && !(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
@@ -1300,7 +1300,7 @@ export default function App() {
 
           {/* Top Bar - Mobile View Only (lg and below) */}
           {!isKioskModeActive && !(!isStarted && !isAdmin && (currentView === 'mobile' || currentView === 'kiosk')) && (
-            <header className="lg:hidden flex items-center justify-between px-3.5 sm:px-6 py-3 bg-white/60 dark:bg-slate-950/40 backdrop-blur-3xl border-b border-black/10 dark:border-white/5 shrink-0 relative z-20 gap-2">
+            <header className="lg:hidden flex items-center justify-between px-3.5 sm:px-6 py-2.5 sm:py-3 bg-white/95 dark:bg-[#090d16]/95 border-b border-black/10 dark:border-white/5 shrink-0 relative z-20 gap-2 pt-safe select-none">
               <div className="flex items-center gap-2.5 min-w-0">
                 <button 
                   onClick={() => setIsMobileMenuOpen(true)}
@@ -1374,7 +1374,7 @@ export default function App() {
                 onClick={() => setIsMobileMenuOpen(false)}
               />
               
-              <div className="relative flex flex-col w-72 max-w-[80vw] h-full bg-slate-50 dark:bg-[#020617]/95 backdrop-blur-2xl border-r border-black/10 dark:border-white/10 p-6 animate-in slide-in-from-left duration-300 text-slate-900 dark:text-white z-50">
+              <div className="relative flex flex-col w-72 max-w-[80vw] h-full bg-white dark:bg-[#020617] border-r border-black/10 dark:border-white/10 p-6 animate-in slide-in-from-left duration-300 text-slate-900 dark:text-white z-50 pb-safe pt-safe">
                 <div className="flex items-center justify-between mb-8 pb-4 border-b border-black/10 dark:border-white/5 shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 flex items-center justify-center overflow-hidden">

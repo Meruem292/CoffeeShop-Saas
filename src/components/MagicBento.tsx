@@ -42,10 +42,11 @@ export default function MagicBento({
   const borderGlowRef = useRef<HTMLDivElement>(null);
   const starsRef = useRef<HTMLDivElement>(null);
 
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  const shouldAnimate = !disableAnimations && !isTouchDevice;
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return;
+    if (!shouldAnimate || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -70,25 +71,27 @@ export default function MagicBento({
         duration: 0.3
       });
     }
-  }, [enableSpotlight, enableBorderGlow, spotlightRadius]);
+  }, [shouldAnimate, enableSpotlight, enableBorderGlow, spotlightRadius]);
 
   const handleMouseLeave = useCallback(() => {
+    if (!shouldAnimate) return;
     if (enableSpotlight && spotlightRef.current) {
       gsap.to(spotlightRef.current, { opacity: 0, duration: 0.5 });
     }
     if (enableBorderGlow && borderGlowRef.current) {
       gsap.to(borderGlowRef.current, { opacity: 0, duration: 0.5 });
     }
-  }, [enableSpotlight, enableBorderGlow]);
+  }, [shouldAnimate, enableSpotlight, enableBorderGlow]);
 
   const handleMouseEnter = useCallback(() => {
+    if (!shouldAnimate) return;
     if (enableSpotlight && spotlightRef.current) {
       gsap.to(spotlightRef.current, { opacity: 1, duration: 0.3 });
     }
-  }, [enableSpotlight]);
+  }, [shouldAnimate, enableSpotlight]);
 
   useEffect(() => {
-    if (enableStars && starsRef.current) {
+    if (shouldAnimate && enableStars && starsRef.current) {
       const stars = Array.from({ length: particleCount }).map(() => {
         const star = document.createElement('div');
         star.className = 'magic-bento-star';
@@ -102,27 +105,27 @@ export default function MagicBento({
       stars.forEach(s => starsRef.current?.appendChild(s));
       return () => stars.forEach(s => s.remove());
     }
-  }, [enableStars, particleCount]);
+  }, [shouldAnimate, enableStars, particleCount]);
 
   return (
     <div
       ref={containerRef}
       className={`magic-bento-container ${className}`}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseMove={shouldAnimate ? handleMouseMove : undefined}
+      onMouseEnter={shouldAnimate ? handleMouseEnter : undefined}
+      onMouseLeave={shouldAnimate ? handleMouseLeave : undefined}
       onClick={onClick}
       style={{ ...style, '--glow-color': glowColor } as React.CSSProperties}
     >
-      {enableSpotlight && (
+      {shouldAnimate && enableSpotlight && (
         <div
           ref={spotlightRef}
           className="magic-bento-spotlight"
           style={{ width: spotlightRadius, height: spotlightRadius }}
         />
       )}
-      {enableBorderGlow && <div ref={borderGlowRef} className="magic-bento-border-glow" />}
-      {enableStars && <div ref={starsRef} className="magic-bento-stars" />}
+      {shouldAnimate && enableBorderGlow && <div ref={borderGlowRef} className="magic-bento-border-glow" />}
+      {shouldAnimate && enableStars && <div ref={starsRef} className="magic-bento-stars" />}
       <div className="magic-bento-content">
         {children}
       </div>

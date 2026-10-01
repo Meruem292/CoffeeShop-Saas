@@ -152,7 +152,18 @@ export function SplashScreen({
   const activeTheme = shopSettings?.activeTheme || (shopSettings?.snowEnabled !== false ? 'christmas' : 'none');
 
   return (
-    <div className="fixed inset-0 z-[200] bg-slate-50 dark:bg-[#090D16] flex flex-col font-sans text-slate-900 dark:text-white pointer-events-auto overflow-y-auto">
+    <div 
+      data-scroll-container
+      className="fixed inset-0 z-[200] bg-slate-50 dark:bg-[#090D16] flex flex-col font-sans text-slate-900 dark:text-white pointer-events-auto overflow-y-auto"
+      style={{
+        WebkitOverflowScrolling: 'touch',
+        overscrollBehaviorY: 'contain',
+        transform: 'translate3d(0, 0, 0)',
+        WebkitTransform: 'translate3d(0, 0, 0)',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden'
+      }}
+    >
       {activeTheme === 'christmas' && (
         <SnowBackground 
           enabled={true}
@@ -177,25 +188,25 @@ export function SplashScreen({
         </>
       )}
       {/* Header Bar */}
-      <header className="px-6 py-4 md:px-10 border-b border-slate-200 dark:border-white/5 flex items-center justify-between shrink-0 bg-white/90 dark:bg-[#090D16]/90 backdrop-blur-md z-20">
+      <header className="px-4 py-3 sm:px-6 sm:py-4 md:px-10 border-b border-slate-200 dark:border-white/5 flex items-center justify-between shrink-0 bg-white/95 dark:bg-[#090D16]/95 z-20 pt-safe">
         <div className="flex items-center gap-3">
           {shopSettings?.logoUrl ? (
             <img 
               src={shopSettings.logoUrl} 
               alt={shopSettings.name || 'Shop Logo'} 
-              className="w-10 h-10 rounded-2xl object-cover border border-amber-500/30 shadow-lg shadow-amber-500/20 shrink-0"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl object-cover border border-amber-500/30 shadow-lg shadow-amber-500/20 shrink-0"
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-600 via-orange-500 to-amber-500 flex items-center justify-center text-slate-950 font-black text-sm shadow-lg shadow-orange-500/20 shrink-0">
-              {shopSettings?.initials || shopSettings?.name?.substring(0, 2).toUpperCase() || <Orbit className="w-6 h-6 text-slate-950" />}
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-amber-600 via-orange-500 to-amber-500 flex items-center justify-center text-slate-950 font-black text-sm shadow-lg shadow-orange-500/20 shrink-0">
+              {shopSettings?.initials || shopSettings?.name?.substring(0, 2).toUpperCase() || <Orbit className="w-5 h-5 sm:w-6 sm:h-6 text-slate-950" />}
             </div>
           )}
           <div>
-            <h1 className="text-xl font-black italic uppercase tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+            <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tight text-slate-900 dark:text-white flex items-center gap-2 leading-tight">
               {shopSettings?.name || 'CAIDOZ'}
             </h1>
-            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-[0.25em] uppercase">
+            <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-[0.2em] uppercase leading-none mt-0.5">
               {shopSettings?.tagline || 'REAL-TIME ORDER STATUS'}
             </p>
           </div>
@@ -205,9 +216,9 @@ export function SplashScreen({
           <button 
             type="button"
             onClick={onExitKiosk}
-            className="border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 rounded-full px-5 py-2 text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 shadow-lg shadow-amber-500/10"
+            className="border border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 rounded-full px-4 sm:px-5 py-1.5 sm:py-2 text-[11px] sm:text-xs font-black uppercase tracking-widest flex items-center gap-1.5 sm:gap-2 transition-all active:scale-95 shadow-lg shadow-amber-500/10"
           >
-            <Lock className="w-4 h-4 text-amber-500" />
+            <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />
             EXIT KIOSK
           </button>
         )}
@@ -215,23 +226,25 @@ export function SplashScreen({
 
       {/* Top Best Sellers Continuous Rotating Marquee Banner */}
       {bestSellers.length > 0 && (
-        <div className="w-full bg-slate-100/90 dark:bg-[#0d121f]/95 border-b border-amber-500/20 py-2.5 px-4 md:px-8 shrink-0 backdrop-blur-md z-20 overflow-hidden shadow-lg">
-          <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 justify-between">
+        <div className="w-full bg-slate-100/95 dark:bg-[#0d121f]/95 border-b border-amber-500/20 py-2 sm:py-2.5 px-3 sm:px-4 md:px-8 shrink-0 z-20 overflow-hidden shadow-sm">
+          <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-start sm:items-center gap-1.5 sm:gap-4 justify-between">
             
             {/* Left Header Tag */}
             <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 text-[10px] font-black uppercase tracking-wider shadow-sm">
-                <Flame className="w-3.5 h-3.5 fill-amber-500 animate-pulse" />
+              <div className="flex items-center gap-1 px-2.5 py-0.5 sm:py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-500 text-[9.5px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm">
+                <Flame className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-amber-500 animate-pulse" />
                 <span>Best Sellers</span>
               </div>
-              <span className="text-[10px] font-extrabold uppercase text-slate-500 dark:text-slate-400 tracking-widest hidden md:inline-block">
+              <span className="text-[9.5px] sm:text-[10px] font-extrabold uppercase text-slate-500 dark:text-slate-400 tracking-widest hidden md:inline-block">
                 Store Favorites • Tap to Order
               </span>
             </div>
 
             {/* Continuous Marquee Track */}
-            <div className="flex-1 w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_20px,black_calc(100%-20px),transparent)]">
-              <div className="flex gap-3 w-max animate-marquee hover:[animation-play-state:paused] py-0.5">
+            <div className="relative flex-1 w-full overflow-hidden py-0.5">
+              <div className="pointer-events-none absolute left-0 inset-y-0 w-4 sm:w-6 bg-gradient-to-r from-slate-100 dark:from-[#0d121f] to-transparent z-10" />
+              <div className="pointer-events-none absolute right-0 inset-y-0 w-4 sm:w-6 bg-gradient-to-l from-slate-100 dark:from-[#0d121f] to-transparent z-10" />
+              <div className="flex gap-2.5 sm:gap-3 w-max animate-marquee hover:[animation-play-state:paused] py-0.5">
                 {(() => {
                   let repeated = [...bestSellers];
                   while (repeated.length < 8) {

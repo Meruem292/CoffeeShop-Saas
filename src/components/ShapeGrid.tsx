@@ -248,8 +248,24 @@ const ShapeGrid: React.FC<ShapeGridProps> = ({
       }
     };
 
-    const updateAnimation = () => {
-      const effectiveSpeed = Math.max(speed, 0.1);
+    let lastFrameTime = 0;
+    const isMobileDevice = typeof window !== 'undefined' && window.innerWidth < 768;
+    const targetFpsInterval = isMobileDevice ? 1000 / 30 : 1000 / 60;
+
+    const updateAnimation = (currentTime: number) => {
+      if (document.hidden) {
+        requestRef.current = requestAnimationFrame(updateAnimation);
+        return;
+      }
+
+      const elapsed = currentTime - lastFrameTime;
+      if (elapsed < targetFpsInterval) {
+        requestRef.current = requestAnimationFrame(updateAnimation);
+        return;
+      }
+      lastFrameTime = currentTime - (elapsed % targetFpsInterval);
+
+      const effectiveSpeed = Math.max(speed, 0.1) * (isMobileDevice ? 0.7 : 1);
       const wrapX = isHex ? hexHoriz * 2 : squareSize;
       const wrapY = isHex ? hexVert : isTri ? squareSize * 2 : squareSize;
 
