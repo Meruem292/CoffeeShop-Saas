@@ -1,10 +1,55 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import webpush from "web-push";
 
 dotenv.config();
+
+// Web Push VAPID Setup
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BBqdrlsWSnMBakioIX3sQnPgTJw6fuifZDcvxJ9rfiSff7UN5ox4W3vDsmtGQ1N976taLUMcMyt3NQRPxthPoGA";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "UACOMhXqW0w-5gEtJsDUraDXToU5Tb7hEeQ4d1ehDOw";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@caidoz.cafe";
+
+try {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+} catch (e) {
+  console.error("Failed to initialize VAPID:", e);
+}
+
+// Persistent Push Subscriptions Store
+const SUBS_FILE = path.join(process.cwd(), "push_subscriptions.json");
+
+interface PushSubRecord {
+  endpoint: string;
+  subscription: webpush.PushSubscription;
+  userId?: string;
+  role?: string;
+  userAgent?: string;
+  createdAt: number;
+}
+
+function loadSubscriptions(): PushSubRecord[] {
+  try {
+    if (fs.existsSync(SUBS_FILE)) {
+      const data = fs.readFileSync(SUBS_FILE, "utf-8");
+      return JSON.parse(data) || [];
+    }
+  } catch (err) {
+    console.error("Error reading subscriptions file:", err);
+  }
+  return [];
+}
+
+function saveSubscriptions(subs: PushSubRecord[]) {
+  try {
+    fs.writeFileSync(SUBS_FILE, JSON.stringify(subs, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Error saving subscriptions file:", err);
+  }
+}
 
 async function startServer() {
   const app = express();
@@ -24,6 +69,171 @@ async function startServer() {
   // Health check route
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
+  });
+
+  // Web Push Public Key route
+  app.get("/api/push/public-key", (_req, res) => {
+    res.json({ success: true, publicKey: VAPID_PUBLIC_KEY });
+  });
+
+  // Register device push subscription
+  app.post("/api/push/subscribe", (req, res) => {
+    try {
+      const { subscription, userId, role } = req.body;
+      if (!subscription || !subscription.endpoint) {
+        return res.status(400).json({ success: false, error: "Invalid subscription payload" });
+      }
+
+      const subs = loadSubscriptions();
+      const existingIdx = subs.findIndex(s => s.endpoint === subscription.endpoint);
+      const newRecord: PushSubRecord = {
+        endpoint: subscription.endpoint,
+        subscription,
+        userId: userId || undefined,
+        role: role || 'admin',
+        userAgent: req.headers['user-agent'],
+        createdAt: Date.now()
+      };
+
+      if (existingIdx >= 0) {
+        subs[existingIdx] = newRecord;
+      } else {
+        subs.push(newRecord);
+      }
+
+      saveSubscriptions(subs);
+      console.log(`[Web Push] Registered subscription (${subs.length} active device${subs.length > 1 ? 's' : ''})`);
+      res.json({ success: true, count: subs.length });
+    } catch (err: any) {
+      console.error("[Web Push] Subscribe error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Unregister device push subscription
+  app.post("/api/push/unsubscribe", (req, res) => {
+    try {
+      const { endpoint } = req.body;
+      if (!endpoint) {
+        return res.status(400).json({ success: false, error: "Missing endpoint" });
+      }
+
+      let subs = loadSubscriptions();
+      subs = subs.filter(s => s.endpoint !== endpoint);
+      saveSubscriptions(subs);
+      console.log(`[Web Push] Unregistered subscription (${subs.length} remaining)`);
+      res.json({ success: true, count: subs.length });
+    } catch (err: any) {
+      console.error("[Web Push] Unsubscribe error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Send Push Alert for New Order to all registered staff devices
+  app.post("/api/push/send-order-alert", async (req, res) => {
+    try {
+      const { order, shopName } = req.body;
+      if (!order) {
+        return res.status(400).json({ success: false, error: "Missing order details" });
+      }
+
+      const subs = loadSubscriptions();
+      if (subs.length === 0) {
+        return res.json({ success: true, sentCount: 0, message: "No active push subscriptions registered" });
+      }
+
+      const orderNum = order.id ? `#${order.id.slice(-4).toUpperCase()}` : '#NEW';
+      const customer = order.customerName || 'Customer';
+      const itemCount = order.items?.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0) || order.items?.length || 1;
+      const totalStr = `₱${(order.total || 0).toLocaleString()}`;
+      const orderType = order.orderType === 'dine-in' ? 'Dine In' : 'Takeout';
+
+      const payload = JSON.stringify({
+        title: `🚨 New Order ${orderNum} Received!`,
+        body: `${customer} • ${itemCount} item${itemCount > 1 ? 's' : ''} (${totalStr}) • ${orderType}\nTap to open Kitchen Queue.`,
+        icon: '/icon-512.jpg',
+        badge: '/icon-512.jpg',
+        tag: `order-${order.id || Date.now()}`,
+        data: {
+          url: '/?view=cashier',
+          view: 'cashier',
+          orderId: order.id
+        },
+        vibrate: [200, 100, 200, 100, 300]
+      });
+
+      let sentCount = 0;
+      const deadEndpoints: string[] = [];
+
+      await Promise.all(
+        subs.map(async (subRecord) => {
+          try {
+            await webpush.sendNotification(subRecord.subscription, payload);
+            sentCount++;
+          } catch (pushErr: any) {
+            console.warn(`[Web Push] Send failed for endpoint ${subRecord.endpoint.slice(0, 30)}...`, pushErr.statusCode);
+            if (pushErr.statusCode === 404 || pushErr.statusCode === 410) {
+              deadEndpoints.push(subRecord.endpoint);
+            }
+          }
+        })
+      );
+
+      // Clean up expired / unregistered device tokens
+      if (deadEndpoints.length > 0) {
+        const cleanedSubs = subs.filter(s => !deadEndpoints.includes(s.endpoint));
+        saveSubscriptions(cleanedSubs);
+      }
+
+      console.log(`[Web Push] Dispatched order alert to ${sentCount}/${subs.length} device(s)`);
+      res.json({ success: true, sentCount, totalSubs: subs.length });
+    } catch (err: any) {
+      console.error("[Web Push] Order alert dispatch error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Send Test Push Alert to verify phone / tablet lockscreen wakeup
+  app.post("/api/push/send-test", async (req, res) => {
+    try {
+      const { subscription, shopName } = req.body;
+      const subs = loadSubscriptions();
+      const targetSubs = subscription ? [{ subscription }] : subs;
+
+      if (targetSubs.length === 0) {
+        return res.status(400).json({ success: false, error: "No push subscription available to test. Please enable push notifications on this device first." });
+      }
+
+      const payload = JSON.stringify({
+        title: `🔔 ${shopName || 'CAIDOZ'} Staff Push Active!`,
+        body: `Test push received! You will receive sound, vibration & lockscreen alerts for new orders even when the app is completely closed.`,
+        icon: '/icon-512.jpg',
+        badge: '/icon-512.jpg',
+        tag: `test-push-${Date.now()}`,
+        data: {
+          url: '/?view=settings',
+          view: 'settings'
+        },
+        vibrate: [200, 100, 200, 100, 300]
+      });
+
+      let sentCount = 0;
+      await Promise.all(
+        targetSubs.map(async (s: any) => {
+          try {
+            await webpush.sendNotification(s.subscription, payload);
+            sentCount++;
+          } catch (err: any) {
+            console.warn("[Web Push] Test push delivery failed:", err.message);
+          }
+        })
+      );
+
+      res.json({ success: true, sentCount });
+    } catch (err: any) {
+      console.error("[Web Push] Test push error:", err);
+      res.status(500).json({ success: false, error: err.message });
+    }
   });
 
   // AI Face Matching route for Kiosk auto identification

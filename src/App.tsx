@@ -39,7 +39,7 @@ import { CustomerChatPage } from './components/CustomerChatPage';
 import { AdminPageSkeleton } from './components/AdminPageSkeleton';
 import { KioskMemberModal } from './components/KioskMemberModal';
 import { AmbientAudioWidget } from './components/AmbientAudioWidget';
-import { sendOrderPushNotification, requestNotificationPermission, isNotificationSupported } from './lib/pushNotifications';
+import { sendOrderPushNotification, requestNotificationPermission, isNotificationSupported, registerDevicePushSubscription } from './lib/pushNotifications';
 
 export default function App() {
   const { toast } = useToast();
@@ -330,18 +330,23 @@ export default function App() {
     }
   }, []);
 
-  // Auto-request notification permission for staff/admin if supported and not yet decided
+  // Auto-request notification permission and register Web Push subscription for staff/admin
   useEffect(() => {
     if (isAdmin && isNotificationSupported()) {
-      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-        requestNotificationPermission().then((perm) => {
-          if (perm === 'granted') {
-            toast.success('Push alerts enabled for new orders!');
-          }
-        }).catch(() => {});
+      if (typeof Notification !== 'undefined') {
+        if (Notification.permission === 'granted') {
+          registerDevicePushSubscription(user?.uid, 'admin').catch(() => {});
+        } else if (Notification.permission === 'default') {
+          requestNotificationPermission().then((perm) => {
+            if (perm === 'granted') {
+              toast.success('Push alerts enabled for new orders!');
+              registerDevicePushSubscription(user?.uid, 'admin').catch(() => {});
+            }
+          }).catch(() => {});
+        }
       }
     }
-  }, [isAdmin, toast]);
+  }, [isAdmin, user?.uid, toast]);
 
   // Success Order Auto-Dismiss Timer
   useEffect(() => {
