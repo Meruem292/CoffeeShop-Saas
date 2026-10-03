@@ -154,7 +154,7 @@ export function SplashScreen({
   return (
     <div 
       data-scroll-container
-      className="fixed inset-0 z-[200] bg-slate-50 dark:bg-[#090D16] flex flex-col font-sans text-slate-900 dark:text-white pointer-events-auto overflow-y-auto"
+      className="fixed inset-0 z-[200] bg-slate-50/95 dark:bg-[#090D16]/95 flex flex-col font-sans text-slate-900 dark:text-white pointer-events-auto overflow-y-auto"
       style={{
         WebkitOverflowScrolling: 'touch',
         overscrollBehaviorY: 'contain',
@@ -164,29 +164,6 @@ export function SplashScreen({
         WebkitBackfaceVisibility: 'hidden'
       }}
     >
-      {activeTheme === 'christmas' && (
-        <SnowBackground 
-          enabled={true}
-          speedMultiplier={shopSettings?.snowSpeedMultiplier ?? 1.0}
-          flakeCount={shopSettings?.snowFlakeCount ?? 50}
-          zIndex={1}
-        />
-      )}
-      {activeTheme === 'halloween' && (
-        <>
-          <HalloweenBackground enabled={true} />
-          <HalloweenGarland enabled={true} />
-          <HalloweenBats 
-            enabled={true} 
-            batCount={shopSettings?.batCount}
-            batSize={shopSettings?.batSize}
-            glowColor={shopSettings?.batGlowColor}
-            glowIntensity={shopSettings?.batGlowIntensity}
-            speedMultiplier={shopSettings?.batSpeedMultiplier}
-            roamRadius={shopSettings?.batSpread}
-          />
-        </>
-      )}
       {/* Header Bar */}
       <header className="px-4 py-3 sm:px-6 sm:py-4 md:px-10 border-b border-slate-200 dark:border-white/5 flex items-center justify-between shrink-0 bg-white/95 dark:bg-[#090D16]/95 z-20 pt-safe">
         <div className="flex items-center gap-3">
@@ -292,69 +269,222 @@ export function SplashScreen({
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-8 flex flex-col lg:flex-row gap-6 z-10">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-6 md:p-8 pb-28 lg:pb-8 flex flex-col lg:flex-row gap-6 z-10">
+        
+        {/* Right Hero Container - Elevated to First on Mobile for Instant Ordering Access */}
+        <div className="order-1 lg:order-2 flex-1 bg-white dark:bg-[#101522] border border-slate-200 dark:border-white/10 rounded-3xl lg:rounded-[2.5rem] p-5 sm:p-7 lg:p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl min-h-0 lg:min-h-[550px]">
+          
+          {/* 3D Model on Desktop / High-Performance 2D Graphic on Mobile */}
+          <div className="absolute right-0 top-0 bottom-0 w-full lg:w-1/2 pointer-events-none flex items-center justify-center z-0 overflow-hidden">
+            {/* Desktop 3D View */}
+            <div className="hidden md:flex w-full h-full items-center justify-center opacity-40 lg:opacity-100">
+              {data?.useGlb && !hasModelError ? (
+                <div 
+                  className="w-full h-full flex items-center justify-center transition-all duration-300"
+                  style={{
+                    transform: `translate(${glbPositionX}%, ${glbPositionY}%)`,
+                    transformOrigin: 'center center'
+                  }}
+                >
+                  <model-viewer
+                    ref={(el: HTMLElement | null) => {
+                      if (el) {
+                        const errorHandler = () => setHasModelError(true);
+                        el.addEventListener('error', errorHandler);
+                        el.addEventListener('error-load', errorHandler);
+                      }
+                    }}
+                    src={data.glbUrl && !data.glbUrl.startsWith('blob:') ? data.glbUrl : "/coffee_cup_with_plate.glb"}
+                    alt="3D Splash Model"
+                    {...(glbAutoRotate ? { 'auto-rotate': true } : {})}
+                    camera-controls
+                    ar
+                    style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
+                    scale={`${glbScale} ${glbScale} ${glbScale}`}
+                    camera-orbit={`${glbRotationY}deg ${glbCameraPitch}deg ${glbZoom}%`}
+                    min-camera-orbit="auto auto 5%"
+                    max-camera-orbit="auto auto 500%"
+                    shadow-intensity="2"
+                    exposure="1.2"
+                    interaction-prompt="none"
+                  ></model-viewer>
+                </div>
+              ) : (
+                <iframe 
+                  title="Cup of cappuccino" 
+                  className="w-full h-full scale-125 translate-x-12 pointer-events-none"
+                  style={{ border: 'none' }}
+                  frameBorder="0" 
+                  allowFullScreen 
+                  allow="autoplay; fullscreen; xr-spatial-tracking" 
+                  src="https://sketchfab.com/models/04f2c34a3df94e58be97c2830e7e462a/embed?preload=1&transparent=1&autostart=1&ui_hint=0"
+                ></iframe>
+              )}
+            </div>
+
+            {/* Mobile Lightweight Ambient Coffee Emblem */}
+            <div className="md:hidden absolute -right-6 top-1/2 -translate-y-1/2 opacity-15 pointer-events-none">
+              <div className="w-48 h-48 rounded-full border border-amber-500/30 flex items-center justify-center">
+                <Coffee className="w-24 h-24 text-amber-500" />
+              </div>
+            </div>
+          </div>
+
+          {/* Top Hero Text */}
+          <div className="relative z-10 max-w-xl">
+            <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400 mb-2 sm:mb-3 flex items-center gap-2">
+              <span className="w-6 h-0.5 bg-amber-500 rounded-full inline-block" /> PREMIUM COFFEE EXPERIENCE
+            </p>
+            
+            <div className="space-y-1 mb-3 sm:mb-4">
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black italic uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
+                WE ARE
+              </h1>
+              <h1 className={`text-4xl sm:text-6xl lg:text-7xl font-black italic uppercase tracking-tighter leading-none ${
+                shopSettings?.isClosed ? 'text-amber-500 drop-shadow-[0_0_25px_rgba(245,158,11,0.3)]' : 'text-amber-600 dark:text-amber-500'
+              }`}>
+                {shopSettings?.isClosed ? 'RESTING' : 'OPEN!'}
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-3 my-3 sm:my-4 text-amber-500/40">
+              <div className="h-px bg-amber-500/20 flex-1 max-w-[80px]" />
+              <Coffee className="w-4 h-4 text-amber-500" />
+              <div className="h-px bg-amber-500/20 flex-1 max-w-[80px]" />
+            </div>
+
+            <p className="text-xs sm:text-base font-bold text-slate-600 dark:text-slate-300 max-w-sm leading-relaxed mb-4 sm:mb-6">
+              {shopSettings?.isClosed 
+                ? 'Ordering is temporarily paused for prep & restock. Feel free to explore our craft roasts & menu items!' 
+                : 'Experience the finest coffee, crafted with passion and precision.'}
+            </p>
+          </div>
+
+          {/* Bottom Action Box */}
+          <div className="relative z-10 overflow-visible">
+            <div className="bg-slate-100/90 dark:bg-[#161D2E]/80 border border-slate-200 dark:border-white/10 border-t-slate-300 dark:border-t-white/30 p-4 sm:p-5 lg:p-6 rounded-2xl sm:rounded-3xl flex flex-col md:flex-row items-center gap-4 sm:gap-6 justify-between shadow-2xl relative overflow-visible">
+              {activeTheme === 'christmas' && <SnowCap />}
+              {activeTheme === 'halloween' && <PumpkinCap />}
+              <div className="w-full md:w-1/2 flex flex-col gap-2">
+                {shopSettings?.isClosed ? (
+                  <button
+                    type="button"
+                    onClick={() => handleStartWithSound()}
+                    className="w-full bg-slate-200 hover:bg-slate-300 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 text-slate-900 dark:text-white font-black text-sm sm:text-base lg:text-lg uppercase tracking-widest px-5 py-3.5 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl flex items-center justify-between shadow-xl border border-amber-500/30 active:scale-[0.98] transition-all group"
+                  >
+                    <span className="flex items-center gap-2.5 sm:gap-3">
+                      <Coffee className="w-5 h-5 sm:w-6 sm:h-6 text-amber-500 dark:text-amber-400" />
+                      BROWSE MENU
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-amber-500/20 text-amber-600 dark:text-amber-300 rounded-md text-[9px] sm:text-[10px] font-black tracking-wider">VIEW ONLY</span>
+                      <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-500 dark:text-slate-400 group-hover:translate-x-1 transition-transform" />
+                    </span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleStartWithSound()}
+                    className="w-full bg-gradient-to-r from-orange-600 via-amber-500 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-slate-950 font-black text-sm sm:text-base lg:text-lg uppercase tracking-widest px-5 py-3.5 sm:px-6 sm:py-4 rounded-xl sm:rounded-2xl flex items-center justify-between shadow-xl shadow-amber-500/20 active:scale-[0.98] transition-all group"
+                  >
+                    <span className="flex items-center gap-2.5 sm:gap-3">
+                      <Coffee className="w-5 h-5 sm:w-6 sm:h-6 text-slate-950" />
+                      START ORDERING
+                    </span>
+                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-slate-950 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                )}
+
+                <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-slate-400 text-center md:text-left px-1">
+                  {shopSettings?.isClosed ? 'Explore our menu in browse-only mode while ordering is paused.' : "Place your order and we'll prepare it fresh."}
+                </p>
+              </div>
+
+              <div className="hidden md:block w-px h-16 bg-slate-200 dark:bg-white/10" />
+
+              <div className="w-full md:w-1/2 flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1 min-w-0">
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 text-[8.5px] sm:text-[9px] font-black uppercase tracking-widest inline-block w-fit">
+                    INSTANT ORDERING
+                  </span>
+                  <h3 className="text-xs sm:text-sm lg:text-base font-black uppercase tracking-tight text-slate-900 dark:text-white truncate">
+                    ORDER FROM YOUR PHONE
+                  </h3>
+                  <p className="text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Scan QR code for mobile web app
+                  </p>
+                </div>
+                <div className="bg-white p-1.5 sm:p-2 rounded-2xl border border-slate-200 dark:border-white/20 shadow-md shrink-0 flex items-center justify-center">
+                  <img src={qrUrl} alt="Scan to order" className="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-xl" referrerPolicy="no-referrer" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
         {/* Left Column (3 Status Cards) */}
-        <div className="w-full lg:w-[360px] xl:w-[380px] flex flex-col gap-4 shrink-0">
+        <div className="order-2 lg:order-1 w-full lg:w-[360px] xl:w-[380px] flex flex-col gap-4 shrink-0">
           
           {/* Card 1: PREPARING */}
-          <div className="bg-white dark:bg-[#101522] border border-slate-200 dark:border-white/10 border-t-slate-300 dark:border-t-white/30 rounded-3xl p-5 shadow-xl flex flex-col gap-3 relative overflow-visible">
+          <div className="bg-white dark:bg-[#101522] border border-slate-200 dark:border-white/10 border-t-slate-300 dark:border-t-white/30 rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col gap-3 relative overflow-visible">
             {activeTheme === 'christmas' && <SnowCap />}
             {activeTheme === 'halloween' && <PumpkinCap />}
             <div className="flex items-center gap-3 border-b border-slate-200 dark:border-white/5 pb-3">
-              <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500">
-                <ChefHat className="w-5 h-5" />
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-500">
+                <ChefHat className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <span className="font-black text-sm uppercase tracking-widest text-slate-900 dark:text-white">PREPARING</span>
+              <span className="font-black text-xs sm:text-sm uppercase tracking-widest text-slate-900 dark:text-white">PREPARING</span>
             </div>
-            <div className="flex flex-col gap-2 min-h-[50px]">
+            <div className="flex flex-col gap-2 min-h-[40px]">
               {preparingOrders.length > 0 ? (
                 preparingOrders.map(order => (
-                  <div key={order.id} className="flex items-center justify-between bg-slate-100 dark:bg-[#161D2E] px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
-                    <span className="font-black text-sm text-slate-900 dark:text-white tracking-tight truncate max-w-[150px]">
+                  <div key={order.id} className="flex items-center justify-between bg-slate-100 dark:bg-[#161D2E] px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm">
+                    <span className="font-black text-xs sm:text-sm text-slate-900 dark:text-white tracking-tight truncate max-w-[150px]">
                       {order.customerName}
                     </span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full">
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-amber-500 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full">
                       #{order.id?.substring(0, 6).toUpperCase()}
                     </span>
                   </div>
                 ))
               ) : (
-                <div className="text-xs text-slate-400 dark:text-slate-500 font-bold text-center py-4">No orders preparing</div>
+                <div className="text-xs text-slate-400 dark:text-slate-500 font-bold text-center py-3 sm:py-4">No orders preparing</div>
               )}
             </div>
           </div>
 
           {/* Card 2: NOW SERVING */}
-          <div className="bg-white dark:bg-[#101522] border border-slate-200 dark:border-white/10 border-t-slate-300 dark:border-t-white/30 rounded-3xl p-5 shadow-xl flex flex-col gap-3 relative overflow-visible">
+          <div className="bg-white dark:bg-[#101522] border border-slate-200 dark:border-white/10 border-t-slate-300 dark:border-t-white/30 rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col gap-3 relative overflow-visible">
             {activeTheme === 'christmas' && <SnowCap />}
             {activeTheme === 'halloween' && <PumpkinCap />}
             <div className="flex items-center gap-3 border-b border-slate-200 dark:border-white/5 pb-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <CheckCircle2 className="w-5 h-5" />
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <span className="font-black text-sm uppercase tracking-widest text-slate-900 dark:text-white">NOW SERVING</span>
+              <span className="font-black text-xs sm:text-sm uppercase tracking-widest text-slate-900 dark:text-white">NOW SERVING</span>
             </div>
-            <div className="flex flex-col gap-2 min-h-[50px]">
+            <div className="flex flex-col gap-2 min-h-[40px]">
               {readyOrders.length > 0 ? (
                 readyOrders.map(order => (
-                  <div key={order.id} className="flex items-center justify-between bg-slate-100 dark:bg-[#161D2E] px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm animate-pulse">
-                    <span className="font-black text-sm text-slate-900 dark:text-white tracking-tight truncate max-w-[150px]">
+                  <div key={order.id} className="flex items-center justify-between bg-slate-100 dark:bg-[#161D2E] px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-2xl border border-slate-200 dark:border-white/5 shadow-sm animate-pulse">
+                    <span className="font-black text-xs sm:text-sm text-slate-900 dark:text-white tracking-tight truncate max-w-[150px]">
                       {order.customerName}
                     </span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full">
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full">
                       #{order.id?.substring(0, 6).toUpperCase()}
                     </span>
                   </div>
                 ))
               ) : (
-                <div className="text-xs text-slate-400 dark:text-slate-500 font-bold text-center py-4">No orders serving</div>
+                <div className="text-xs text-slate-400 dark:text-slate-500 font-bold text-center py-3 sm:py-4">No orders serving</div>
               )}
             </div>
           </div>
 
           {/* Card 3: Reviews Slideshow */}
           <div 
-            className="bg-white dark:bg-[#101522] border border-slate-200 dark:border-white/10 border-t-slate-300 dark:border-t-white/30 rounded-3xl p-5 shadow-xl flex flex-col justify-between gap-3 mt-auto relative overflow-visible transition-all group"
+            className="bg-white dark:bg-[#101522] border border-slate-200 dark:border-white/10 border-t-slate-300 dark:border-t-white/30 rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col justify-between gap-3 mt-auto relative overflow-visible transition-all group"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
           >
@@ -363,14 +493,14 @@ export function SplashScreen({
             {/* Top Header */}
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/5 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 shrink-0">
-                  <Star className="w-4 h-4 fill-amber-500" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 shrink-0">
+                  <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-amber-500" />
                 </div>
                 <div>
-                  <span className="font-black text-xs md:text-sm uppercase tracking-widest text-slate-900 dark:text-white block">
+                  <span className="font-black text-xs sm:text-sm uppercase tracking-widest text-slate-900 dark:text-white block">
                     Customer Reviews
                   </span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold">
+                  <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-bold">
                     {approvedReviews.length > 0 ? `${approvedReviews.length} Verified Reviews` : 'Verified Patrons'}
                   </span>
                 </div>
@@ -408,7 +538,7 @@ export function SplashScreen({
                 {/* User Info & Rating */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 shrink-0 flex items-center justify-center">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 shrink-0 flex items-center justify-center">
                       {currentReview.userPhoto ? (
                         <img
                           src={currentReview.userPhoto}
@@ -426,7 +556,7 @@ export function SplashScreen({
                       <h5 className="font-bold text-xs text-slate-900 dark:text-white truncate">
                         {currentReview.userName || 'Verified Patron'}
                       </h5>
-                      <span className="text-[9px] font-black uppercase text-emerald-500 dark:text-emerald-400 tracking-wider">
+                      <span className="text-[8.5px] sm:text-[9px] font-black uppercase text-emerald-500 dark:text-emerald-400 tracking-wider">
                         ✓ Verified Patron
                       </span>
                     </div>
@@ -486,149 +616,22 @@ export function SplashScreen({
           </div>
 
         </div>
-
-        {/* Right Hero Container */}
-        <div className="flex-1 bg-white dark:bg-[#101522] border border-slate-200 dark:border-white/10 rounded-[2.5rem] p-6 lg:p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl min-h-[550px]">
-          
-          {/* 3D Model / Coffee Visual Overlay on Right */}
-          <div className="absolute right-0 top-0 bottom-0 w-full lg:w-1/2 pointer-events-none opacity-40 lg:opacity-100 flex items-center justify-center z-0 overflow-hidden">
-            {data?.useGlb && !hasModelError ? (
-              <div 
-                className="w-full h-full flex items-center justify-center transition-all duration-300"
-                style={{
-                  transform: `translate(${glbPositionX}%, ${glbPositionY}%)`,
-                  transformOrigin: 'center center'
-                }}
-              >
-                <model-viewer
-                  ref={(el: HTMLElement | null) => {
-                    if (el) {
-                      const errorHandler = () => setHasModelError(true);
-                      el.addEventListener('error', errorHandler);
-                      el.addEventListener('error-load', errorHandler);
-                    }
-                  }}
-                  src={data.glbUrl && !data.glbUrl.startsWith('blob:') ? data.glbUrl : "/coffee_cup_with_plate.glb"}
-                  alt="3D Splash Model"
-                  {...(glbAutoRotate ? { 'auto-rotate': true } : {})}
-                  camera-controls
-                  ar
-                  style={{ width: '100%', height: '100%', backgroundColor: 'transparent' }}
-                  scale={`${glbScale} ${glbScale} ${glbScale}`}
-                  camera-orbit={`${glbRotationY}deg ${glbCameraPitch}deg ${glbZoom}%`}
-                  min-camera-orbit="auto auto 5%"
-                  max-camera-orbit="auto auto 500%"
-                  shadow-intensity="2"
-                  exposure="1.2"
-                  interaction-prompt="none"
-                ></model-viewer>
-              </div>
-            ) : (
-              <iframe 
-                title="Cup of cappuccino" 
-                className="w-full h-full scale-125 translate-x-12 pointer-events-none"
-                style={{ border: 'none' }}
-                frameBorder="0" 
-                allowFullScreen 
-                allow="autoplay; fullscreen; xr-spatial-tracking" 
-                src="https://sketchfab.com/models/04f2c34a3df94e58be97c2830e7e462a/embed?preload=1&transparent=1&autostart=1&ui_hint=0"
-              ></iframe>
-            )}
-          </div>
-
-          {/* Top Hero Text */}
-          <div className="relative z-10 max-w-xl">
-            <p className="text-xs font-black uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2">
-              <span className="w-6 h-0.5 bg-amber-500 rounded-full inline-block" /> PREMIUM COFFEE EXPERIENCE
-            </p>
-            
-            <div className="space-y-1 mb-4">
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black italic uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
-                WE ARE
-              </h1>
-              <h1 className={`text-5xl sm:text-6xl lg:text-7xl font-black italic uppercase tracking-tighter leading-none ${
-                shopSettings?.isClosed ? 'text-amber-500 drop-shadow-[0_0_25px_rgba(245,158,11,0.3)]' : 'text-amber-600 dark:text-amber-500'
-              }`}>
-                {shopSettings?.isClosed ? 'RESTING' : 'OPEN!'}
-              </h1>
-            </div>
-
-            <div className="flex items-center gap-3 my-4 text-amber-500/40">
-              <div className="h-px bg-amber-500/20 flex-1 max-w-[80px]" />
-              <Coffee className="w-4 h-4 text-amber-500" />
-              <div className="h-px bg-amber-500/20 flex-1 max-w-[80px]" />
-            </div>
-
-            <p className="text-sm sm:text-base font-bold text-slate-600 dark:text-slate-300 max-w-sm leading-relaxed mb-6">
-              {shopSettings?.isClosed 
-                ? 'Ordering is temporarily paused for prep & restock. Feel free to explore our craft roasts & menu items!' 
-                : 'Experience the finest coffee, crafted with passion and precision.'}
-            </p>
-          </div>
-
-          {/* Bottom Action Box */}
-          <div className="relative z-10 overflow-visible">
-            <div className="bg-slate-100/90 dark:bg-[#161D2E]/40 border border-slate-200 dark:border-white/10 border-t-slate-300 dark:border-t-white/30 backdrop-blur-md p-5 lg:p-6 rounded-3xl flex flex-col md:flex-row items-center gap-6 justify-between shadow-2xl relative overflow-visible">
-              {activeTheme === 'christmas' && <SnowCap />}
-              {activeTheme === 'halloween' && <PumpkinCap />}
-              <div className="w-full md:w-1/2 flex flex-col gap-2">
-                {shopSettings?.isClosed ? (
-                  <button
-                    type="button"
-                    onClick={() => handleStartWithSound()}
-                    className="w-full bg-slate-200 hover:bg-slate-300 dark:bg-slate-800/90 dark:hover:bg-slate-700/90 text-slate-900 dark:text-white font-black text-base lg:text-lg uppercase tracking-widest px-6 py-4 rounded-2xl flex items-center justify-between shadow-xl border border-amber-500/30 active:scale-[0.98] transition-all group"
-                  >
-                    <span className="flex items-center gap-3">
-                      <Coffee className="w-6 h-6 text-amber-500 dark:text-amber-400" />
-                      BROWSE MENU
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-amber-500/20 text-amber-600 dark:text-amber-300 rounded-md text-[10px] font-black tracking-wider">VIEW ONLY</span>
-                      <ArrowRight className="w-5 h-5 text-slate-500 dark:text-slate-400 group-hover:translate-x-1 transition-transform" />
-                    </span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleStartWithSound()}
-                    className="w-full bg-gradient-to-r from-orange-600 via-amber-500 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-slate-950 font-black text-base lg:text-lg uppercase tracking-widest px-6 py-4 rounded-2xl flex items-center justify-between shadow-xl shadow-amber-500/20 active:scale-[0.98] transition-all group"
-                  >
-                    <span className="flex items-center gap-3">
-                      <Coffee className="w-6 h-6 text-slate-950" />
-                      START ORDERING
-                    </span>
-                    <ArrowRight className="w-5 h-5 text-slate-950 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                )}
-
-                <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 text-center md:text-left px-1">
-                  {shopSettings?.isClosed ? 'Explore our menu in browse-only mode while ordering is paused.' : "Place your order and we'll prepare it fresh."}
-                </p>
-              </div>
-
-              <div className="hidden md:block w-px h-16 bg-slate-200 dark:bg-white/10" />
-
-              <div className="w-full md:w-1/2 flex items-center justify-between gap-4">
-                <div className="flex flex-col gap-1 min-w-0">
-                  <span className="px-2.5 py-0.5 rounded-md bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-widest inline-block w-fit">
-                    INSTANT ORDERING
-                  </span>
-                  <h3 className="text-sm lg:text-base font-black uppercase tracking-tight text-slate-900 dark:text-white truncate">
-                    ORDER FROM YOUR PHONE
-                  </h3>
-                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    Scan QR code for mobile web app
-                  </p>
-                </div>
-                <div className="bg-white p-2 rounded-2xl border border-slate-200 dark:border-white/20 shadow-md shrink-0 flex items-center justify-center">
-                  <img src={qrUrl} alt="Scan to order" className="w-20 h-20 object-contain rounded-xl" referrerPolicy="no-referrer" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
       </main>
+
+      {/* Floating Sticky Mobile Quick Start Bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 p-3 bg-white/95 dark:bg-[#090D16]/95 border-t border-slate-200 dark:border-white/10 backdrop-blur-xl z-30 pb-safe">
+        <button
+          type="button"
+          onClick={() => handleStartWithSound()}
+          className="w-full bg-gradient-to-r from-orange-600 via-amber-500 to-amber-600 active:from-orange-500 active:to-amber-500 text-slate-950 font-black text-sm uppercase tracking-widest py-3.5 px-6 rounded-2xl flex items-center justify-between shadow-xl shadow-amber-500/25 active:scale-[0.98] transition-all"
+        >
+          <span className="flex items-center gap-2.5">
+            <Coffee className="w-5 h-5 text-slate-950" />
+            <span>{shopSettings?.isClosed ? 'BROWSE MENU' : 'START ORDERING'}</span>
+          </span>
+          <ArrowRight className="w-4 h-4 text-slate-950" />
+        </button>
+      </div>
     </div>
   );
 }

@@ -43,8 +43,7 @@ export const ProductCard = React.memo(({ item, mode, cartCount, onClick, isMostP
           transform: 'translate3d(0, 0, 0)',
           WebkitTransform: 'translate3d(0, 0, 0)',
           backfaceVisibility: 'hidden',
-          WebkitBackfaceVisibility: 'hidden',
-          contain: 'content'
+          WebkitBackfaceVisibility: 'hidden'
         }}
       >
         {/* Mobile Image Container */}

@@ -99,15 +99,25 @@ export const SnowBackground: React.FC<SnowBackgroundProps> = ({
       };
     };
 
+    const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || navigator.maxTouchPoints > 0);
     const flakes: Flake[] = [];
-    const count = Math.min(Math.max(flakeCount, 10), 160);
-    for (let i = 0; i < count; i++) {
+    const maxCount = isMobile ? Math.min(flakeCount, 25) : Math.min(Math.max(flakeCount, 10), 160);
+    for (let i = 0; i < maxCount; i++) {
       flakes.push(createFlake(true));
     }
 
     let startTime = Date.now();
+    let lastRenderTime = 0;
+    const targetInterval = isMobile ? 1000 / 30 : 1000 / 60;
 
-    const render = () => {
+    const render = (time: number) => {
+      const elapsed = time - lastRenderTime;
+      if (elapsed < targetInterval) {
+        animId = requestAnimationFrame(render);
+        return;
+      }
+      lastRenderTime = time - (elapsed % targetInterval);
+
       ctx.clearRect(0, 0, ww, wh);
 
       const now = Date.now();
@@ -162,7 +172,7 @@ export const SnowBackground: React.FC<SnowBackgroundProps> = ({
         ctx.font = `${flake.size}px "Segoe UI Symbol", "Apple Color Emoji", sans-serif`;
         ctx.fillStyle = `rgba(240, 246, 255, ${flake.opacity})`;
 
-        if (flake.blur > 0) {
+        if (!isMobile && flake.blur > 0) {
           ctx.shadowColor = 'rgba(255, 255, 255, 0.85)';
           ctx.shadowBlur = flake.blur;
         } else {

@@ -26,6 +26,8 @@ export const HalloweenBats: React.FC<HalloweenBatsProps> = ({
   zIndex = 1
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || navigator.maxTouchPoints > 0);
+  const effectiveBatCount = isMobile ? Math.min(batCount, 3) : batCount;
 
   useEffect(() => {
     if (!enabled) return;
@@ -44,7 +46,7 @@ export const HalloweenBats: React.FC<HalloweenBatsProps> = ({
       mousePos.y = event.clientY;
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
 
     const batWrappers = rootEl.querySelectorAll<HTMLElement>('.batWrapper');
     if (!batWrappers.length) return;
@@ -109,71 +111,84 @@ export const HalloweenBats: React.FC<HalloweenBatsProps> = ({
     const roam = Math.max(0.2, roamRadius || 1.0);
     const speedMult = Math.max(0.2, speedMultiplier || 1.0);
 
-    const intervalId = setInterval(() => {
-      const width = window.innerWidth || 1200;
-      const height = window.innerHeight || 800;
-      const margin = 70;
+    let animFrameId: number;
+    let lastTime = performance.now();
+    const frameInterval = isMobile ? 1000 / 30 : 1000 / 60;
 
-      bats.forEach((bat) => {
-        // Natural wandering steering across the screen
-        bat.turnRate += (Math.random() - 0.5) * 0.04;
-        bat.turnRate = Math.max(-0.09, Math.min(0.09, bat.turnRate));
-        bat.heading += bat.turnRate;
+    const animateLoop = (now: number) => {
+      const delta = now - lastTime;
+      if (delta >= frameInterval) {
+        lastTime = now - (delta % frameInterval);
 
-        // Smooth boundary avoidance to stay on screen while exploring everywhere
-        if (bat.x < margin) {
-          bat.heading += 0.06;
-        } else if (bat.x > width - margin) {
-          bat.heading += 0.06;
-        }
-        if (bat.y < margin) {
-          bat.heading += 0.06;
-        } else if (bat.y > height - margin) {
-          bat.heading += 0.06;
-        }
+        const width = window.innerWidth || 1200;
+        const height = window.innerHeight || 800;
+        const margin = 50;
 
-        // Mouse influence: gently steer near cursor
-        if (mousePos.isInited) {
-          const dx = mousePos.x - bat.x;
-          const dy = mousePos.y - bat.y;
-          const distSq = dx * dx + dy * dy;
-          if (distSq < 260 * 260 && distSq > 100) {
-            const angleToMouse = Math.atan2(dy, dx);
-            const diff = angleToMouse - bat.heading;
-            bat.heading += Math.sign(Math.sin(diff)) * 0.035;
+        bats.forEach((bat) => {
+          // Natural wandering steering across the screen
+          bat.turnRate += (Math.random() - 0.5) * 0.04;
+          bat.turnRate = Math.max(-0.09, Math.min(0.09, bat.turnRate));
+          bat.heading += bat.turnRate;
+
+          // Smooth boundary avoidance to stay on screen while exploring everywhere
+          if (bat.x < margin) {
+            bat.heading += 0.06;
+          } else if (bat.x > width - margin) {
+            bat.heading += 0.06;
           }
-        }
+          if (bat.y < margin) {
+            bat.heading += 0.06;
+          } else if (bat.y > height - margin) {
+            bat.heading += 0.06;
+          }
 
-        // Advance position across full screen space
-        const currentSpeed = bat.speed * speedMult * roam;
-        bat.x += Math.cos(bat.heading) * currentSpeed;
-        bat.y += Math.sin(bat.heading) * currentSpeed;
+          // Mouse influence: gently steer near cursor
+          if (mousePos.isInited) {
+            const dx = mousePos.x - bat.x;
+            const dy = mousePos.y - bat.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < 260 * 260 && distSq > 100) {
+              const angleToMouse = Math.atan2(dy, dx);
+              const diff = angleToMouse - bat.heading;
+              bat.heading += Math.sign(Math.sin(diff)) * 0.035;
+            }
+          }
 
-        // Keep inside bounds
-        bat.x = Math.max(20, Math.min(width - 20, bat.x));
-        bat.y = Math.max(20, Math.min(height - 20, bat.y));
+          // Advance position across full screen space
+          const currentSpeed = bat.speed * speedMult * roam;
+          bat.x += Math.cos(bat.heading) * currentSpeed;
+          bat.y += Math.sin(bat.heading) * currentSpeed;
 
-        // Compute 3D heading tilt
-        const flightDeg = (bat.heading * 180) / Math.PI + 90;
-        bat.wrapper.style.transform = `translate3d(${bat.x}px, ${bat.y}px, ${bat.height3D}px) rotateZ(${flightDeg}deg) rotateX(${bat.tiltX}deg)`;
+          // Keep inside bounds
+          bat.x = Math.max(20, Math.min(width - 20, bat.x));
+          bat.y = Math.max(20, Math.min(height - 20, bat.y));
 
-        // Wing flapping alternation
-        bat.flapCounter--;
-        if (bat.flapCounter <= 0) {
-          bat.flapCounter = Math.round(15 + Math.random() * 70);
-          bat.wings.forEach((wing) => {
-            wing.classList.toggle('flying');
-            wing.classList.toggle('floating');
-          });
-        }
-      });
-    }, 25);
+          // Compute 3D heading tilt
+          const flightDeg = (bat.heading * 180) / Math.PI + 90;
+          bat.wrapper.style.transform = `translate3d(${bat.x}px, ${bat.y}px, ${bat.height3D}px) rotateZ(${flightDeg}deg) rotateX(${bat.tiltX}deg)`;
+
+          // Wing flapping alternation
+          bat.flapCounter--;
+          if (bat.flapCounter <= 0) {
+            bat.flapCounter = Math.round(15 + Math.random() * 70);
+            bat.wings.forEach((wing) => {
+              wing.classList.toggle('flying');
+              wing.classList.toggle('floating');
+            });
+          }
+        });
+      }
+
+      animFrameId = requestAnimationFrame(animateLoop);
+    };
+
+    animFrameId = requestAnimationFrame(animateLoop);
 
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      clearInterval(intervalId);
+      cancelAnimationFrame(animFrameId);
     };
-  }, [enabled, batCount, batSize, speedMultiplier, roamRadius]);
+  }, [enabled, effectiveBatCount, batSize, speedMultiplier, roamRadius, isMobile]);
 
   if (!enabled) return null;
 
@@ -185,10 +200,10 @@ export const HalloweenBats: React.FC<HalloweenBatsProps> = ({
     <div 
       ref={containerRef} 
       className="fixed inset-0 pointer-events-none select-none overflow-hidden"
-      style={{ zIndex }}
+      style={{ zIndex, transform: 'translate3d(0, 0, 0)', WebkitTransform: 'translate3d(0, 0, 0)' }}
     >
       <div className="batsSpaceContainer w-full h-full relative [perspective:900px] [transform-style:preserve-3d]">
-        {Array.from({ length: batCount }).map((_, idx) => (
+        {Array.from({ length: effectiveBatCount }).map((_, idx) => (
           <div key={idx} className="batWrapper absolute left-0 top-0 [transform-style:preserve-3d] will-change-transform opacity-0 transition-opacity duration-300">
             <div className="bat [transform-style:preserve-3d]">
               {/* Left Side */}
@@ -294,7 +309,7 @@ export const HalloweenBats: React.FC<HalloweenBatsProps> = ({
           100% { transform: rotateY(-35deg); }
         }
 
-        /* DARK MODE: Pitch-black bat with vivid luminous outline and radiant aura */
+        /* DARK MODE: Pitch-black bat with vivid luminous outline */
         .bat-svg path {
           fill: #060911;
           stroke: ${validGlowColor};
@@ -304,10 +319,16 @@ export const HalloweenBats: React.FC<HalloweenBatsProps> = ({
         }
 
         .bat-svg {
-          filter: drop-shadow(0 0 ${2.5 * intensity}px ${validGlowColor}) drop-shadow(0 0 ${8 * intensity}px ${validGlowColor});
+          filter: drop-shadow(0 0 ${2 * intensity}px ${validGlowColor});
         }
 
-        /* LIGHT MODE: Crisp black bat silhouette with soft shadow and clear presence */
+        @media (min-width: 768px) {
+          .bat-svg {
+            filter: drop-shadow(0 0 ${2.5 * intensity}px ${validGlowColor}) drop-shadow(0 0 ${8 * intensity}px ${validGlowColor});
+          }
+        }
+
+        /* LIGHT MODE: Crisp black bat silhouette */
         html.light .bat-svg path,
         html:not(.dark) .bat-svg path {
           fill: #0b0f19;
@@ -319,7 +340,7 @@ export const HalloweenBats: React.FC<HalloweenBatsProps> = ({
 
         html.light .bat-svg,
         html:not(.dark) .bat-svg {
-          filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.45));
+          filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
         }
       `}</style>
     </div>
