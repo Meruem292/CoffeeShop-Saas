@@ -264,6 +264,7 @@ export default function App() {
   };
 
   const [isStarted, setIsStarted] = useState(false);
+  const isSplashActive = !isStarted && (!isAdmin || isKioskModeActive) && (currentView === 'mobile' || currentView === 'kiosk');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState<boolean>(() => {
     try {
@@ -1547,7 +1548,7 @@ export default function App() {
 
           <main className="flex-1 relative overflow-hidden flex flex-col">
             <Suspense fallback={<AdminPageSkeleton theme={currentActiveTheme} />}>
-          {!isStarted && (!isAdmin || isKioskModeActive) && (currentView === 'mobile' || currentView === 'kiosk') && (
+          {isSplashActive ? (
             <SplashScreen 
               data={splashScreen} 
               shopSettings={shopSettings}
@@ -1571,9 +1572,7 @@ export default function App() {
               isKioskModeActive={isKioskModeActive}
               onExitKiosk={user && !isAdmin ? undefined : () => setShowExitKioskModal(true)}
             />
-          )}
-          
-          {!allowedNavigation.some(item => item.id === currentView) ? (
+          ) : !allowedNavigation.some(item => item.id === currentView) ? (
             <div className="flex-1 flex items-center justify-center p-8">
               <div className="text-center max-w-sm">
                 <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/30 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl">
@@ -2004,7 +2003,7 @@ export default function App() {
             }}
           />
         )}
-        {!isAdmin && currentView !== 'customer-chat' && (
+        {!isAdmin && currentView !== 'customer-chat' && !isSplashActive && (
           <CustomerChatWidget
             messages={chatMessages}
             unreadCount={totalUnreadCustomer}
@@ -2031,9 +2030,9 @@ export default function App() {
         )}
         <AmbientAudioWidget
           shopSettings={shopSettings}
-          hidden={['kitchen', 'reports', 'inventory', 'cashier'].includes(currentView)}
+          hidden={isSplashActive || ['kitchen', 'reports', 'inventory', 'cashier'].includes(currentView)}
         />
-        <Footer shopSettings={shopSettings} />
+        {!isSplashActive && <Footer shopSettings={shopSettings} />}
       </div>
     </div>
   );

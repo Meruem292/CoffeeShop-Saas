@@ -154,7 +154,7 @@ export function SplashScreen({
   return (
     <div 
       data-scroll-container
-      className="fixed inset-0 z-[200] bg-slate-50/95 dark:bg-[#090D16]/95 flex flex-col font-sans text-slate-900 dark:text-white pointer-events-auto overflow-y-auto"
+      className="fixed inset-0 z-[200] bg-slate-50 dark:bg-[#090D16] flex flex-col font-sans text-slate-900 dark:text-white pointer-events-auto overflow-y-auto"
       style={{
         WebkitOverflowScrolling: 'touch',
         overscrollBehaviorY: 'contain',
@@ -164,6 +164,29 @@ export function SplashScreen({
         WebkitBackfaceVisibility: 'hidden'
       }}
     >
+      {activeTheme === 'christmas' && (
+        <SnowBackground 
+          enabled={true}
+          speedMultiplier={shopSettings?.snowSpeedMultiplier ?? 1.0}
+          flakeCount={shopSettings?.snowFlakeCount ?? 50}
+          zIndex={1}
+        />
+      )}
+      {activeTheme === 'halloween' && (
+        <>
+          <HalloweenBackground enabled={true} />
+          <HalloweenGarland enabled={true} />
+          <HalloweenBats 
+            enabled={true} 
+            batCount={shopSettings?.batCount}
+            batSize={shopSettings?.batSize}
+            glowColor={shopSettings?.batGlowColor}
+            glowIntensity={shopSettings?.batGlowIntensity}
+            speedMultiplier={shopSettings?.batSpeedMultiplier}
+            roamRadius={shopSettings?.batSpread}
+          />
+        </>
+      )}
       {/* Header Bar */}
       <header className="px-4 py-3 sm:px-6 sm:py-4 md:px-10 border-b border-slate-200 dark:border-white/5 flex items-center justify-between shrink-0 bg-white/95 dark:bg-[#090D16]/95 z-20 pt-safe">
         <div className="flex items-center gap-3">
@@ -269,7 +292,7 @@ export function SplashScreen({
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-[1600px] w-full mx-auto p-3 sm:p-6 md:p-8 pb-28 lg:pb-8 flex flex-col lg:flex-row gap-6 z-10">
+      <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 sm:p-6 md:p-8 flex flex-col lg:flex-row gap-6 z-10">
         
         {/* Right Hero Container - Elevated to First on Mobile for Instant Ordering Access */}
         <div className="order-1 lg:order-2 flex-1 bg-white dark:bg-[#101522] border border-slate-200 dark:border-white/10 rounded-3xl lg:rounded-[2.5rem] p-5 sm:p-7 lg:p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl min-h-0 lg:min-h-[550px]">
@@ -402,9 +425,9 @@ export function SplashScreen({
 
               <div className="hidden md:block w-px h-16 bg-slate-200 dark:bg-white/10" />
 
-              <div className="w-full md:w-1/2 flex items-center justify-between gap-4">
+              <div className="hidden md:flex md:w-1/2 items-center justify-between gap-4">
                 <div className="flex flex-col gap-1 min-w-0">
-                  <span className="px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 text-[8.5px] sm:text-[9px] font-black uppercase tracking-widest inline-block w-fit">
+                  <span className="px-2.5 py-0.5 rounded-md bg-amber-500 text-slate-950 text-[8.5px] sm:text-[9px] font-black uppercase tracking-widest inline-block w-fit">
                     INSTANT ORDERING
                   </span>
                   <h3 className="text-xs sm:text-sm lg:text-base font-black uppercase tracking-tight text-slate-900 dark:text-white truncate">
@@ -617,21 +640,6 @@ export function SplashScreen({
 
         </div>
       </main>
-
-      {/* Floating Sticky Mobile Quick Start Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 p-3 bg-white/95 dark:bg-[#090D16]/95 border-t border-slate-200 dark:border-white/10 backdrop-blur-xl z-30 pb-safe">
-        <button
-          type="button"
-          onClick={() => handleStartWithSound()}
-          className="w-full bg-gradient-to-r from-orange-600 via-amber-500 to-amber-600 active:from-orange-500 active:to-amber-500 text-slate-950 font-black text-sm uppercase tracking-widest py-3.5 px-6 rounded-2xl flex items-center justify-between shadow-xl shadow-amber-500/25 active:scale-[0.98] transition-all"
-        >
-          <span className="flex items-center gap-2.5">
-            <Coffee className="w-5 h-5 text-slate-950" />
-            <span>{shopSettings?.isClosed ? 'BROWSE MENU' : 'START ORDERING'}</span>
-          </span>
-          <ArrowRight className="w-4 h-4 text-slate-950" />
-        </button>
-      </div>
     </div>
   );
 }

@@ -141,7 +141,7 @@ export function AmbientAudioWidget({ shopSettings, className = '', hidden = fals
   const styleConfig = themeThemeColors[activeTheme as keyof typeof themeThemeColors] || themeThemeColors.none;
 
   return (
-    <div className={`fixed bottom-5 right-5 z-40 select-none ${className}`}>
+    <div className={`fixed bottom-5 left-5 z-40 select-none ${className}`}>
       <div className="relative group">
         {/* Floating pill button */}
         <button
@@ -183,7 +183,7 @@ export function AmbientAudioWidget({ shopSettings, className = '', hidden = fals
 
         {/* Hover / Status tooltip */}
         {showVolumePopup && (
-          <div className="absolute bottom-full right-0 mb-2 p-2.5 rounded-xl bg-slate-950/95 backdrop-blur-xl border border-white/10 text-white shadow-2xl w-48 text-left space-y-1.5 animate-in fade-in zoom-in-95 duration-150">
+          <div className="absolute bottom-full left-0 mb-2 p-2.5 rounded-xl bg-slate-950/95 backdrop-blur-xl border border-white/10 text-white shadow-2xl w-48 text-left space-y-1.5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
               <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 <Music className="w-3 h-3 text-amber-400" /> Theme Ambience
