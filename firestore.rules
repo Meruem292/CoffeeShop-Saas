@@ -114,5 +114,12 @@ service cloud.firestore {
         allow delete: if isAdmin();
       }
     }
+
+    // Push Subscriptions Collection (Web Push device tokens for staff alerts)
+    match /push_subscriptions/{subscriptionId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+    }
   }
 }
