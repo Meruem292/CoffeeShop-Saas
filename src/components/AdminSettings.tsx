@@ -127,6 +127,16 @@ export function AdminSettings({
 
   const [notifPerm, setNotifPerm] = useState<NotificationPermission | 'unsupported'>(() => getNotificationPermission());
   const [isTestingPush, setIsTestingPush] = useState(false);
+  const [showPermGuide, setShowPermGuide] = useState(false);
+
+  // Auto-refresh permission state whenever user returns to window/tab from settings
+  useEffect(() => {
+    const handleFocus = () => {
+      setNotifPerm(getNotificationPermission());
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
 
   const handleEnablePushNotifications = async () => {
     try {
@@ -138,7 +148,8 @@ export function AdminSettings({
           await sendTestPushNotification(shopData.name || 'CAIDOZ');
         } catch {}
       } else if (result === 'denied') {
-        toast.error('Notification permission is blocked. Please allow notifications in browser site settings.');
+        setShowPermGuide(true);
+        toast.error('Notification permission is blocked in browser settings. Follow the guide below to allow.');
       }
     } catch {
       toast.error('Failed to request notification permission');
@@ -1482,6 +1493,55 @@ export function AdminSettings({
                         </button>
                       </div>
                     </div>
+
+                    {/* How to Unblock Guide for Android & iOS */}
+                    {(notifPerm === 'denied' || showPermGuide) && (
+                      <div className="mt-3 p-4 bg-rose-500/10 dark:bg-rose-950/30 border border-rose-500/30 rounded-2xl text-xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-black uppercase tracking-wider text-[11px]">
+                            <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                            Browser Notifications Are Blocked
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowPermGuide(false)}
+                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-[11px] font-bold"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                        <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-[11.5px]">
+                          Your browser or phone currently blocks notifications for this domain. To receive order alerts when the screen is locked or app is closed, please unblock permissions below:
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                          <div className="bg-white/60 dark:bg-black/40 p-3 rounded-xl border border-rose-500/20 space-y-1.5">
+                            <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5 text-[11px]">
+                              🤖 Android (Chrome / Samsung Internet / PWA)
+                            </span>
+                            <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300 text-[10.5px] leading-relaxed">
+                              <li>Tap the <strong>🔒 Lock / ⚙️ Tune icon</strong> in the URL address bar.</li>
+                              <li>Tap <strong>Permissions</strong> $\rightarrow$ <strong>Notifications</strong>.</li>
+                              <li>Toggle to <strong>Allow</strong>.</li>
+                              <li>Or in Phone Settings: <em>Apps $\rightarrow$ Chrome (or Caidoz) $\rightarrow$ Notifications $\rightarrow$ Allow</em>.</li>
+                            </ol>
+                          </div>
+                          <div className="bg-white/60 dark:bg-black/40 p-3 rounded-xl border border-rose-500/20 space-y-1.5">
+                            <span className="font-black text-slate-900 dark:text-white flex items-center gap-1.5 text-[11px]">
+                              🍎 iOS (iPhone / iPad - Safari)
+                            </span>
+                            <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300 text-[10.5px] leading-relaxed">
+                              <li>Tap Safari's <strong>Share button</strong> (square with up arrow).</li>
+                              <li>Tap <strong>"Add to Home Screen"</strong> and install the app.</li>
+                              <li>Open the app from your Home Screen.</li>
+                              <li>Tap <strong>Enable Push Alerts</strong> and select <strong>Allow</strong>.</li>
+                            </ol>
+                          </div>
+                        </div>
+                        <div className="pt-1 flex items-center justify-between text-[10.5px] text-slate-500 dark:text-slate-400 font-medium">
+                          <span>💡 Once you change the setting, switch back to this tab and it will automatically activate.</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Master Volume & Output Controls Console */}

@@ -330,23 +330,14 @@ export default function App() {
     }
   }, []);
 
-  // Auto-request notification permission and register Web Push subscription for staff/admin
+  // Silently register Web Push subscription if permission was already granted by user
   useEffect(() => {
     if (isAdmin && isNotificationSupported()) {
-      if (typeof Notification !== 'undefined') {
-        if (Notification.permission === 'granted') {
-          registerDevicePushSubscription(user?.uid, 'admin').catch(() => {});
-        } else if (Notification.permission === 'default') {
-          requestNotificationPermission().then((perm) => {
-            if (perm === 'granted') {
-              toast.success('Push alerts enabled for new orders!');
-              registerDevicePushSubscription(user?.uid, 'admin').catch(() => {});
-            }
-          }).catch(() => {});
-        }
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        registerDevicePushSubscription(user?.uid, 'admin').catch(() => {});
       }
     }
-  }, [isAdmin, user?.uid, toast]);
+  }, [isAdmin, user?.uid]);
 
   // Success Order Auto-Dismiss Timer
   useEffect(() => {
