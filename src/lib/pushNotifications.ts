@@ -94,7 +94,7 @@ export async function registerDevicePushSubscription(
     }
 
     // Default stable VAPID key
-    let vapidPublicKey = 'BBqdrlsWSnMBakioIX3sQnPgTJw6fuifZDcvxJ9rfiSff7UN5ox4W3vDsmtGQ1N976taLUMcMyt3NQRPxthPoGA';
+    let vapidPublicKey = 'BI2d_iUDhX_C1tQW8g24JUFhsmK-ZLkNPljOrjAIVn9p2q5w73jL0b1cbu1PbqfJvYW_kKoDLZkwUSO0Kk9rnb8';
     try {
       const res = await fetch('/api/push/public-key');
       if (res.ok) {

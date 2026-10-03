@@ -1,7 +1,7 @@
 import webpush from "web-push";
 
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BBqdrlsWSnMBakioIX3sQnPgTJw6fuifZDcvxJ9rfiSff7UN5ox4W3vDsmtGQ1N976taLUMcMyt3NQRPxthPoGA";
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "UACOMhXqW0w-5gEtJsDUraDXToU5Tb7hEeQ4d1ehDOw";
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "BI2d_iUDhX_C1tQW8g24JUFhsmK-ZLkNPljOrjAIVn9p2q5w73jL0b1cbu1PbqfJvYW_kKoDLZkwUSO0Kk9rnb8";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "IJVK4TDPJMr49YlSt364653Kk3CzDeGyqy386MOTbXw";
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@caidoz.cafe";
 
 try {
