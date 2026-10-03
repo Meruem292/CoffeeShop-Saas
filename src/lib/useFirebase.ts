@@ -5,6 +5,7 @@ import { Product, Order, OrderStatus, SplashScreen, ShopSettings, Addon, Dynamic
 import { DEFAULT_YOUR_MIX_INGREDIENTS, DEFAULT_YOUR_MIX_BASES, DEFAULT_CUP_SIZES } from '../data/yourMixDefaults';
 import { handleFirestoreError } from './AuthContext';
 import { useToast } from './ToastContext';
+import { sendOrderPushNotification } from './pushNotifications';
 
 enum OperationType {
   CREATE = 'create',
@@ -651,6 +652,17 @@ export function useFirebase(userUid?: string, isAdmin?: boolean) {
       }
 
       await batch.commit();
+
+      // Immediately dispatch server-side push notification to wake up staff lockscreens
+      try {
+        const fullOrderObj: Order = {
+          id: newOrderRef.id,
+          ...cleanData
+        };
+        sendOrderPushNotification(fullOrderObj, shopSettings?.name || 'CAIDOZ').catch(() => {});
+      } catch (pushErr) {
+        console.warn('[Push Notifications] Background push dispatch error:', pushErr);
+      }
     } catch (err) {
       console.error('Add Order Error:', err);
       handleFirestoreError(err, OperationType.CREATE, 'orders');

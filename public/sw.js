@@ -92,13 +92,16 @@ self.addEventListener('fetch', (event) => {
 // Push Notification Event (Web Push / Background payloads)
 self.addEventListener('push', (event) => {
   let data = {
-    title: '🚨 New Order Received!',
-    body: 'A new order has arrived. Tap to view details.',
+    title: '🚨 NEW ORDER RECEIVED!',
+    body: 'A customer order has arrived. Tap to open Kitchen Queue.',
     icon: '/icon-512.jpg',
     badge: '/icon-512.jpg',
-    tag: 'caidoz-order-push',
+    tag: `caidoz-order-${Date.now()}`,
     data: { url: '/?view=cashier', view: 'cashier' },
-    vibrate: [200, 100, 200, 100, 300]
+    vibrate: [300, 150, 300, 150, 400],
+    actions: [
+      { action: 'view', title: '👀 View Order' }
+    ]
   };
 
   if (event.data) {
@@ -110,17 +113,22 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const notificationOptions = {
+    body: data.body,
+    icon: data.icon || '/icon-512.jpg',
+    badge: data.badge || '/icon-512.jpg',
+    tag: data.tag || `caidoz-order-${Date.now()}`,
+    data: data.data || { url: '/?view=cashier', view: 'cashier' },
+    vibrate: data.vibrate || [300, 150, 300, 150, 400],
+    renotify: true,
+    requireInteraction: true,
+    actions: [
+      { action: 'view', title: '👀 View in Kitchen Queue' }
+    ]
+  };
+
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: data.icon || '/icon-512.jpg',
-      badge: data.badge || '/icon-512.jpg',
-      tag: data.tag || 'caidoz-order-push',
-      data: data.data || { url: '/?view=cashier', view: 'cashier' },
-      vibrate: data.vibrate || [200, 100, 200, 100, 300],
-      renotify: true,
-      requireInteraction: true
-    })
+    self.registration.showNotification(data.title, notificationOptions)
   );
 });
 

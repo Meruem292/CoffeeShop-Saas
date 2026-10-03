@@ -132,13 +132,18 @@ async function startServer() {
   // Send Push Alert for New Order to all registered staff devices
   app.post("/api/push/send-order-alert", async (req, res) => {
     try {
-      const { order, shopName } = req.body;
+      const { order, shopName, subscriptions: passedSubs } = req.body;
       if (!order) {
         return res.status(400).json({ success: false, error: "Missing order details" });
       }
 
-      const subs = loadSubscriptions();
-      if (subs.length === 0) {
+      // Use subscriptions passed from Firestore or fallback to locally stored records
+      const localSubs = loadSubscriptions();
+      const subsToUse: any[] = (Array.isArray(passedSubs) && passedSubs.length > 0)
+        ? passedSubs.map(s => (s.endpoint ? s : s.subscription ? s.subscription : s))
+        : localSubs.map(s => s.subscription);
+
+      if (subsToUse.length === 0) {
         return res.json({ success: true, sentCount: 0, message: "No active push subscriptions registered" });
       }
 
@@ -149,7 +154,7 @@ async function startServer() {
       const orderType = order.orderType === 'dine-in' ? 'Dine In' : 'Takeout';
 
       const payload = JSON.stringify({
-        title: `🚨 New Order ${orderNum} Received!`,
+        title: `🚨 NEW ORDER ${orderNum}!`,
         body: `${customer} • ${itemCount} item${itemCount > 1 ? 's' : ''} (${totalStr}) • ${orderType}\nTap to open Kitchen Queue.`,
         icon: '/icon-512.jpg',
         badge: '/icon-512.jpg',
@@ -159,34 +164,42 @@ async function startServer() {
           view: 'cashier',
           orderId: order.id
         },
-        vibrate: [200, 100, 200, 100, 300]
+        vibrate: [300, 150, 300, 150, 400],
+        actions: [
+          { action: 'view', title: '👀 View Order' }
+        ]
       });
 
       let sentCount = 0;
       const deadEndpoints: string[] = [];
 
       await Promise.all(
-        subs.map(async (subRecord) => {
+        subsToUse.map(async (sub) => {
           try {
-            await webpush.sendNotification(subRecord.subscription, payload);
+            // High Urgency header is critical to wake up Android Doze mode and lock screens
+            await webpush.sendNotification(sub, payload, {
+              TTL: 86400,
+              urgency: 'high',
+              topic: 'caidoz-order'
+            });
             sentCount++;
           } catch (pushErr: any) {
-            console.warn(`[Web Push] Send failed for endpoint ${subRecord.endpoint.slice(0, 30)}...`, pushErr.statusCode);
+            console.warn(`[Web Push] Send failed for endpoint:`, pushErr.statusCode);
             if (pushErr.statusCode === 404 || pushErr.statusCode === 410) {
-              deadEndpoints.push(subRecord.endpoint);
+              if (sub.endpoint) deadEndpoints.push(sub.endpoint);
             }
           }
         })
       );
 
-      // Clean up expired / unregistered device tokens
+      // Clean up expired / unregistered device tokens from local storage
       if (deadEndpoints.length > 0) {
-        const cleanedSubs = subs.filter(s => !deadEndpoints.includes(s.endpoint));
+        const cleanedSubs = localSubs.filter(s => !deadEndpoints.includes(s.endpoint));
         saveSubscriptions(cleanedSubs);
       }
 
-      console.log(`[Web Push] Dispatched order alert to ${sentCount}/${subs.length} device(s)`);
-      res.json({ success: true, sentCount, totalSubs: subs.length });
+      console.log(`[Web Push] Dispatched high-urgency order alert to ${sentCount}/${subsToUse.length} device(s)`);
+      res.json({ success: true, sentCount, totalSubs: subsToUse.length });
     } catch (err: any) {
       console.error("[Web Push] Order alert dispatch error:", err);
       res.status(500).json({ success: false, error: err.message });
@@ -197,8 +210,8 @@ async function startServer() {
   app.post("/api/push/send-test", async (req, res) => {
     try {
       const { subscription, shopName } = req.body;
-      const subs = loadSubscriptions();
-      const targetSubs = subscription ? [{ subscription }] : subs;
+      const localSubs = loadSubscriptions();
+      const targetSubs = subscription ? [subscription] : localSubs.map(s => s.subscription);
 
       if (targetSubs.length === 0) {
         return res.status(400).json({ success: false, error: "No push subscription available to test. Please enable push notifications on this device first." });
@@ -214,14 +227,21 @@ async function startServer() {
           url: '/?view=settings',
           view: 'settings'
         },
-        vibrate: [200, 100, 200, 100, 300]
+        vibrate: [300, 150, 300, 150, 400],
+        actions: [
+          { action: 'view', title: '👀 View Order' }
+        ]
       });
 
       let sentCount = 0;
       await Promise.all(
         targetSubs.map(async (s: any) => {
           try {
-            await webpush.sendNotification(s.subscription, payload);
+            await webpush.sendNotification(s, payload, {
+              TTL: 86400,
+              urgency: 'high',
+              topic: 'caidoz-test'
+            });
             sentCount++;
           } catch (err: any) {
             console.warn("[Web Push] Test push delivery failed:", err.message);

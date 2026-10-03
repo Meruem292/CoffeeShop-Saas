@@ -1,4 +1,6 @@
 import { Order } from '../types';
+import { db } from '../firebase';
+import { collection, doc, setDoc, getDocs, deleteDoc } from 'firebase/firestore';
 
 /**
  * Converts a base64 string to a Uint8Array for Web Push applicationServerKey
@@ -19,7 +21,18 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 }
 
 /**
- * Checks if the browser / platform supports Notification and Service Worker APIs
+ * Generates a safe Firestore document ID from a Web Push endpoint URL
+ */
+function getSubscriptionDocId(endpoint: string): string {
+  try {
+    return btoa(endpoint).replace(/[/+=]/g, '_').slice(-60);
+  } catch {
+    return endpoint.slice(-60).replace(/[^a-zA-Z0-9]/g, '_');
+  }
+}
+
+/**
+ * Checks if the browser / platform supports Notification, Service Worker, and PushManager
  */
 export function isNotificationSupported(): boolean {
   return (
@@ -58,7 +71,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 
 /**
  * Registers device with Server-Side Web Push (Google FCM / Apple APNs)
- * Ensures notifications are received even when the app is completely closed / killed.
+ * Persists token to Cloud Firestore so the phone wakes up on lockscreen even when app is killed.
  */
 export async function registerDevicePushSubscription(
   userId?: string,
@@ -80,7 +93,7 @@ export async function registerDevicePushSubscription(
       return null;
     }
 
-    // Fetch VAPID public key from backend
+    // Default stable VAPID key
     let vapidPublicKey = 'BBqdrlsWSnMBakioIX3sQnPgTJw6fuifZDcvxJ9rfiSff7UN5ox4W3vDsmtGQ1N976taLUMcMyt3NQRPxthPoGA';
     try {
       const res = await fetch('/api/push/public-key');
@@ -90,14 +103,11 @@ export async function registerDevicePushSubscription(
           vapidPublicKey = json.publicKey;
         }
       }
-    } catch (e) {
-      console.warn('[Push Notifications] Failed to fetch VAPID key from server, using default key:', e);
-    }
+    } catch {}
 
-    // Check existing subscription
     let subscription = await registration.pushManager.getSubscription();
 
-    // If no subscription exists or key changed, subscribe fresh
+    // If no existing subscription, register fresh
     if (!subscription) {
       const convertedKey = urlBase64ToUint8Array(vapidPublicKey);
       subscription = await registration.pushManager.subscribe({
@@ -106,21 +116,36 @@ export async function registerDevicePushSubscription(
       });
     }
 
-    // Send subscription payload to backend server
     if (subscription) {
+      const subJson = subscription.toJSON();
+      const docId = getSubscriptionDocId(subscription.endpoint);
+
+      // 1. Save directly into Cloud Firestore for persistent cloud-wide access across Vercel / serverless
+      try {
+        await setDoc(doc(db, 'push_subscriptions', docId), {
+          endpoint: subscription.endpoint,
+          subscription: subJson,
+          userId: userId || 'staff',
+          role: role || 'admin',
+          deviceName: navigator.userAgent || 'Staff Device',
+          updatedAt: Date.now()
+        }, { merge: true });
+      } catch (fsErr) {
+        console.warn('[Push Notifications] Firestore sub save failed:', fsErr);
+      }
+
+      // 2. Also register with server API
       try {
         await fetch('/api/push/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            subscription: subscription.toJSON(),
+            subscription: subJson,
             userId: userId || undefined,
             role: role || 'admin'
           })
         });
-      } catch (subErr) {
-        console.warn('[Push Notifications] Failed to sync subscription with backend:', subErr);
-      }
+      } catch {}
     }
 
     return subscription;
@@ -132,15 +157,30 @@ export async function registerDevicePushSubscription(
 
 /**
  * Triggers server-side push notification dispatch to all staff devices
- * This reaches staff phones even if their app was swiped away / killed.
+ * Queries all staff push subscriptions from Firestore and dispatches via Google/Apple push servers.
  */
 export async function sendServerOrderPush(order: Order, shopName: string = 'CAIDOZ'): Promise<boolean> {
   try {
+    // 1. Fetch active subscriptions from Firestore
+    let subscriptionsList: any[] = [];
+    try {
+      const snap = await getDocs(collection(db, 'push_subscriptions'));
+      subscriptionsList = snap.docs.map(d => d.data()?.subscription).filter(Boolean);
+    } catch (fsErr) {
+      console.warn('[Push Notifications] Error fetching subscriptions from Firestore:', fsErr);
+    }
+
+    // 2. Dispatch to backend API route
     const res = await fetch('/api/push/send-order-alert', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order, shopName })
+      body: JSON.stringify({
+        order,
+        shopName,
+        subscriptions: subscriptionsList.length > 0 ? subscriptionsList : undefined
+      })
     });
+
     if (res.ok) {
       const data = await res.json();
       return !!data.success;
@@ -153,12 +193,13 @@ export async function sendServerOrderPush(order: Order, shopName: string = 'CAID
 
 /**
  * Triggers client-side local push notification for immediate foreground/background alert
+ * AND broadcasts server-side push to wake up all other staff phones that are locked / killed.
  */
 export async function sendOrderPushNotification(
   order: Order,
   shopName: string = 'CAIDOZ'
 ): Promise<boolean> {
-  // 1. Dispatch through server so all other background/killed staff devices receive it
+  // Always trigger server-side push broadcast so all background / killed staff devices wake up
   sendServerOrderPush(order, shopName).catch(() => {});
 
   if (!isNotificationSupported() || Notification.permission !== 'granted') {
@@ -171,11 +212,11 @@ export async function sendOrderPushNotification(
   const totalStr = `₱${(order.total || 0).toLocaleString()}`;
   const orderType = order.orderType === 'dine-in' ? 'Dine In' : 'Takeout';
 
-  const title = `🚨 New Order ${orderNum} Received!`;
+  const title = `🚨 NEW ORDER ${orderNum}!`;
   const body = `${customer} • ${itemCount} item${itemCount > 1 ? 's' : ''} (${totalStr}) • ${orderType}\nTap to open Kitchen Queue.`;
 
-  // Vibration pattern: [vibrate, pause, vibrate, pause, long vibrate]
-  const vibrationPattern = [200, 100, 200, 100, 300];
+  // Heavy vibration pattern for lockscreen attention: [vibrate, pause, vibrate, pause, long vibrate]
+  const vibrationPattern = [300, 150, 300, 150, 400];
 
   try {
     if ('vibrate' in navigator) {
@@ -198,7 +239,10 @@ export async function sendOrderPushNotification(
         },
         vibrate: vibrationPattern,
         renotify: true,
-        requireInteraction: true
+        requireInteraction: true,
+        actions: [
+          { action: 'view', title: '👀 View in Kitchen Queue' }
+        ]
       } as NotificationOptions);
       return true;
     }
@@ -220,7 +264,7 @@ export async function sendOrderPushNotification(
       notif.close();
     };
     return true;
-  } catch (fallbackErr) {
+  } catch {
     return false;
   }
 }
@@ -240,10 +284,10 @@ export async function sendTestPushNotification(shopName: string = 'CAIDOZ'): Pro
     }
   }
 
-  // Ensure subscription is synced with server
+  // Ensure subscription is registered & saved to Firestore
   const subscription = await registerDevicePushSubscription();
 
-  // Try dispatching through backend server for true lockscreen test
+  // Try dispatching through backend server for true lockscreen wakeup test
   try {
     const res = await fetch('/api/push/send-test', {
       method: 'POST',
@@ -263,7 +307,7 @@ export async function sendTestPushNotification(shopName: string = 'CAIDOZ'): Pro
   // Fallback to local Service Worker test
   const title = `🔔 ${shopName} Staff Push Active!`;
   const body = `Test push received! You will receive sound, vibration & lockscreen alerts for new orders even when the app is completely closed.`;
-  const vibrationPattern = [200, 100, 200, 100, 300];
+  const vibrationPattern = [300, 150, 300, 150, 400];
 
   try {
     if ('vibrate' in navigator) {
