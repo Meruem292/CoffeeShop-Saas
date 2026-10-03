@@ -88,3 +88,66 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Push Notification Event (Web Push / Background payloads)
+self.addEventListener('push', (event) => {
+  let data = {
+    title: '🚨 New Order Received!',
+    body: 'A new order has arrived. Tap to view details.',
+    icon: '/icon-512.jpg',
+    badge: '/icon-512.jpg',
+    tag: 'caidoz-order-push',
+    data: { url: '/?view=cashier', view: 'cashier' },
+    vibrate: [200, 100, 200, 100, 300]
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    } catch {
+      data.body = event.data.text() || data.body;
+    }
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: data.icon || '/icon-512.jpg',
+      badge: data.badge || '/icon-512.jpg',
+      tag: data.tag || 'caidoz-order-push',
+      data: data.data || { url: '/?view=cashier', view: 'cashier' },
+      vibrate: data.vibrate || [200, 100, 200, 100, 300],
+      renotify: true,
+      requireInteraction: true
+    })
+  );
+});
+
+// Notification Click Event (Deep linking to window or launching PWA)
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const notificationData = event.notification.data || {};
+  const targetView = notificationData.view || 'cashier';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If a window client is already open, focus it and notify App.tsx to switch view
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.postMessage({
+            type: 'NAVIGATE_TO_VIEW',
+            view: targetView,
+            orderId: notificationData.orderId
+          });
+          return client.focus();
+        }
+      }
+      // If no window is open, open a new window
+      if (self.clients.openWindow) {
+        const urlToOpen = notificationData.url || `/?view=${targetView}`;
+        return self.clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});

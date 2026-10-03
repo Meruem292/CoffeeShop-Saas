@@ -39,6 +39,7 @@ import { CustomerChatPage } from './components/CustomerChatPage';
 import { AdminPageSkeleton } from './components/AdminPageSkeleton';
 import { KioskMemberModal } from './components/KioskMemberModal';
 import { AmbientAudioWidget } from './components/AmbientAudioWidget';
+import { sendOrderPushNotification, requestNotificationPermission, isNotificationSupported } from './lib/pushNotifications';
 
 export default function App() {
   const { toast } = useToast();
@@ -309,6 +310,38 @@ export default function App() {
       setTheme(shopSettings.themeMode);
     }
   }, [shopSettings?.themeMode, setTheme]);
+
+  // Service Worker notification click receiver for deep-linking
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      const handleSwMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === 'NAVIGATE_TO_VIEW') {
+          const targetView = event.data.view as ViewMode;
+          if (targetView) {
+            setCurrentView(targetView);
+            setIsStarted(true);
+          }
+        }
+      };
+      navigator.serviceWorker.addEventListener('message', handleSwMessage);
+      return () => {
+        navigator.serviceWorker.removeEventListener('message', handleSwMessage);
+      };
+    }
+  }, []);
+
+  // Auto-request notification permission for staff/admin if supported and not yet decided
+  useEffect(() => {
+    if (isAdmin && isNotificationSupported()) {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        requestNotificationPermission().then((perm) => {
+          if (perm === 'granted') {
+            toast.success('Push alerts enabled for new orders!');
+          }
+        }).catch(() => {});
+      }
+    }
+  }, [isAdmin, toast]);
 
   // Success Order Auto-Dismiss Timer
   useEffect(() => {
@@ -615,11 +648,13 @@ export default function App() {
 
       if (prevOrderIds.current.size > 0) {
         let hasNew = false;
+        let latestNewOrder: Order | undefined;
         for (const id of currentIds) {
           if (!prevOrderIds.current.has(id)) {
             const order = orders.find(o => o.id === id);
             if (order && (order.status === 'unpaid' || order.status === 'pending' || order.status === 'pending-verification')) {
                hasNew = true;
+               latestNewOrder = order;
                break;
             }
           }
@@ -631,6 +666,9 @@ export default function App() {
              volume: orderNotificationVolume,
              muted: orderNotificationMuted
            });
+           if (latestNewOrder) {
+             sendOrderPushNotification(latestNewOrder, shopSettings?.name || 'CAIDOZ');
+           }
         }
       }
 
